@@ -79,7 +79,7 @@ object WorkflowAssembly {
       // record the runtime binding + where to observe it: engine name, the namespace the run lives in
       // (meta.ns), the task queue it was started on (meta.tq), and a deep-link into the engine panel
       // (meta.url — HTTPS panel when --engine.url is set, else URL derived from the gRPC --engine URI)
-      url      = engine.panelUri(workflowType, started.workflowId, started.runtimeId)
+      url      = engine.panelUri(workflowType, started.workflowId, started.runtimeId, started.namespace)
       meta     = wconf.meta.getOrElse(Map.empty[String, Any]) +
                    ("wid" -> started.workflowId) + ("engine" -> engine.name) + ("ns" -> started.namespace) +
                    ("tq" -> taskQueue) ++

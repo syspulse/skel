@@ -69,7 +69,7 @@ object WorkflowRegistry {
   // Start an Engine (Temporal) execution FROM a WorkflowSchema by id: create a WorkflowConfig from the
   // schema, then start a Workflow with WorkflowType == WorkflowSchema.name and WorkflowId = `wid` (if
   // non-empty) else the new WorkflowConfig.title (or .name if title is empty). taskQueue = request ->
-  // config.meta("taskQueue") -> default; input = caller JSON override else the WorkflowConfig JSON. Sets
+  // config.meta("tq") -> default; input = caller JSON override else the WorkflowConfig JSON. Sets
   // xid = RunId (+ meta.wid), persists, then Resolves live statuses (STARTING while not yet visible).
   final case class StartWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], wid: Option[String], ns: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
 
@@ -392,6 +392,7 @@ object WorkflowRegistry {
       oid = req.oid.orElse(wconf.oid),
       pid = req.pid.orElse(wconf.pid),
       xid = req.xid.orElse(wconf.xid),
+      meta = req.meta.orElse(wconf.meta),  // allow editing engine metadata (wid/engine/ns/tq/uri/...)
     )
 
   // ---------------------------------------------------------------- detector builders
@@ -586,7 +587,7 @@ object WorkflowRegistry {
             //   WorkflowType = WorkflowSchema.name (== the created config.name, which defaults to the schema name)
             //   WorkflowId   = `wid` (if non-empty) else new WorkflowConfig.title (or .name if title is empty)
             // When `wid` is provided it is ALSO used as the WorkflowConfig.title (set at creation).
-            // taskQueue: request -> config.meta("taskQueue") -> default; input: caller JSON override else config JSON.
+            // taskQueue: request -> config.meta("tq") -> default; input: caller JSON override else config JSON.
             // The caller's start input JSON is recorded into meta.input (stored AS A STRING - JsonMap
             // serializes a String value to a JSON string; an empty body leaves meta.input unset). This
             // is folded into the config BEFORE start(), which preserves meta.* on its single write.
@@ -597,7 +598,7 @@ object WorkflowRegistry {
                             .map(in => wconf0.copy(meta = Some(wconf0.meta.getOrElse(Map.empty[String, Any]) + ("input" -> in))))
                             .getOrElse(wconf0)
               tq        = taskQueue.filter(_.nonEmpty)
-                            .orElse(wconf.meta.flatMap(_.get("taskQueue")).map(_.toString).filter(_.nonEmpty))
+                            .orElse(wconf.meta.flatMap(_.get("tq")).map(_.toString).filter(_.nonEmpty))
                             .getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
               payload   = input.filter(_.nonEmpty).orElse(Some(wconf.toJson.compactPrint))
               saved    <- WorkflowAssembly.start(wconf, wconf.name, e, store, tq, payload, ns, wid)

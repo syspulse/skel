@@ -24,5 +24,5 @@ echo "  schema id = $SID"
 WID="Demo-$(date +%s)"
 echo "starting schema $SID on DEMO_WORKFLOW_QUEUE (wid=$WID) ..."
 curl -sf "${AUTH[@]}" -H 'Content-Type: application/json' \
-  -X POST "$WF_EXT_URL/schema/$SID/start?taskQueue=DEMO_WORKFLOW_QUEUE&wid=$WID" \
+  -X POST "$WF_EXT_URL/schema/$SID/start?tq=DEMO_WORKFLOW_QUEUE&wid=$WID" \
   -d '{"hello":"world","n":42}' | python3 -m json.tool

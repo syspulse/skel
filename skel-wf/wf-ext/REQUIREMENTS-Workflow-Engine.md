@@ -121,19 +121,19 @@ map Engine runtime Workflow and Activities state to runtime WorkflowConfig
 - Command to link WorkflowConfig created from DSL to Temporal via `xid`.
   Example (create Proof of Reserve WorkflowConfig flow instance with 3 DetectroConfig and link to Temporal Runtime with RuntimeID=019e7473-05d1-789f-bb4b-44845bd69fc6):
   ```
-  ./run-wf.sh --engine=temporal:// assembly-link 019e7473-05d1-789f-bb4b-44845bd69fc6  '[PoO] -> [PoR] -> [Report]'
+  ./run-wf.sh --engine.uri=temporal:// assembly-link 019e7473-05d1-789f-bb4b-44845bd69fc6  '[PoO] -> [PoR] -> [Report]'
   ``` 
 
 - Command to get all Runtime workflows.
   Example:
   ```
-  ./run-wf.sh --engine=temporal:// runtime-get'
+  ./run-wf.sh --engine.uri=temporal:// runtime-get'
   ``` 
 
 - Command to get Runtime workflow.
   Example:
   ```
-  ./run-wf.sh --engine=temporal:// runtime-get 019e7473-062b-7e26-8925-e202fe0285a1'
+  ./run-wf.sh --engine.uri=temporal:// runtime-get 019e7473-062b-7e26-8925-e202fe0285a1'
   ``` 
 
 

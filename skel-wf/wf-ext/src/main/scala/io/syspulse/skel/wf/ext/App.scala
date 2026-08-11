@@ -133,7 +133,7 @@ object App extends skel.Server {
         ArgString('_', "wid", s"WorkflowSchema id for schema/assembly (def: next id, starts at 0)"),
         ArgString('_', "wn", s"WorkflowSchema name for schema/assembly (def: random)"),
 
-        ArgString('_', "engine", s"Engine URI (e.g. temporal://127.0.0.1:7233/default)"),
+        ArgString('_', "engine.uri", s"Engine URI (e.g. temporal://127.0.0.1:7233/default)"),
         ArgString('_', "engine.url", s"Engine URL to access Workflow in Engine UI"),
         ArgString('_', "ns", s"Engine namespace override (e.g. default, '*' for all)"),
         ArgLong('_', "poll", s"assembly-track polling interval in msec (def: ${d.poll})"),
@@ -162,7 +162,8 @@ object App extends skel.Server {
         ArgCmd("signal", s"Signal a WorkflowConfig's running Engine workflow (params: <configId> [signalName=CONTINUE] [payloadJson]); requires --engine"),
 
         ArgParam("<params>", "DSL pipeline, e.g. 'Detector.a -> Detector.b -> Detector.c'"),
-        ArgLogging()
+        ArgLogging(),
+        ArgConfig(),
       ).withExit(1)
     )).withLogging()
 
@@ -175,7 +176,7 @@ object App extends skel.Server {
 
       wid = c.getString("wid").map(_.toInt),
       wn = c.getString("wn"),      
-      engine = c.getString("engine").filter(_.nonEmpty),
+      engine = c.getString("engine.uri").filter(_.nonEmpty),
       engineUrl = c.getString("engine.url").filter(_.nonEmpty),
       ns = c.getString("ns").filter(_.nonEmpty),
       poll = c.getLong("poll").getOrElse(d.poll),

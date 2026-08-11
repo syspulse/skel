@@ -401,14 +401,14 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   @Operation(tags = Array("schema"), summary = "Create a WorkflowConfig from a WorkflowSchema and start an Engine (Temporal) execution (WorkflowType == schema.name, WorkflowId == wid|config.title|name); sets xid=RunId and returns the resolved config",
     parameters = Array(
       new Parameter(name = "id", in = ParameterIn.PATH, description = "WorkflowSchema id"),
-      new Parameter(name = "taskQueue", in = ParameterIn.QUERY, description = "Task Queue an independent worker polls; else config.meta(taskQueue), else default"),
+      new Parameter(name = "tq", in = ParameterIn.QUERY, description = "Task Queue an independent worker polls; else config.meta(taskQueue), else default"),
       new Parameter(name = "wid", in = ParameterIn.QUERY, description = "override the Temporal WorkflowId (else derived from the created config.title|name)")),
     requestBody = new RequestBody(description = "optional JSON input payload for the workflow (overrides the default WorkflowConfig payload)",
       content = Array(new Content(schema = new Schema(implementation = classOf[String])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "created + started + resolved config(s)",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
   def startWorkflowSchemaRoute(id: Int) = post {
-    parameters("taskQueue".?, "wid".?, "ns".?) { (tq, wid, ns) =>
+    parameters("tq".?, "wid".?, "ns".?) { (tq, wid, ns) =>
       authAdminService {
         // optional JSON body = caller input payload (overrides the default WorkflowConfig payload)
         entity(as[JsValue]) { body => complete(startWorkflowSchema(id, tq, Some(body.compactPrint), wid, ns)) } ~

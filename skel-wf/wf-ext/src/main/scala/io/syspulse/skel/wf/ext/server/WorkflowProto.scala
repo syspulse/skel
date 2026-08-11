@@ -97,6 +97,7 @@ final case class WorkflowConfigUpdateReq(
   oid: Option[String] = None,
   pid: Option[String] = None,
   xid: Option[String] = None,
+  meta: Option[Map[String, Any]] = None,
 )
 /** Assemble a WorkflowConfig (with underlying WorkflowSchema and new Detector* by name) from a DSL pipeline. */
 final case class WorkflowConfigDslReq(

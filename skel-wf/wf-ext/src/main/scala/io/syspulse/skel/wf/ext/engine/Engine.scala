@@ -73,7 +73,7 @@ trait Engine {
    * @param runtimeId    Engine runtime instance id  (Temporal RunId == WorkflowConfig.xid)
    * @return absolute panel URL, or None when the engine exposes no web panel
    */
-  def panelUri(workflowType: String, workflowId: String, runtimeId: String): Option[String] = None
+  def panelUri(workflowType: String, workflowId: String, runtimeId: String, ns:String): Option[String] = None
 
   /**
    * Start a NEW workflow execution on the Engine (Temporal StartWorkflowExecution).

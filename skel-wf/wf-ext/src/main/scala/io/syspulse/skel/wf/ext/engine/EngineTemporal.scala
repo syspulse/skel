@@ -27,6 +27,10 @@ import io.temporal.api.workflow.v1.{WorkflowExecutionInfo => TWorkflowExecutionI
 import io.temporal.api.history.v1.HistoryEvent
 import io.temporal.api.enums.v1.{EventType, TaskQueueType}
 
+object EngineTemporal {
+  val DEFAULT_NAMESPACE = "default"
+}
+
 // ============================================================================
 // EngineTemporal
 //
@@ -169,9 +173,9 @@ class EngineTemporal(uri: String, override val url: Option[String] = None, maxCh
   // concrete namespace `start` writes to.
   // Base: `--engine.url` when set (HTTPS panel, may differ from gRPC `--engine` URI); else derive from
   // the connection URI (TemporalURI.ui / ?ui=... / http://host:8233) — same host in local/dev.
-  override def panelUri(workflowType: String, workflowId: String, runtimeId: String): Option[String] = {
+  override def panelUri(workflowType: String, workflowId: String, runtimeId: String, ns:String = EngineTemporal.DEFAULT_NAMESPACE): Option[String] = {
     val base = url.map(_.trim).filter(_.nonEmpty).getOrElse(t.ui).stripSuffix("/")
-    val ns = writeNamespace(None)
+    //val ns = writeNamespace(None)
     Some(s"${base}/namespaces/${ns}/workflows/${workflowId}/${runtimeId}")
   }
 
@@ -179,7 +183,7 @@ class EngineTemporal(uri: String, override val url: Option[String] = None, maxCh
   private def writeNamespace(namespace: Option[String]): String =
     namespace.map(_.trim).filter(_.nonEmpty).getOrElse {
       t.namespace match {
-        case "*"                  => "default"
+        case "*"                  => EngineTemporal.DEFAULT_NAMESPACE
         case n if n.contains(",") => n.split(",").head.trim
         case n                    => n
       }

@@ -146,7 +146,7 @@ export interface WorkflowConfigCreateReq { sid: number; name?: string; oid?: str
 export interface WorkflowConfigUpdateReq {
   name?: string; version?: string; title?: string; description?: string;
   status?: string; icon?: string; tags?: string[]; config?: Record<string, unknown>; graph?: WorkflowGraf;
-  oid?: string; pid?: string; xid?: string;
+  oid?: string; pid?: string; xid?: string; meta?: Meta;
 }
 export interface WorkflowGrafCreateReq { id?: number; sid?: number; cid?: number; graph?: WorkflowGraf; }
 export interface DetectorSchemaCreateReq {

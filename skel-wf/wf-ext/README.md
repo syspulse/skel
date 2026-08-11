@@ -13,7 +13,7 @@ APP_EXEC=bloop ./run-wf.sh server
 With Temporal Engine (enables `/temporal/*` and `/engine/*` routes):
 
 ```
-APP_EXEC=bloop ./run-wf.sh --engine=temporal://127.0.0.1:7233/default server
+APP_EXEC=bloop ./run-wf.sh --engine.uri=temporal://127.0.0.1:7233/default server
 ```
 
 ### Datastores
@@ -54,7 +54,7 @@ APP_EXEC=bloop ./run-wf.sh -d "jdbc://postgres?search=tgram" server
 With engine + directory store:
 
 ```
-APP_EXEC=bloop ./run-wf.sh -d dir://store --engine=temporal://127.0.0.1:7233/default server
+APP_EXEC=bloop ./run-wf.sh -d dir://store --engine.uri=temporal://127.0.0.1:7233/default server
 ```
 
 ## Assembly DSL
@@ -89,7 +89,7 @@ curl -s -X POST http://127.0.0.1:8080/api/v1/wf/ext/config/assembly \
   -d '{"pipeline":"[A] -> [B] -> [C]"}'
 ```
 
-Assemble and bind to a Temporal runtime (`id` = RunId UUID or WorkflowId). Server must be started with `--engine`:
+Assemble and bind to a Temporal runtime (`id` = RunId UUID or WorkflowId). Server must be started with `--engine.uri`:
 
 ```
 curl -s -X POST "http://127.0.0.1:8080/api/v1/wf/ext/temporal/assembly/<id>?ns=default" \
@@ -110,7 +110,7 @@ Helper:
 Requires existing DetectorConfigs (e.g. from a prior `assembly`) and an engine:
 
 ```
-APP_EXEC=bloop ./run-wf.sh -d dir://store --engine=temporal:// link <workflowId|runtimeId> '[PoO] -> [PoR] -> [Report]'
+APP_EXEC=bloop ./run-wf.sh -d dir://store --engine.uri=temporal:// link <workflowId|runtimeId> '[PoO] -> [PoR] -> [Report]'
 ```
 
 Helper:

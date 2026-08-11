@@ -26,7 +26,7 @@ echo "-------"
 
 URL="$SERVICE_URI/schema/$ID/start"
 Q=""
-[[ -n "$TASK_QUEUE" ]] && Q="taskQueue=${TASK_QUEUE}"
+[[ -n "$TASK_QUEUE" ]] && Q="tq=${TASK_QUEUE}"
 [[ -n "$WID" ]] && Q="${Q:+$Q&}wid=${WID}"
 [[ -n "$NS" ]] && Q="${Q:+$Q&}ns=${NS}"
 [[ -n "$Q" ]] && URL="${URL}?${Q}"

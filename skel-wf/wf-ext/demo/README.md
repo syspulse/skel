@@ -50,7 +50,7 @@ Send the signal (generic — any WorkflowConfig, any signal name, optional JSON 
 # REST:  POST /config/{id}/signal?name=CONTINUE   body = JSON payload
 ../wf-config-signal.sh <configId>                       # signal CONTINUE with {}
 ../wf-config-signal.sh <configId> CONTINUE '{"ok":1}'   # with a payload
-# CLI:   wf-ext signal <configId> [signalName=CONTINUE] [payloadJson]   (requires --engine)
+# CLI:   wf-ext signal <configId> [signalName=CONTINUE] [payloadJson]   (requires --engine.uri)
 ```
 
 > To try it: add a detector named `DemoHuman` to the `Demo` schema (UI/DSL), start it, watch the worker
@@ -76,8 +76,8 @@ Send the signal (generic — any WorkflowConfig, any signal name, optional JSON 
 
 2. **wf-ext with an engine** pointed at that server:
    ```bash
-   # from skel-wf/wf-ext — must include --engine so start/resolve work
-   ../../run-app.sh wf-ext io.syspulse.skel.wf.ext.App -- --engine=temporal://
+   # from skel-wf/wf-ext — must include --engine.uri so start/resolve work
+   ../../run-app.sh wf-ext io.syspulse.skel.wf.ext.App -- --engine.uri=temporal://
    ```
 
 3. **The worker** (task queue `DEMO_WORKFLOW_QUEUE`):
