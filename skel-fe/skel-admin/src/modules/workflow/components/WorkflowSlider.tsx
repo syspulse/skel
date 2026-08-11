@@ -73,6 +73,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
       setForm({ name: schema.name, title: schema.title, description: schema.description, status: schema.status, version: schema.version, icon: schema.icon, tags: (schema.tags ?? []).join(', '), oid: '', pid: '', xid: '' });
       setSchemaJson(schema.schema ? JSON.stringify(schema.schema, null, 2) : '');
       setUiSchemaJson(schema.uiSchema ? JSON.stringify(schema.uiSchema, null, 2) : '');
+      setMetaJson(schema.meta && Object.keys(schema.meta).length > 0 ? JSON.stringify(schema.meta, null, 2) : '');
     } else if (kind === KIND.workflowConfig && config) {
       setForm({ name: config.name, title: config.title, description: config.description, status: config.status, version: config.version, icon: config.icon, tags: (config.tags ?? []).join(', '), oid: config.oid ?? '', pid: config.pid ?? '', xid: config.xid ?? '', sid: config.sid });
       setConfigJson(config.config ? JSON.stringify(config.config, null, 2) : '');
@@ -105,7 +106,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
         status: form.status, version: form.version, icon: form.icon || undefined, tags: tagsArr(form.tags),
       };
       try {
-        if (kind === KIND.workflowSchema) { patch.schema = parseJsonObj(schemaJson); patch.uiSchema = parseJsonObj(uiSchemaJson); }
+        if (kind === KIND.workflowSchema) { patch.schema = parseJsonObj(schemaJson); patch.uiSchema = parseJsonObj(uiSchemaJson); patch.meta = parseJsonObj(metaJson); }
         else { patch.config = parseJsonObj(configJson); patch.meta = parseJsonObj(metaJson); }
       } catch { setError(t('workflow.invalidJson')); return; }
       if (kind === KIND.workflowConfig) { patch.oid = form.oid || undefined; patch.pid = form.pid || undefined; patch.xid = form.xid || undefined; }
@@ -261,6 +262,14 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
                 <textarea rows={4} spellCheck={false} value={uiSchemaJson} onChange={(e) => setUiSchemaJson(e.target.value)}
                   placeholder={'{\n  "ui:order": []\n}'} className="field-code" />
               </div>
+              {/* WorkflowSchema.meta - editable JSON */}
+              {!addMode && (
+                <div className="field-stack">
+                  <label className="field-stack-label">{t('workflow.fields.meta')}</label>
+                  <textarea rows={8} spellCheck={false} value={metaJson} onChange={(e) => setMetaJson(e.target.value)}
+                    placeholder={'{\n}'} className="field-code" />
+                </div>
+              )}
             </>
           )}
           {!addMode && kind === KIND.workflowConfig && (

@@ -16,7 +16,7 @@ object WorkflowJson extends JsonCommon {
   implicit val jf_schemas: RootJsonFormat[WorkflowSchemas]               = jsonFormat3(WorkflowSchemas)
   implicit val jf_schema_view: RootJsonFormat[WorkflowSchemaView]        = jsonFormat2(WorkflowSchemaView)
   implicit val jf_schema_create: RootJsonFormat[WorkflowSchemaCreateReq] = jsonFormat11(WorkflowSchemaCreateReq)
-  implicit val jf_schema_update: RootJsonFormat[WorkflowSchemaUpdateReq] = jsonFormat10(WorkflowSchemaUpdateReq)
+  implicit val jf_schema_update: RootJsonFormat[WorkflowSchemaUpdateReq] = jsonFormat11(WorkflowSchemaUpdateReq)
   implicit val jf_schema_dsl: RootJsonFormat[WorkflowSchemaDslReq]       = jsonFormat3(WorkflowSchemaDslReq)
 
   // ---- WorkflowConfig ----

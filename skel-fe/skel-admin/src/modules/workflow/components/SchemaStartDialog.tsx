@@ -5,25 +5,30 @@ import { SliderFieldRow } from '../../../components/SliderFieldRow';
 
 interface SchemaStartDialogProps {
   open: boolean;
-  schemaName?: string;   // shown in the title (the schema being started)
+  schemaId?: number;     // shown in the title (the schema being started)
+  schemaName?: string;   // shown in the title
+  defaultTaskQueue?: string; // pre-fill from WorkflowSchema.meta.tq
+  defaultNs?: string;        // pre-fill from WorkflowSchema.meta.ns
   saving: boolean;
   onClose: () => void;
   // input: parsed JSON (undefined when empty -> server uses the default WorkflowConfig payload)
-  onStart: (input: unknown | undefined, taskQueue?: string, wid?: string) => void;
+  onStart: (input: unknown | undefined, taskQueue?: string, wid?: string, ns?: string) => void;
 }
 
-/** Modal to start a workflow from a WorkflowSchema: input JSON + optional task queue + workflowId. */
+/** Modal to start a workflow from a WorkflowSchema: input JSON + optional task queue / namespace / workflowId. */
 export function SchemaStartDialog(props: SchemaStartDialogProps) {
-  const { open, schemaName, saving, onClose, onStart } = props;
+  const { open, schemaId, schemaName, defaultTaskQueue, defaultNs, saving, onClose, onStart } = props;
   const { t } = useTranslation();
   const [inputJson, setInputJson] = useState('');
   const [taskQueue, setTaskQueue] = useState('');
+  const [ns, setNs] = useState('');
   const [wid, setWid] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) { setInputJson(''); setTaskQueue(''); setWid(''); setError(null); }
-  }, [open]);
+    // pre-fill task queue / namespace from WorkflowSchema.meta (meta.tq / meta.ns) when available
+    if (open) { setInputJson(''); setTaskQueue(defaultTaskQueue ?? ''); setNs(defaultNs ?? ''); setWid(''); setError(null); }
+  }, [open, defaultTaskQueue, defaultNs]);
 
   if (!open) return null;
 
@@ -34,7 +39,7 @@ export function SchemaStartDialog(props: SchemaStartDialogProps) {
     if (raw) {
       try { input = JSON.parse(raw); } catch { setError(t('workflow.invalidJson')); return; }
     }
-    onStart(input, taskQueue.trim() || undefined, wid.trim() || undefined);
+    onStart(input, taskQueue.trim() || undefined, wid.trim() || undefined, ns.trim() || undefined);
   };
 
   return (
@@ -44,7 +49,7 @@ export function SchemaStartDialog(props: SchemaStartDialogProps) {
         <div className="pointer-events-auto w-full max-w-lg bg-card border border-border rounded shadow-lg flex flex-col">
           <div className="slide-header">
             <h2 className="slide-title">
-              {t('workflow.startTitle')}{schemaName ? ` / ${schemaName}` : ''}
+              WorkflowSchema{schemaId != null ? ` / ${schemaId}` : ''}{schemaName ? ` / ${schemaName}` : ''}
             </h2>
             <button onClick={onClose} className="slide-close" aria-label={t('common.close')}>
               <IconClose size={18} />
@@ -63,6 +68,9 @@ export function SchemaStartDialog(props: SchemaStartDialogProps) {
 
             <SliderFieldRow label={t('workflow.fields.taskQueue')}>
               <input className="field-inline" value={taskQueue} onChange={(e) => setTaskQueue(e.target.value)} placeholder={t('workflow.optional')} />
+            </SliderFieldRow>
+            <SliderFieldRow label="namespace">
+              <input className="field-inline" value={ns} onChange={(e) => setNs(e.target.value)} placeholder={t('workflow.optional')} />
             </SliderFieldRow>
             <SliderFieldRow label={t('workflow.fields.workflowId')}>
               <input className="field-inline" value={wid} onChange={(e) => setWid(e.target.value)} placeholder={t('workflow.optional')} />

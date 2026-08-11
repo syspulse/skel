@@ -210,12 +210,12 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   }, []);
 
   // Start a workflow from a WorkflowSchema (Start dialog). Notifies the Dispatcher on success/error.
-  const startFromSchema = useCallback(async (input: unknown | undefined, taskQueue?: string, wid?: string) => {
+  const startFromSchema = useCallback(async (input: unknown | undefined, taskQueue?: string, wid?: string, ns?: string) => {
     if (startSchemaId === null) return;
     const sid = startSchemaId;
     setSaving(true);
     try {
-      const res = await api.startSchema(token, sid, input, taskQueue, wid);
+      const res = await api.startSchema(token, sid, input, taskQueue, wid, ns);
       const c = res.configs?.[0];
       if (c) notifyDispatcher(0.1, t('workflow.startOk'),
         t('workflow.startOkMsg', { id: c.id, name: c.name, title: c.title }),
@@ -576,14 +576,23 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           }}
           onEdit={() => setWfDetailsOpen(false)}
         />
-        {/* Start a workflow from this WorkflowSchema (opened from the editor [Start] button) */}
-        <SchemaStartDialog
-          open={startOpen}
-          schemaName={editor.name}
-          saving={saving}
-          onClose={() => setStartOpen(false)}
-          onStart={startFromSchema}
-        />
+        {/* Start a workflow from this WorkflowSchema (opened from the editor [Start] button).
+            Pre-fill task queue / namespace from the schema's meta.tq / meta.ns when present. */}
+        {(() => {
+          const startSchema = startSchemaId != null ? schemas.find((s) => s.id === startSchemaId) : undefined;
+          return (
+            <SchemaStartDialog
+              open={startOpen}
+              schemaId={startSchemaId ?? undefined}
+              schemaName={startSchema?.name ?? editor.name}
+              defaultTaskQueue={startSchema?.meta?.tq != null ? String(startSchema.meta.tq) : undefined}
+              defaultNs={startSchema?.meta?.ns != null ? String(startSchema.meta.ns) : undefined}
+              saving={saving}
+              onClose={() => setStartOpen(false)}
+              onStart={startFromSchema}
+            />
+          );
+        })()}
       </>
     );
   }

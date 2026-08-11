@@ -60,10 +60,11 @@ export const deleteSchema = (token: string | null, id: number) =>
 // Start a workflow FROM a WorkflowSchema: POST /schema/{id}/start?tq=&wid= with the workflow
 // input JSON as the body (omitted -> the server uses the default WorkflowConfig payload). Returns the
 // created + resolved WorkflowConfig(s).
-export const startSchema = async (token: string | null, id: number, input?: unknown, taskQueue?: string, wid?: string): Promise<WorkflowConfigs> => {
+export const startSchema = async (token: string | null, id: number, input?: unknown, taskQueue?: string, wid?: string, ns?: string): Promise<WorkflowConfigs> => {
   const p = new URLSearchParams();
   if (taskQueue) p.set('tq', taskQueue);
   if (wid) p.set('wid', wid);
+  if (ns) p.set('ns', ns);
   const qs = p.toString();
   const res = await fetch(`${getBaseUrl()}/schema/${id}/start${qs ? `?${qs}` : ''}`, {
     method: 'POST',

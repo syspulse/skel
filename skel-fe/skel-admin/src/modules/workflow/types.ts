@@ -53,6 +53,7 @@ export interface WorkflowSchema {
   tags: string[];
   schema?: Record<string, unknown>;    // JsonSchema of the config (like DetectorSchema.schema)
   uiSchema?: Record<string, unknown>;  // UI hints (like DetectorSchema.uiSchema)
+  meta?: Meta;                         // arbitrary workflow metadata
   graph: WorkflowGraf;
 }
 
@@ -140,7 +141,7 @@ export interface WorkflowSchemaCreateReq {
 export interface WorkflowSchemaUpdateReq {
   name?: string; version?: string; title?: string; description?: string;
   status?: string; icon?: string; tags?: string[];
-  schema?: Record<string, unknown>; uiSchema?: Record<string, unknown>; graph?: WorkflowGraf;
+  schema?: Record<string, unknown>; uiSchema?: Record<string, unknown>; graph?: WorkflowGraf; meta?: Meta;
 }
 export interface WorkflowConfigCreateReq { sid: number; name?: string; oid?: string; pid?: string; xid?: string; }
 export interface WorkflowConfigUpdateReq {

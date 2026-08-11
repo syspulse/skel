@@ -375,6 +375,7 @@ object WorkflowRegistry {
       schema = req.schema.orElse(wschema.schema),
       uiSchema = req.uiSchema.orElse(wschema.uiSchema),
       graph = req.graph.map(WorkflowGraf.sync).getOrElse(wschema.graph),
+      meta = req.meta.orElse(wschema.meta),  // allow editing schema metadata
     )
 
   private def applyUpdate(wconf: WorkflowConfig, req: WorkflowConfigUpdateReq): WorkflowConfig =

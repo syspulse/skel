@@ -56,6 +56,7 @@ final case class WorkflowSchemaUpdateReq(
   schema: Option[JsObject] = None,
   uiSchema: Option[JsObject] = None,
   graph: Option[WorkflowGraf] = None,
+  meta: Option[Map[String, Any]] = None,
 )
 /** Create a WorkflowSchema (and any new DetectorSchema referenced by name) from an Assembly DSL pipeline. */
 final case class WorkflowSchemaDslReq(
