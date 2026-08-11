@@ -453,6 +453,7 @@ object WorkflowRegistry {
       tags = req.tags.getOrElse(dconf.tags),
       config = req.config.orElse(dconf.config),
       contract = contract,
+      meta = req.meta.orElse(dconf.meta),  // runtime metadata (e.g. activity_id); not in external detector table
     )
   }
 

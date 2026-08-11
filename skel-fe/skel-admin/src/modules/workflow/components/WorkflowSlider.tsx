@@ -244,7 +244,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
               <div className="field-stack">
                 <label className="field-stack-label">{t('workflow.fields.meta')}</label>
                 <textarea rows={10} spellCheck={false} value={metaJson} onChange={(e) => setMetaJson(e.target.value)}
-                  placeholder={'{\n}'} className="field-code" />
+                  placeholder={'{\n}'} className="field-code-muted" />
               </div>
             </>
           )}
@@ -252,6 +252,14 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
           {/* JsonSchema editors: schema + uiSchema on WorkflowSchema; config on WorkflowConfig */}
           {kind === KIND.workflowSchema && (
             <>
+              {/* WorkflowSchema.meta - editable JSON */}
+              {!addMode && (
+                <div className="field-stack">
+                  <label className="field-stack-label">{t('workflow.fields.meta')}</label>
+                  <textarea rows={5} spellCheck={false} value={metaJson} onChange={(e) => setMetaJson(e.target.value)}
+                    placeholder={'{\n}'} className="field-code-muted" />
+                </div>
+              )}
               <div className="field-stack">
                 <label className="field-stack-label">schema</label>
                 <textarea rows={8} spellCheck={false} value={schemaJson} onChange={(e) => setSchemaJson(e.target.value)}
@@ -262,14 +270,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
                 <textarea rows={4} spellCheck={false} value={uiSchemaJson} onChange={(e) => setUiSchemaJson(e.target.value)}
                   placeholder={'{\n  "ui:order": []\n}'} className="field-code" />
               </div>
-              {/* WorkflowSchema.meta - editable JSON */}
-              {!addMode && (
-                <div className="field-stack">
-                  <label className="field-stack-label">{t('workflow.fields.meta')}</label>
-                  <textarea rows={8} spellCheck={false} value={metaJson} onChange={(e) => setMetaJson(e.target.value)}
-                    placeholder={'{\n}'} className="field-code" />
-                </div>
-              )}
+              
             </>
           )}
           {!addMode && kind === KIND.workflowConfig && (

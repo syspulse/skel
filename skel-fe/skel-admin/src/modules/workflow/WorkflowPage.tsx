@@ -223,12 +223,14 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
       else notifyDispatcher(0.1, t('workflow.startOk'), t('workflow.startOkMsg', { id: '?', name: '', title: '' }), { schema_id: sid });
       setStartOpen(false);
       await refreshAndNotify();
+      // focus the newly created WorkflowConfig: SideNav submenu highlight + open its Topology (editor)
+      if (c) await openEditor(KIND.workflowConfig, c.id);
     } catch (e) {
       notifyDispatcher(0.5, t('workflow.startErr'), e instanceof Error ? e.message : String(e), { schema_id: sid });
     } finally {
       setSaving(false);
     }
-  }, [startSchemaId, token, notifyDispatcher, t]);
+  }, [startSchemaId, token, notifyDispatcher, t, openEditor]);
 
   // Validate a cid before a node re-link: it must resolve via GET /detector/config/{cid}.
   // On not-found, dispatch an error event (Dispatcher) and reject the change.

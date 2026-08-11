@@ -50,6 +50,10 @@
   .field-code {
     @apply w-full text-xs font-mono field px-2 py-1.5 bg-card resize-y;
   }
+  /* Gray background: meta JSON vs config/schema (bg-card) */
+  .field-code-muted {
+    @apply field-code bg-muted;
+  }
   .code-block-sm {
     @apply text-[11px] font-mono bg-muted border border-border rounded px-2 py-1.5 overflow-auto max-h-48;
   }

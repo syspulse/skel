@@ -157,6 +157,7 @@ final case class DetectorConfigUpdateReq(
   config: Option[JsObject] = None,
   oid: Option[String] = None,
   pid: Option[String] = None,
+  meta: Option[Map[String, String]] = None,
 )
 
 // ---------------------------------------------------------------- WorkflowGraf

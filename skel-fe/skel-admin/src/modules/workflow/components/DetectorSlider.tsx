@@ -28,7 +28,7 @@ interface DetectorSliderProps {
   onCreateSchema: (req: { name: string; title?: string; description?: string; version?: string; author?: string; icon?: string; tags?: string[]; schema?: Record<string, unknown>; uiSchema?: Record<string, unknown> }) => Promise<void>;
   onCreateConfig: (req: { name: string; sid?: number; source?: string; tags?: string[]; config?: Record<string, unknown> }) => Promise<void>;
   onUpdateSchema: (patch: { name?: string; title?: string; description?: string; version?: string; author?: string; status?: string; icon?: string; tags?: string[]; schema?: Record<string, unknown>; uiSchema?: Record<string, unknown> }) => Promise<void>;
-  onUpdateConfig: (patch: { name?: string; status?: string; source?: string; tags?: string[]; config?: Record<string, unknown> }) => Promise<void>;
+  onUpdateConfig: (patch: { name?: string; status?: string; source?: string; tags?: string[]; config?: Record<string, unknown>; meta?: Record<string, string> }) => Promise<void>;
   onOpenSchema?: (id: number) => void; // open the DetectorSchema referenced by a DetectorConfig
   onDelete: () => Promise<void>;
 }
@@ -50,6 +50,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
   const [tags, setTags] = useState('');
   const [sid, setSid] = useState<number | ''>('');
   const [configJson, setConfigJson] = useState('');
+  const [metaJson, setMetaJson] = useState('');          // DetectorConfig.meta (runtime; e.g. activity_id)
   const [schemaJson, setSchemaJson] = useState('');     // DetectorSchema.schema (JSON)
   const [uiSchemaJson, setUiSchemaJson] = useState(''); // DetectorSchema.uiSchema (JSON)
 
@@ -58,7 +59,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
     if (addMode) {
       setName(''); setTitle(''); setDescription(''); setVersion('1.0.0'); setAuthor(''); setIcon(undefined);
       setStatus('ACTIVE'); setSource(''); setTags(''); setSid(schemas[0]?.id ?? ''); setConfigJson('');
-      setSchemaJson(''); setUiSchemaJson('');
+      setMetaJson(''); setSchemaJson(''); setUiSchemaJson('');
       return;
     }
     if (kind === KIND.detectorSchema && schema) {
@@ -69,6 +70,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
     } else if (kind === KIND.detectorConfig && config) {
       setName(config.name); setStatus(config.status); setSource(config.source); setTags((config.tags ?? []).join(', '));
       setConfigJson(config.config ? JSON.stringify(config.config, null, 2) : '');
+      setMetaJson(config.meta && Object.keys(config.meta).length > 0 ? JSON.stringify(config.meta, null, 2) : '');
     }
   }, [open, addMode, kind, schema, config, schemas]);
 
@@ -76,6 +78,14 @@ export function DetectorSlider(props: DetectorSliderProps) {
   const parseConfig = (): Record<string, unknown> | undefined => {
     if (!configJson.trim()) return undefined;
     return JSON.parse(configJson) as Record<string, unknown>;
+  };
+  /** DetectorConfig.meta is Map[String,String] — coerce JSON values to strings. */
+  const parseMeta = (): Record<string, string> | undefined => {
+    if (!metaJson.trim()) return undefined;
+    const obj = JSON.parse(metaJson) as Record<string, unknown>;
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(obj)) out[k] = v == null ? '' : String(v);
+    return out;
   };
   const parseJsonObj = (s: string): Record<string, unknown> | undefined => {
     if (!s.trim()) return undefined;
@@ -111,8 +121,9 @@ export function DetectorSlider(props: DetectorSliderProps) {
       } else {
         // DetectorConfig: status IS editable (editable combo)
         let cfg: Record<string, unknown> | undefined;
-        try { cfg = parseConfig(); } catch { setError(t('workflow.invalidJson')); return; }
-        await onUpdateConfig({ name, status, source, tags: tagsArr(tags), config: cfg });
+        let meta: Record<string, string> | undefined;
+        try { cfg = parseConfig(); meta = parseMeta(); } catch { setError(t('workflow.invalidJson')); return; }
+        await onUpdateConfig({ name, status, source, tags: tagsArr(tags), config: cfg, meta });
       }
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
@@ -253,6 +264,16 @@ export function DetectorSlider(props: DetectorSliderProps) {
                 {viewOnly ? <div className="field-readonly">{source || ''}</div>
                   : <input className="field-inline" value={source} onChange={(e) => setSource(e.target.value)} />}
               </SliderFieldRow>
+              {/* runtime metadata (e.g. activity_id from /resolve) — gray to distinguish from config */}
+              {!addMode && (
+                <div className="field-stack">
+                  <label className="field-stack-label">{t('workflow.fields.meta')}</label>
+                  {viewOnly
+                    ? <pre className="code-block-sm">{metaJson || ''}</pre>
+                    : <textarea rows={6} spellCheck={false} value={metaJson} onChange={(e) => setMetaJson(e.target.value)}
+                        placeholder={'{\n}'} className="field-code-muted" />}
+                </div>
+              )}
               <div className="field-stack">
                 <label className="field-stack-label">config (JSON)</label>
                 {viewOnly

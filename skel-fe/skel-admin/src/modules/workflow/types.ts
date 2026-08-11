@@ -164,6 +164,7 @@ export interface DetectorSchemaUpdateReq {
 }
 export interface DetectorConfigUpdateReq {
   name?: string; status?: string; source?: string; tags?: string[]; config?: Record<string, unknown>;
+  meta?: Record<string, string>;
 }
 
 // Single source of truth for the entity kinds used across tables / menus / details / editor.
