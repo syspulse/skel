@@ -136,7 +136,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def createWorkflowSchemaDsl(req: WorkflowSchemaDslReq): Future[Try[WorkflowSchema]] = registry.ask(CreateWorkflowSchemaDsl(req, _))
   def updateWorkflowSchema(id: Int, req: WorkflowSchemaUpdateReq): Future[Try[WorkflowSchema]] = registry.ask(UpdateWorkflowSchema(id, req, _))
   def deleteWorkflowSchema(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteWorkflowSchema(id, _))
-  def startWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(StartWorkflowSchema(id, taskQueue, input, wid, ns, oid, pid, _))
+  def startWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String], author: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(StartWorkflowSchema(id, taskQueue, input, wid, ns, oid, pid, author, _))
 
   // ---- WorkflowConfig asks ----
   def getWorkflowConfigs(from: Option[Long], size: Option[Long], entity: String, oid: Option[String], pid: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigs(from, size, entity, oid, pid, _))
@@ -402,20 +402,23 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     parameters = Array(
       new Parameter(name = "id", in = ParameterIn.PATH, description = "WorkflowSchema id"),
       new Parameter(name = "tq", in = ParameterIn.QUERY, description = "Task Queue an independent worker polls; else config.meta(taskQueue), else default"),
-      new Parameter(name = "wid", in = ParameterIn.QUERY, description = "override the Temporal WorkflowId (else derived from the created config.title|name)")),
+      new Parameter(name = "wid", in = ParameterIn.QUERY, description = "override the Temporal WorkflowId (else derived from the created config.title|name)"),
+      new Parameter(name = "author", in = ParameterIn.QUERY, description = "WorkflowConfig.author; if omitted, JWT `upn` claim; else WorkflowSchema.author")),
     requestBody = new RequestBody(description = "optional JSON input payload for the workflow (overrides the default WorkflowConfig payload)",
       content = Array(new Content(schema = new Schema(implementation = classOf[String])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "created + started + resolved config(s)",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
   def startWorkflowSchemaRoute(id: Int) = post {
-    parameters("tq".?, "wid".?, "ns".?, "oid".?, "pid".?) { (tq, wid, ns, oidQ, pidQ) =>
+    parameters("tq".?, "wid".?, "ns".?, "oid".?, "pid".?, "author".?) { (tq, wid, ns, oidQ, pidQ, authorQ) =>
       // admin/service only; honor the requested oid as the created WorkflowConfig owner (storeOid)
       authenticate()(authn => authorize(canAccessAdmin(authn)) {
         val oid = storeOid(authn, oidQ)
         val pid = oidOpt(pidQ)
+        // author: ?author= else JWT.upn (from() falls back to WorkflowSchema.author if still None)
+        val author = oidOpt(authorQ).orElse(ExtAuth.getOwner(authn, "upn").filter(_.nonEmpty))
         // optional JSON body = caller input payload (overrides the default WorkflowConfig payload)
-        entity(as[JsValue]) { body => complete(startWorkflowSchema(id, tq, Some(body.compactPrint), wid, ns, oid, pid)) } ~
-        complete(startWorkflowSchema(id, tq, None, wid, ns, oid, pid))
+        entity(as[JsValue]) { body => complete(startWorkflowSchema(id, tq, Some(body.compactPrint), wid, ns, oid, pid, author)) } ~
+        complete(startWorkflowSchema(id, tq, None, wid, ns, oid, pid, author))
       })
     }
   }

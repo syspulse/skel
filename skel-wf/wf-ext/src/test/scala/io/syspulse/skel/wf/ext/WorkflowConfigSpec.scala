@@ -45,6 +45,14 @@ class WorkflowConfigSpec extends AnyWordSpec with Matchers {
       c.xid shouldBe Some("run-xyz")
     }
 
+    "override author when provided, else copy WorkflowSchema.author" in {
+      val s = schema(2).copy(author = "schema-author")
+      WorkflowConfig.from(1, s).author shouldBe "schema-author"
+      WorkflowConfig.from(1, s, author = None).author shouldBe "schema-author"
+      WorkflowConfig.from(1, s, author = Some("")).author shouldBe "schema-author"
+      WorkflowConfig.from(1, s, author = Some("alice")).author shouldBe "alice"
+    }
+
     "round-trip via JSON" in {
       val c = WorkflowConfig.from(1, schema(2), oid = Some("o1"), xid = Some("x1"))
       val c2 = c.toJson.convertTo[WorkflowConfig]

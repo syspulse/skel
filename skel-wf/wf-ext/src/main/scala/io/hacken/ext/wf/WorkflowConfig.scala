@@ -81,7 +81,8 @@ object WorkflowConfig {
            oid: Option[String] = None,
            pid: Option[String] = None,
            xid: Option[String] = None,
-           wid: Option[String] = None): WorkflowConfig = { // wid (if set) becomes the config title
+           wid: Option[String] = None,
+           author: Option[String] = None): WorkflowConfig = { // wid (if set) becomes the config title
     val now = System.currentTimeMillis()
     // substitution context: schema meta + the config's oid/pid (so "{pid}" resolves to the param or meta)
     val ctx: Map[String, Any] = schema.meta.getOrElse(Map.empty) ++
@@ -96,7 +97,7 @@ object WorkflowConfig {
       version = schema.version,
       title = wid.filter(_.nonEmpty).getOrElse(substitute(schema.title, id, now, ctx)),
       description = schema.description,
-      author = schema.author,
+      author = author.filter(_.nonEmpty).getOrElse(schema.author),
       icon = schema.icon,
       tags = schema.tags,
       // instantiate default config from the WorkflowSchema's JsonSchema (mirrors DetectorConfig.config)

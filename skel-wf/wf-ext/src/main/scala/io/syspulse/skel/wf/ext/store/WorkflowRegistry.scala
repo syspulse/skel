@@ -71,7 +71,7 @@ object WorkflowRegistry {
   // non-empty) else the new WorkflowConfig.title (or .name if title is empty). taskQueue = request ->
   // config.meta("tq") -> default; input = caller JSON override else the WorkflowConfig JSON. Sets
   // xid = RunId (+ meta.wid), persists, then Resolves live statuses (STARTING while not yet visible).
-  final case class StartWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
+  final case class StartWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String], author: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
 
   // ---- WorkflowConfig ----
   // oid=None skips owner match (admin); pid=None skips project filter. Both are applied in the Store.
@@ -580,8 +580,8 @@ object WorkflowRegistry {
           })
         Behaviors.same
 
-      case StartWorkflowSchema(id, taskQueue, input, wid, ns, oid, pid, replyTo) =>
-        log.info(s"StartWorkflowSchema: sid=${id}, taskQueue=${taskQueue}, wid=${wid}, ns=${ns}, oid=${oid}, pid=${pid} => ${engine}")
+      case StartWorkflowSchema(id, taskQueue, input, wid, ns, oid, pid, author, replyTo) =>
+        log.info(s"StartWorkflowSchema: sid=${id}, tq=${taskQueue}, wid=${wid}, ns=${ns}, oid=${oid}, pid=${pid}, author=${author} => ${engine}")
         engine match {
           case None =>
             replyTo ! Failure(new Exception("Engine not configured"))
@@ -596,7 +596,7 @@ object WorkflowRegistry {
             // is folded into the config BEFORE start(), which preserves meta.* on its single write.
             // Then Resolve pulls the live statuses (STARTING while the run is not yet visible on the Engine).
             val f = for {
-              wconf0   <- store.createWConfFromWSchema(id, oid = oid.filter(_.nonEmpty), pid = pid.filter(_.nonEmpty), wid = wid)
+              wconf0   <- store.createWConfFromWSchema(id, oid = oid.filter(_.nonEmpty), pid = pid.filter(_.nonEmpty), wid = wid, author = author.filter(_.nonEmpty))
               wconf     = input.filter(_.nonEmpty)
                             .map(in => wconf0.copy(meta = Some(wconf0.meta.getOrElse(Map.empty[String, Any]) + ("input" -> in))))
                             .getOrElse(wconf0)
