@@ -136,7 +136,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def createWorkflowSchemaDsl(req: WorkflowSchemaDslReq): Future[Try[WorkflowSchema]] = registry.ask(CreateWorkflowSchemaDsl(req, _))
   def updateWorkflowSchema(id: Int, req: WorkflowSchemaUpdateReq): Future[Try[WorkflowSchema]] = registry.ask(UpdateWorkflowSchema(id, req, _))
   def deleteWorkflowSchema(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteWorkflowSchema(id, _))
-  def startWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], wid: Option[String], ns: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(StartWorkflowSchema(id, taskQueue, input, wid, ns, _))
+  def startWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(StartWorkflowSchema(id, taskQueue, input, wid, ns, oid, pid, _))
 
   // ---- WorkflowConfig asks ----
   def getWorkflowConfigs(from: Option[Long], size: Option[Long], entity: String, oid: Option[String], pid: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigs(from, size, entity, oid, pid, _))
@@ -146,7 +146,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def resolveWorkflowConfigs(ids: Seq[String], typ: Option[String], oid: Option[String]): Future[Try[WorkflowConfigs]] =
     registry.ask(ResolveWorkflowConfigs(ids, typ, oid, _))
   def createWorkflowConfig(req: WorkflowConfigCreateReq): Future[Try[WorkflowConfig]] = registry.ask(CreateWorkflowConfig(req, _))
-  def createWorkflowConfigFromSchema(sid: Int, contractId: Int): Future[Try[WorkflowConfig]] = registry.ask(CreateWorkflowConfigFromSchema(sid, contractId, _))
+  def createWorkflowConfigFromSchema(sid: Int, contractId: Int, oid: Option[String] = None): Future[Try[WorkflowConfig]] = registry.ask(CreateWorkflowConfigFromSchema(sid, contractId, oid, _))
   def setup0(tenantId: Int, projectId: Int, contractId: Int, name: String, status: String): Future[Try[WorkflowActionRes]] =
     registry.ask(Setup0(tenantId, projectId, contractId, name, status, _))
   def createWorkflowConfigDsl(req: WorkflowConfigDslReq): Future[Try[WorkflowConfig]] = registry.ask(CreateWorkflowConfigDsl(req, _))
@@ -408,12 +408,15 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "created + started + resolved config(s)",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
   def startWorkflowSchemaRoute(id: Int) = post {
-    parameters("tq".?, "wid".?, "ns".?) { (tq, wid, ns) =>
-      authAdminService {
+    parameters("tq".?, "wid".?, "ns".?, "oid".?, "pid".?) { (tq, wid, ns, oidQ, pidQ) =>
+      // admin/service only; honor the requested oid as the created WorkflowConfig owner (storeOid)
+      authenticate()(authn => authorize(canAccessAdmin(authn)) {
+        val oid = storeOid(authn, oidQ)
+        val pid = oidOpt(pidQ)
         // optional JSON body = caller input payload (overrides the default WorkflowConfig payload)
-        entity(as[JsValue]) { body => complete(startWorkflowSchema(id, tq, Some(body.compactPrint), wid, ns)) } ~
-        complete(startWorkflowSchema(id, tq, None, wid, ns))
-      }
+        entity(as[JsValue]) { body => complete(startWorkflowSchema(id, tq, Some(body.compactPrint), wid, ns, oid, pid)) } ~
+        complete(startWorkflowSchema(id, tq, None, wid, ns, oid, pid))
+      })
     }
   }
 
@@ -445,8 +448,11 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "created",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
   def createWorkflowConfigFromSchemaRoute(sid: Int) = post {
-    parameter("contractId".as[Int].?) { contractId =>
-      authAdminService { complete(createWorkflowConfigFromSchema(sid, contractId.getOrElse(0))) }
+    parameters("contractId".as[Int].?, "oid".?) { (contractId, oidQ) =>
+      // admin/service only; honor the requested oid as the created WorkflowConfig owner (storeOid)
+      authenticate()(authn => authorize(canAccessAdmin(authn)) {
+        complete(createWorkflowConfigFromSchema(sid, contractId.getOrElse(0), storeOid(authn, oidQ)))
+      })
     }
   }
 

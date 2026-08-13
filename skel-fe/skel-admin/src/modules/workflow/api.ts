@@ -60,11 +60,13 @@ export const deleteSchema = (token: string | null, id: number) =>
 // Start a workflow FROM a WorkflowSchema: POST /schema/{id}/start?tq=&wid= with the workflow
 // input JSON as the body (omitted -> the server uses the default WorkflowConfig payload). Returns the
 // created + resolved WorkflowConfig(s).
-export const startSchema = async (token: string | null, id: number, input?: unknown, taskQueue?: string, wid?: string, ns?: string): Promise<WorkflowConfigs> => {
+export const startSchema = async (token: string | null, id: number, input?: unknown, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string): Promise<WorkflowConfigs> => {
   const p = new URLSearchParams();
   if (taskQueue) p.set('tq', taskQueue);
   if (wid) p.set('wid', wid);
   if (ns) p.set('ns', ns);
+  if (oid) p.set('oid', oid);
+  if (pid) p.set('pid', pid);
   const qs = p.toString();
   const res = await fetch(`${getBaseUrl()}/schema/${id}/start${qs ? `?${qs}` : ''}`, {
     method: 'POST',
@@ -86,8 +88,8 @@ export const createConfig = (token: string | null, req: WorkflowConfigCreateReq)
   POST<WorkflowConfig>(token, '/config', req);
 // create a WorkflowConfig from a WorkflowSchema id in one call (composed of DetectorConfig; ids from
 // store). contractId places the new DetectorConfigs under a contract (default 0 - see setup0).
-export const createConfigFromSchema = (token: string | null, sid: number, contractId = 0) =>
-  POST<WorkflowConfig>(token, `/config/schema/${sid}?contractId=${contractId}`, {});
+export const createConfigFromSchema = (token: string | null, sid: number, contractId = 0, oid?: string) =>
+  POST<WorkflowConfig>(token, `/config/schema/${sid}?contractId=${contractId}${oid ? `&oid=${encodeURIComponent(oid)}` : ''}`, {});
 export const createConfigDsl = (token: string | null, pipeline: string, name?: string) =>
   POST<WorkflowConfig>(token, '/config/dsl', { pipeline, name });
 export const updateConfig = (token: string | null, id: number, req: WorkflowConfigUpdateReq) =>

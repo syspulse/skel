@@ -4,6 +4,7 @@ import { ModulePage } from '../../components/ModulePage';
 import { useAuth } from '../../auth/useAuth';
 import { useModuleNotify } from '../../notifications/moduleNotify';
 import { usePageSize, PAGE_SIZE_ALL } from '../../settings/PageSizeContext';
+import { useDefaultOid } from '../../settings/OwnerContext';
 import { Pagination } from '../../components/Pagination';
 import * as api from './api';
 import type {
@@ -68,6 +69,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   const { token } = useAuth();
   const { notifyError } = useModuleNotify(t('nav.workflow'));
   const { pageSize, setPageSize } = usePageSize();
+  const defaultOid = useDefaultOid();  // default owner id for create/start (from user profile settings)
   const [page, setPage] = useState(1);
   const [timezone, setTimezone] = useState('local');
   const [activeSearch, setActiveSearch] = useState('');
@@ -210,12 +212,12 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   }, []);
 
   // Start a workflow from a WorkflowSchema (Start dialog). Notifies the Dispatcher on success/error.
-  const startFromSchema = useCallback(async (input: unknown | undefined, taskQueue?: string, wid?: string, ns?: string) => {
+  const startFromSchema = useCallback(async (input: unknown | undefined, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string) => {
     if (startSchemaId === null) return;
     const sid = startSchemaId;
     setSaving(true);
     try {
-      const res = await api.startSchema(token, sid, input, taskQueue, wid, ns);
+      const res = await api.startSchema(token, sid, input, taskQueue, wid, ns, oid, pid);
       const c = res.configs?.[0];
       if (c) notifyDispatcher(0.1, t('workflow.startOk'),
         t('workflow.startOkMsg', { id: c.id, name: c.name, title: c.title }),
@@ -425,7 +427,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
     if (!editor || editor.kind !== KIND.workflowSchema) return;
     setSaving(true);
     try {
-      const created = await api.createConfigFromSchema(token, editor.id);
+      const created = await api.createConfigFromSchema(token, editor.id, 0, defaultOid);
       await refreshAndNotify();                          // refresh all lists (new config + detectors)
       await openEditor(KIND.workflowConfig, created.id); // re-read the new config and open its editor
     } catch (e) {
@@ -589,6 +591,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
               schemaName={startSchema?.name ?? editor.name}
               defaultTaskQueue={startSchema?.meta?.tq != null ? String(startSchema.meta.tq) : undefined}
               defaultNs={startSchema?.meta?.ns != null ? String(startSchema.meta.ns) : undefined}
+              defaultOid={defaultOid}
               saving={saving}
               onClose={() => setStartOpen(false)}
               onStart={startFromSchema}

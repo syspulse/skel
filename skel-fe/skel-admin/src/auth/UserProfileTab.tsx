@@ -6,6 +6,7 @@ import { UserAvatar } from './UserAvatar';
 import { useUserProfile } from './useUserProfile';
 import { useAvatarUrl } from './useAvatarUrl';
 import type { AuthType } from './userProfile';
+import { useOwnerSettings, resolveOidExtract } from '../settings/OwnerContext';
 
 const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED !== 'false';
 
@@ -80,6 +81,8 @@ export function UserProfileTab() {
   const { t } = useTranslation();
   const { profile, token, tokenParsed, userInfo, profileClaims, isLoading } = useUserProfile();
   const avatarUrl = useAvatarUrl();
+  // default owner id for creating/starting WorkflowConfigs (persisted with settings)
+  const { oid, setOid, oidExtract, setOidExtract } = useOwnerSettings();
 
   if (isLoading) {
     return (
@@ -124,6 +127,34 @@ export function UserProfileTab() {
         <FieldRow
           label={t('settings.userProfile.authType')}
           value={profile ? authTypeLabel(t, profile.authType) : undefined}
+        />
+        {/* Owner (oid) default used when creating / starting a WorkflowConfig. Persisted with settings.
+            - oid: the value (manual, default '0')
+            - oid_extract: expression (e.g. {JWT}.tenantId). Press Enter to resolve it into `oid`
+              (unresolved / no JWT -> '0'). More placeholders may be added later. */}
+        <FieldRow
+          label="oid"
+          value={
+            <input
+              value={oid}
+              onChange={(e) => setOid(e.target.value)}
+              placeholder="0"
+              className="field-compact w-40"
+            />
+          }
+        />
+        <FieldRow
+          label="oid_extract"
+          value={
+            <input
+              value={oidExtract}
+              onChange={(e) => setOidExtract(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') setOid(resolveOidExtract(oidExtract, tokenParsed)); }}
+              placeholder="{JWT}.tenantId"
+              className="field-compact w-56 font-mono"
+              title="Press Enter to resolve into oid"
+            />
+          }
         />
         {profile?.roles && profile.roles.length > 0 && (
           <FieldRow label={t('settings.roles')} value={profile.roles.join(', ')} />

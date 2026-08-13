@@ -9,26 +9,29 @@ interface SchemaStartDialogProps {
   schemaName?: string;   // shown in the title
   defaultTaskQueue?: string; // pre-fill from WorkflowSchema.meta.tq
   defaultNs?: string;        // pre-fill from WorkflowSchema.meta.ns
+  defaultOid?: string;       // pre-fill owner id from the user profile (see useDefaultOid)
   saving: boolean;
   onClose: () => void;
   // input: parsed JSON (undefined when empty -> server uses the default WorkflowConfig payload)
-  onStart: (input: unknown | undefined, taskQueue?: string, wid?: string, ns?: string) => void;
+  onStart: (input: unknown | undefined, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string) => void;
 }
 
-/** Modal to start a workflow from a WorkflowSchema: input JSON + optional task queue / namespace / workflowId. */
+/** Modal to start a workflow from a WorkflowSchema: input JSON + optional task queue / namespace / oid / workflowId. */
 export function SchemaStartDialog(props: SchemaStartDialogProps) {
-  const { open, schemaId, schemaName, defaultTaskQueue, defaultNs, saving, onClose, onStart } = props;
+  const { open, schemaId, schemaName, defaultTaskQueue, defaultNs, defaultOid, saving, onClose, onStart } = props;
   const { t } = useTranslation();
   const [inputJson, setInputJson] = useState('');
   const [taskQueue, setTaskQueue] = useState('');
   const [ns, setNs] = useState('');
+  const [oid, setOid] = useState('');
+  const [pid, setPid] = useState('');
   const [wid, setWid] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // pre-fill task queue / namespace from WorkflowSchema.meta (meta.tq / meta.ns) when available
-    if (open) { setInputJson(''); setTaskQueue(defaultTaskQueue ?? ''); setNs(defaultNs ?? ''); setWid(''); setError(null); }
-  }, [open, defaultTaskQueue, defaultNs]);
+    // pre-fill task queue / namespace from WorkflowSchema.meta (meta.tq / meta.ns); oid from the profile
+    if (open) { setInputJson(''); setTaskQueue(defaultTaskQueue ?? ''); setNs(defaultNs ?? ''); setOid(defaultOid ?? ''); setPid(''); setWid(''); setError(null); }
+  }, [open, defaultTaskQueue, defaultNs, defaultOid]);
 
   if (!open) return null;
 
@@ -39,7 +42,7 @@ export function SchemaStartDialog(props: SchemaStartDialogProps) {
     if (raw) {
       try { input = JSON.parse(raw); } catch { setError(t('workflow.invalidJson')); return; }
     }
-    onStart(input, taskQueue.trim() || undefined, wid.trim() || undefined, ns.trim() || undefined);
+    onStart(input, taskQueue.trim() || undefined, wid.trim() || undefined, ns.trim() || undefined, oid.trim() || undefined, pid.trim() || undefined);
   };
 
   return (
@@ -67,13 +70,19 @@ export function SchemaStartDialog(props: SchemaStartDialogProps) {
             </div>
 
             <SliderFieldRow label={t('workflow.fields.taskQueue')}>
-              <input className="field-inline" value={taskQueue} onChange={(e) => setTaskQueue(e.target.value)} placeholder={t('workflow.optional')} />
+              <input className="field-inline" value={taskQueue} onChange={(e) => setTaskQueue(e.target.value)} />
             </SliderFieldRow>
             <SliderFieldRow label="namespace">
-              <input className="field-inline" value={ns} onChange={(e) => setNs(e.target.value)} placeholder={t('workflow.optional')} />
+              <input className="field-inline" value={ns} onChange={(e) => setNs(e.target.value)} />
+            </SliderFieldRow>
+            <SliderFieldRow label="oid">
+              <input className="field-inline" value={oid} onChange={(e) => setOid(e.target.value)} />
+            </SliderFieldRow>
+            <SliderFieldRow label="pid">
+              <input className="field-inline" value={pid} onChange={(e) => setPid(e.target.value)} />
             </SliderFieldRow>
             <SliderFieldRow label={t('workflow.fields.workflowId')}>
-              <input className="field-inline" value={wid} onChange={(e) => setWid(e.target.value)} placeholder={t('workflow.optional')} />
+              <input className="field-inline" value={wid} onChange={(e) => setWid(e.target.value)} />
             </SliderFieldRow>
           </div>
 

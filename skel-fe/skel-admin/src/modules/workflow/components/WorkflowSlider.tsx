@@ -9,19 +9,20 @@ import { IconPicker } from '../../../components/IconPicker';
 import { FormattedTimestamp } from '../../../components/FormattedTimestamp';
 import { TagsInput } from '../../../components/TagsInput';
 import { SliderFieldRow } from '../../../components/SliderFieldRow';
+import { useDefaultOid } from '../../../settings/OwnerContext';
 
 // lifecycle statuses (WorkflowSchema) + engine runtime statuses (WorkflowConfig, e.g. RUNNING) - see WorkflowStatus.scala
 const LIFECYCLE_STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
 const RUNTIME_STATUSES = ['NEW', 'SCHEDULED', 'STARTING', 'RUNNING', 'RUNNING_FAILED', 'WAITING', 'PAUSED', 'COMPLETED', 'FAILED', 'TERMINATED', 'CANCELED', 'TIMED_OUT', 'CONTINUED_AS_NEW', 'UNRESOLVED', 'UNKNOWN'];
 
 interface CommonForm {
-  name: string; title: string; description: string; status: string;
+  name: string; title: string; description: string; author: string; status: string;
   version: string; icon?: string; tags: string;
   oid: string; pid: string; xid: string; sid?: number;
 }
 
 function emptyForm(): CommonForm {
-  return { name: '', title: '', description: '', status: 'ACTIVE', version: '1.0.0', icon: undefined, tags: '', oid: '', pid: '', xid: '' };
+  return { name: '', title: '', description: '', author: '', status: 'ACTIVE', version: '1.0.0', icon: undefined, tags: '', oid: '', pid: '', xid: '' };
 }
 
 interface WorkflowSliderProps {
@@ -46,6 +47,7 @@ interface WorkflowSliderProps {
 export function WorkflowSlider(props: WorkflowSliderProps) {
   const { open, addMode, kind, schema, config, schemas, saving, timezone, onClose, onCreateSchema, onCreateConfig, onUpdate, onDelete, onEdit, onResolve, resolving } = props;
   const { t } = useTranslation();
+  const defaultOid = useDefaultOid();  // default owner id (from user profile settings)
   const [form, setForm] = useState<CommonForm>(emptyForm());
   const [sid, setSid] = useState<number | ''>('');
   const [error, setError] = useState<string | null>(null);
@@ -68,18 +70,18 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
   useEffect(() => {
     setError(null);
     setSchemaJson(''); setUiSchemaJson(''); setConfigJson(''); setMetaJson('');
-    if (addMode) { setForm(emptyForm()); setSid(schemas[0]?.id ?? ''); return; }
+    if (addMode) { setForm({ ...emptyForm(), oid: defaultOid }); setSid(schemas[0]?.id ?? ''); return; }
     if (kind === KIND.workflowSchema && schema) {
-      setForm({ name: schema.name, title: schema.title, description: schema.description, status: schema.status, version: schema.version, icon: schema.icon, tags: (schema.tags ?? []).join(', '), oid: '', pid: '', xid: '' });
+      setForm({ name: schema.name, title: schema.title, description: schema.description, author: schema.author ?? '', status: schema.status, version: schema.version, icon: schema.icon, tags: (schema.tags ?? []).join(', '), oid: '', pid: '', xid: '' });
       setSchemaJson(schema.schema ? JSON.stringify(schema.schema, null, 2) : '');
       setUiSchemaJson(schema.uiSchema ? JSON.stringify(schema.uiSchema, null, 2) : '');
       setMetaJson(schema.meta && Object.keys(schema.meta).length > 0 ? JSON.stringify(schema.meta, null, 2) : '');
     } else if (kind === KIND.workflowConfig && config) {
-      setForm({ name: config.name, title: config.title, description: config.description, status: config.status, version: config.version, icon: config.icon, tags: (config.tags ?? []).join(', '), oid: config.oid ?? '', pid: config.pid ?? '', xid: config.xid ?? '', sid: config.sid });
+      setForm({ name: config.name, title: config.title, description: config.description, author: config.author ?? '', status: config.status, version: config.version, icon: config.icon, tags: (config.tags ?? []).join(', '), oid: config.oid ?? '', pid: config.pid ?? '', xid: config.xid ?? '', sid: config.sid });
       setConfigJson(config.config ? JSON.stringify(config.config, null, 2) : '');
       setMetaJson(config.meta && Object.keys(config.meta).length > 0 ? JSON.stringify(config.meta, null, 2) : '');
     }
-  }, [open, addMode, kind, schema, config, schemas]);
+  }, [open, addMode, kind, schema, config, schemas, defaultOid]);
 
   const tagsArr = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
 
@@ -109,7 +111,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
         if (kind === KIND.workflowSchema) { patch.schema = parseJsonObj(schemaJson); patch.uiSchema = parseJsonObj(uiSchemaJson); patch.meta = parseJsonObj(metaJson); }
         else { patch.config = parseJsonObj(configJson); patch.meta = parseJsonObj(metaJson); }
       } catch { setError(t('workflow.invalidJson')); return; }
-      if (kind === KIND.workflowConfig) { patch.oid = form.oid || undefined; patch.pid = form.pid || undefined; patch.xid = form.xid || undefined; }
+      if (kind === KIND.workflowConfig) { patch.author = form.author; patch.oid = form.oid || undefined; patch.pid = form.pid || undefined; patch.xid = form.xid || undefined; }
       await onUpdate(patch);
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
@@ -211,6 +213,11 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
           <SliderFieldRow label={t('workflow.fields.desc')}>
             <input className="field-inline" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
           </SliderFieldRow>
+          {kind === KIND.workflowConfig && !addMode && (
+            <SliderFieldRow label={t('workflow.fields.author')}>
+              <input className="field-inline" value={form.author} onChange={(e) => setForm((f) => ({ ...f, author: e.target.value }))} />
+            </SliderFieldRow>
+          )}
 
           {!addMode && (
             <>

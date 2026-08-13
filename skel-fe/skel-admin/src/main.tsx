@@ -12,6 +12,7 @@ import { dashSysHandler } from './modules/dispatcher/systems/DashSys';
 import { PageSizeProvider } from './settings/PageSizeContext';
 import { TimestampFormatProvider } from './settings/TimestampFormatContext';
 import { WorkflowGridProvider } from './settings/WorkflowGridContext';
+import { OwnerProvider } from './settings/OwnerContext';
 import './i18n';
 import './styles.css';
 
@@ -30,7 +31,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               <TimestampFormatProvider>
                 <WorkflowGridProvider>
                   <AuthProvider>
-                    <App />
+                    <OwnerProvider>
+                      <App />
+                    </OwnerProvider>
                   </AuthProvider>
                 </WorkflowGridProvider>
               </TimestampFormatProvider>

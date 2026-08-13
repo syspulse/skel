@@ -71,7 +71,7 @@ object WorkflowRegistry {
   // non-empty) else the new WorkflowConfig.title (or .name if title is empty). taskQueue = request ->
   // config.meta("tq") -> default; input = caller JSON override else the WorkflowConfig JSON. Sets
   // xid = RunId (+ meta.wid), persists, then Resolves live statuses (STARTING while not yet visible).
-  final case class StartWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], wid: Option[String], ns: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
+  final case class StartWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
 
   // ---- WorkflowConfig ----
   // oid=None skips owner match (admin); pid=None skips project filter. Both are applied in the Store.
@@ -90,7 +90,7 @@ object WorkflowRegistry {
   final case class CreateWorkflowConfig(req: WorkflowConfigCreateReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   // create a WorkflowConfig from a WorkflowSchema id (composed of DetectorConfig); ids assigned by the store.
   // contractId places the new DetectorConfigs under a contract (default 0 - see Setup0).
-  final case class CreateWorkflowConfigFromSchema(sid: Int, contractId: Int, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
+  final case class CreateWorkflowConfigFromSchema(sid: Int, contractId: Int, oid: Option[String], replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   // bootstrap the default placement (tenant -> project -> contract); all fields parameterized
   final case class Setup0(tenantId: Int, projectId: Int, contractId: Int, name: String, status: String, replyTo: ActorRef[Try[WorkflowActionRes]]) extends Command
   final case class CreateWorkflowConfigDsl(req: WorkflowConfigDslReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
@@ -385,6 +385,7 @@ object WorkflowRegistry {
       version = req.version.getOrElse(wconf.version),
       title = req.title.getOrElse(wconf.title),
       description = req.description.getOrElse(wconf.description),
+      author = req.author.getOrElse(wconf.author),
       status = req.status.getOrElse(wconf.status),
       icon = req.icon.orElse(wconf.icon),
       tags = req.tags.getOrElse(wconf.tags),
@@ -579,8 +580,8 @@ object WorkflowRegistry {
           })
         Behaviors.same
 
-      case StartWorkflowSchema(id, taskQueue, input, wid, ns, replyTo) =>
-        log.info(s"StartWorkflowSchema: sid=${id}, taskQueue=${taskQueue}, wid=${wid}, ns=${ns} => ${engine}")
+      case StartWorkflowSchema(id, taskQueue, input, wid, ns, oid, pid, replyTo) =>
+        log.info(s"StartWorkflowSchema: sid=${id}, taskQueue=${taskQueue}, wid=${wid}, ns=${ns}, oid=${oid}, pid=${pid} => ${engine}")
         engine match {
           case None =>
             replyTo ! Failure(new Exception("Engine not configured"))
@@ -595,7 +596,7 @@ object WorkflowRegistry {
             // is folded into the config BEFORE start(), which preserves meta.* on its single write.
             // Then Resolve pulls the live statuses (STARTING while the run is not yet visible on the Engine).
             val f = for {
-              wconf0   <- store.createWConfFromWSchema(id, wid = wid)
+              wconf0   <- store.createWConfFromWSchema(id, oid = oid.filter(_.nonEmpty), pid = pid.filter(_.nonEmpty), wid = wid)
               wconf     = input.filter(_.nonEmpty)
                             .map(in => wconf0.copy(meta = Some(wconf0.meta.getOrElse(Map.empty[String, Any]) + ("input" -> in))))
                             .getOrElse(wconf0)
@@ -641,9 +642,9 @@ object WorkflowRegistry {
         store.createWConfFromWSchema(req.sid, name = req.name, oid = req.oid, pid = req.pid, xid = req.xid).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
-      case CreateWorkflowConfigFromSchema(sid, contractId, replyTo) =>
-        log.info(s"CreateWorkflowConfigFromSchema: sid=${sid} contractId=${contractId}")
-        store.createWConfFromWSchema(sid, contractId).andThen(logFail).onComplete(replyTo ! _)
+      case CreateWorkflowConfigFromSchema(sid, contractId, oid, replyTo) =>
+        log.info(s"CreateWorkflowConfigFromSchema: sid=${sid} contractId=${contractId} oid=${oid}")
+        store.createWConfFromWSchema(sid, contractId, oid = oid.filter(_.nonEmpty)).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case Setup0(tenantId, projectId, contractId, name, status, replyTo) =>
