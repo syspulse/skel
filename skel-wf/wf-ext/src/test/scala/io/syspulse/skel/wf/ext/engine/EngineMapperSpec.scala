@@ -115,12 +115,12 @@ class EngineMapperSpec extends AnyWordSpec with Matchers {
     "use --engine.url as the panel base when set (HTTPS), else fall back to URI-derived UI" in {
       val withUrl = Engine("temporal://127.0.0.1:7233/default", Some("https://temporal.example.com"))
       withUrl.url shouldBe Some("https://temporal.example.com")
-      withUrl.panelUri("PoR-Flow", "wid-1", "rid-1") shouldBe
+      withUrl.panelUri("PoR-Flow", "wid-1", "rid-1", "default") shouldBe
         Some("https://temporal.example.com/namespaces/default/workflows/wid-1/rid-1")
 
       val fromUri = Engine("temporal://127.0.0.1:7233/default")
       fromUri.url shouldBe None
-      fromUri.panelUri("PoR-Flow", "wid-1", "rid-1") shouldBe
+      fromUri.panelUri("PoR-Flow", "wid-1", "rid-1", "default") shouldBe
         Some("http://127.0.0.1:8233/namespaces/default/workflows/wid-1/rid-1")
     }
   }

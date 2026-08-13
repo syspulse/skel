@@ -1,5 +1,5 @@
 import type { ActionRes, Explain, ExplainCreateReq, Explains, ExplainUpdateReq, ExplainRes } from './types';
-import { authHeaders, handleResponse } from '../../api';
+import { authHeaders, request } from '../../api';
 
 const EXPLAIN_URL_KEY = 'VITE_EXPLAIN_API_URL';
 const LEGACY_EXPLAIN_URL_KEY = 'VITE_API_URL';
@@ -31,8 +31,7 @@ export async function listExplains(
   if (size !== undefined) params.set('size', String(size));
   const query = params.toString();
   const url = query ? `${base}?${query}` : base;
-  const res = await fetch(url, { headers: authHeaders(token) });
-  return handleResponse<Explains>(res);
+  return request<Explains>(url, { headers: authHeaders(token) });
 }
 
 export async function getExplain(
@@ -45,8 +44,7 @@ export async function getExplain(
   if (oid && oid.trim()) params.set('oid', oid.trim());
   const query = params.toString();
   const url = query ? `${base}/${encodeURIComponent(rid)}?${query}` : `${base}/${encodeURIComponent(rid)}`;
-  const res = await fetch(url, { headers: authHeaders(token) });
-  return handleResponse<Explain>(res);
+  return request<Explain>(url, { headers: authHeaders(token) });
 }
 
 export async function createExplain(
@@ -55,12 +53,11 @@ export async function createExplain(
   req: ExplainCreateReq,
 ): Promise<ActionRes> {
   const base = getBaseUrl();
-  const res = await fetch(`${base}/${encodeURIComponent(rid)}`, {
+  return request<ActionRes>(`${base}/${encodeURIComponent(rid)}`, {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify(req),
   });
-  return handleResponse<ActionRes>(res);
 }
 
 export async function updateExplain(
@@ -69,12 +66,11 @@ export async function updateExplain(
   req: ExplainUpdateReq,
 ): Promise<ActionRes> {
   const base = getBaseUrl();
-  const res = await fetch(`${base}/${encodeURIComponent(rid)}`, {
+  return request<ActionRes>(`${base}/${encodeURIComponent(rid)}`, {
     method: 'PUT',
     headers: authHeaders(token),
     body: JSON.stringify(req),
   });
-  return handleResponse<ActionRes>(res);
 }
 
 export async function deleteExplain(
@@ -89,8 +85,7 @@ export async function deleteExplain(
   const url = query
     ? `${base}/${encodeURIComponent(rid)}?${query}`
     : `${base}/${encodeURIComponent(rid)}`;
-  const res = await fetch(url, { method: 'DELETE', headers: authHeaders(token) });
-  return handleResponse<ActionRes>(res);
+  return request<ActionRes>(url, { method: 'DELETE', headers: authHeaders(token) });
 }
 
 export async function deleteExplains(
@@ -102,8 +97,7 @@ export async function deleteExplains(
   if (oid && oid.trim()) params.set('oid', oid.trim());
   const query = params.toString();
   const url = query ? `${base}?${query}` : base;
-  const res = await fetch(url, { method: 'DELETE', headers: authHeaders(token) });
-  return handleResponse<Explains>(res);
+  return request<Explains>(url, { method: 'DELETE', headers: authHeaders(token) });
 }
 
 export async function searchExplains(
@@ -115,12 +109,11 @@ export async function searchExplains(
   const base = getBaseUrl();
   const body: Record<string, unknown> = { query };
   if (from !== undefined && size !== undefined) { body.from = from; body.size = size; }
-  const res = await fetch(`${base}/search`, {
+  return request<Explains>(`${base}/search`, {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify(body),
   });
-  return handleResponse<Explains>(res);
 }
 
 export async function runExplain(
@@ -137,10 +130,9 @@ export async function runExplain(
   const query = params.toString();
   const url = `${base}/${encodeURIComponent(rid)}/explain${query ? `?${query}` : ''}`;
   const body: Record<string, unknown> = { rid, data };
-  const res = await fetch(url, {
+  return request<ExplainRes>(url, {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify(body),
   });
-  return handleResponse<ExplainRes>(res);
 }

@@ -1,4 +1,4 @@
-import { authHeaders, handleResponse } from '../../api';
+import { authHeaders, request } from '../../api';
 import type {
   WorkflowSchema, WorkflowSchemas, WorkflowSchemaView, WorkflowSchemaCreateReq, WorkflowSchemaUpdateReq,
   WorkflowConfig, WorkflowConfigs, WorkflowConfigView, WorkflowConfigCreateReq, WorkflowConfigUpdateReq,
@@ -26,20 +26,16 @@ function pageQuery(from?: number, size?: number, entity?: string): string {
 }
 
 async function GET<T>(token: string | null, path: string): Promise<T> {
-  const res = await fetch(`${getBaseUrl()}${path}`, { headers: authHeaders(token) });
-  return handleResponse<T>(res);
+  return request<T>(`${getBaseUrl()}${path}`, { headers: authHeaders(token) });
 }
 async function POST<T>(token: string | null, path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${getBaseUrl()}${path}`, { method: 'POST', headers: authHeaders(token), body: JSON.stringify(body) });
-  return handleResponse<T>(res);
+  return request<T>(`${getBaseUrl()}${path}`, { method: 'POST', headers: authHeaders(token), body: JSON.stringify(body) });
 }
 async function PUT<T>(token: string | null, path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${getBaseUrl()}${path}`, { method: 'PUT', headers: authHeaders(token), body: JSON.stringify(body) });
-  return handleResponse<T>(res);
+  return request<T>(`${getBaseUrl()}${path}`, { method: 'PUT', headers: authHeaders(token), body: JSON.stringify(body) });
 }
 async function DEL<T>(token: string | null, path: string): Promise<T> {
-  const res = await fetch(`${getBaseUrl()}${path}`, { method: 'DELETE', headers: authHeaders(token) });
-  return handleResponse<T>(res);
+  return request<T>(`${getBaseUrl()}${path}`, { method: 'DELETE', headers: authHeaders(token) });
 }
 
 // ---------------------------------------------------------------- WorkflowSchema
@@ -68,12 +64,11 @@ export const startSchema = async (token: string | null, id: number, input?: unkn
   if (oid) p.set('oid', oid);
   if (pid) p.set('pid', pid);
   const qs = p.toString();
-  const res = await fetch(`${getBaseUrl()}/schema/${id}/start${qs ? `?${qs}` : ''}`, {
+  return request<WorkflowConfigs>(`${getBaseUrl()}/schema/${id}/start${qs ? `?${qs}` : ''}`, {
     method: 'POST',
     headers: authHeaders(token),
     body: input !== undefined ? JSON.stringify(input) : undefined,
   });
-  return handleResponse<WorkflowConfigs>(res);
 };
 
 // ---------------------------------------------------------------- WorkflowConfig

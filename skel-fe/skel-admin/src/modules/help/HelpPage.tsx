@@ -90,6 +90,7 @@ function OverviewTab() {
           <EndpointTable rows={[
             { method: 'GET', path: 'VITE_EXPLAIN_API_URL',           desc: 'Explain API base URL (default: http://localhost:8080/api/v1/explain)' },
             { method: 'GET', path: 'VITE_DASH_API_URL',      desc: 'Dash API base URL (default: http://localhost:8080/api/v1/dash)' },
+            { method: 'GET', path: 'VITE_WORKFLOW_API_URL',  desc: 'Workflow API base URL (default: http://localhost:8080/api/v1/wf/ext)' },
             { method: 'GET', path: 'VITE_AUTH_ENABLED',      desc: 'Set to "false" to disable Keycloak and run in guest mode' },
             { method: 'GET', path: 'VITE_KEYCLOAK_URL',      desc: 'Keycloak server URL (default: http://localhost:8180)' },
             { method: 'GET', path: 'VITE_KEYCLOAK_REALM',    desc: 'Keycloak realm name (default: master)' },

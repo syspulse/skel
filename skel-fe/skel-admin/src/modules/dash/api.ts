@@ -1,5 +1,5 @@
 import type { DashLayout, Dashs, DashCreateReq, DashUpdateReq, DashRes } from './types';
-import { authHeaders, handleResponse } from '../../api';
+import { authHeaders, request } from '../../api';
 
 function getBaseUrl(): string {
   const stored = localStorage.getItem('VITE_DASH_API_URL');
@@ -9,24 +9,21 @@ function getBaseUrl(): string {
 
 export async function listDashes(token: string | null): Promise<Dashs> {
   const base = getBaseUrl();
-  const res = await fetch(`${base}/`, { headers: authHeaders(token) });
-  return handleResponse<Dashs>(res);
+  return request<Dashs>(`${base}/`, { headers: authHeaders(token) });
 }
 
 export async function getDash(token: string | null, id: string): Promise<DashLayout> {
   const base = getBaseUrl();
-  const res = await fetch(`${base}/${encodeURIComponent(id)}`, { headers: authHeaders(token) });
-  return handleResponse<DashLayout>(res);
+  return request<DashLayout>(`${base}/${encodeURIComponent(id)}`, { headers: authHeaders(token) });
 }
 
 export async function createDash(token: string | null, req: DashCreateReq): Promise<DashRes> {
   const base = getBaseUrl();
-  const res = await fetch(base, {
+  return request<DashRes>(base, {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify(req),
   });
-  return handleResponse<DashRes>(res);
 }
 
 export async function updateDash(
@@ -35,19 +32,17 @@ export async function updateDash(
   req: DashUpdateReq,
 ): Promise<DashRes> {
   const base = getBaseUrl();
-  const res = await fetch(`${base}/${encodeURIComponent(id)}`, {
+  return request<DashRes>(`${base}/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: authHeaders(token),
     body: JSON.stringify(req),
   });
-  return handleResponse<DashRes>(res);
 }
 
 export async function deleteDash(token: string | null, id: string): Promise<DashRes> {
   const base = getBaseUrl();
-  const res = await fetch(`${base}/${encodeURIComponent(id)}`, {
+  return request<DashRes>(`${base}/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers: authHeaders(token),
   });
-  return handleResponse<DashRes>(res);
 }
