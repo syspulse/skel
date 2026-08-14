@@ -89,10 +89,8 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
   val metricCreateCount: Counter = Counter.build().name("skel_user_create_total").help("User creates").register(TelemetryRegistry.registry)
   val metricUpdateCount: Counter = Counter.build().name("skel_user_update_total").help("User updates").register(TelemetryRegistry.registry)
   
-  def getUsers(from: Option[Long] = None, size: Option[Long] = None): Future[Users] =
-    registry.ask(GetUsers(from, size, _))
-  def searchUsers(search: String, from: Option[Long] = None, size: Option[Long] = None): Future[Users] =
-    registry.ask(SearchUsers(search, from, size, _))
+  def getUsers(from: Option[Long] = None, size: Option[Long] = None): Future[Users] = registry.ask(GetUsers(from, size, _))
+  def searchUsers(search: String, from: Option[Long] = None, size: Option[Long] = None): Future[Users] = registry.ask(SearchUsers(search, from, size, _))
   def getUser(id: UUID): Future[Try[User]] = registry.ask(GetUser(id, _))
   def getUserByXid(xid: String): Future[Option[User]] = registry.ask(GetUserByXid(xid, _))
 

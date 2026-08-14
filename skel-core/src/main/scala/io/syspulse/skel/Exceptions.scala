@@ -9,6 +9,10 @@ class ErrNotFound(msg:String) extends Err(msg,Some(Err.NOT_FOUND)) {
   override def toString = s"NotFound: ${msg}"
 }
 
+class ErrAuthorization(msg:String) extends Err(msg,Some(Err.AUTHORIZATION)) {
+  override def toString = s"Authorization: ${msg}"
+}
+
 object Err {
   val NOT_FOUND = 40104
   val MISSING_PARAMETER = 40001
