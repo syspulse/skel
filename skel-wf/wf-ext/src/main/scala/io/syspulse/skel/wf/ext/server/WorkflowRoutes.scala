@@ -404,7 +404,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       new Parameter(name = "tq", in = ParameterIn.QUERY, description = "Task Queue an independent worker polls; else config.meta(tq), else default"),
       new Parameter(name = "wid", in = ParameterIn.QUERY, description = "override the Temporal WorkflowId (else derived from the created config.title|name)"),
       new Parameter(name = "author", in = ParameterIn.QUERY, description = "WorkflowConfig.author; if omitted, JWT `upn` claim; else WorkflowSchema.author")),
-    requestBody = new RequestBody(description = "WorkflowSchemaStartReq: optional input (Temporal payload) and optional config (replaces WorkflowConfig.config; omitted keeps the schema default)",
+    requestBody = new RequestBody(description = "WorkflowSchemaStartReq: optional input (Temporal payload; omitted uses WorkflowSchema.meta.input) and optional config (replaces WorkflowConfig.config; omitted keeps the schema default)",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchemaStartReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "created + started + resolved config(s)",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))

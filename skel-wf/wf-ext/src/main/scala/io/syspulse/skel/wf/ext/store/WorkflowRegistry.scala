@@ -69,7 +69,7 @@ object WorkflowRegistry {
   // Start an Engine (Temporal) execution FROM a WorkflowSchema by id: create a WorkflowConfig from the
   // schema, then start a Workflow with WorkflowType == WorkflowSchema.name and WorkflowId = `wid` (if
   // non-empty) else the new WorkflowConfig.title (or .name if title is empty). taskQueue = request ->
-  // config.meta("tq") -> default; input = caller JSON override else the WorkflowConfig JSON.
+  // config.meta("tq") -> default; input = caller JSON override else WorkflowSchema.meta.input else the WorkflowConfig JSON.
   // `config` (when Some) replaces the created WorkflowConfig.config; None keeps the schema default.
   // xid = RunId (+ meta.wid), persists, then Resolves live statuses (STARTING while not yet visible).
   final case class StartWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], config: Option[JsObject], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String], author: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
@@ -591,12 +591,13 @@ object WorkflowRegistry {
             //   WorkflowType = WorkflowSchema.name (== the created config.name, which defaults to the schema name)
             //   WorkflowId   = `wid` (if non-empty) else new WorkflowConfig.title (or .name if title is empty)
             // When `wid` is provided it is ALSO used as the WorkflowConfig.title (set at creation).
-            // taskQueue: request -> config.meta("tq") -> default; input: caller JSON override else config JSON.
+            // taskQueue: request -> config.meta("tq") -> default.
+            // input: caller JSON override else WorkflowSchema.meta.input (JSON string) else config JSON.
             // `config` (when Some) replaces WorkflowConfig.config (the JsonSchemaDefault instance);
             // None keeps the default instantiated from WorkflowSchema.schema.
-            // The caller's start input JSON is recorded into meta.input (stored AS A STRING - JsonMap
-            // serializes a String value to a JSON string; an empty body leaves meta.input unset). This
-            // is folded into the config BEFORE start(), which preserves meta.* on its single write.
+            // The start input JSON is recorded into meta.input as a String (JsonMap serializes String
+            // to a JSON string). Caller input overwrites; omitted body keeps schema.meta.input (already
+            // copied onto the config). Folded in BEFORE start(), which preserves meta.* on its single write.
             // Then Resolve pulls the live statuses (STARTING while the run is not yet visible on the Engine).
             val f = for {
               wconf0   <- store.createWConfFromWSchema(id, oid = oid.filter(_.nonEmpty), pid = pid.filter(_.nonEmpty), wid = wid, author = author.filter(_.nonEmpty))
@@ -607,7 +608,7 @@ object WorkflowRegistry {
               tq        = taskQueue.filter(_.nonEmpty)
                             .orElse(wconf.meta.flatMap(_.get("tq")).map(_.toString).filter(_.nonEmpty))
                             .getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
-              payload   = input.filter(_.nonEmpty).orElse(Some(wconf.toJson.compactPrint))
+              payload   = input.filter(_.nonEmpty).orElse(WorkflowSchema.inputOf(wconf.meta)).orElse(Some(wconf.toJson.compactPrint))
               saved    <- WorkflowAssembly.start(wconf, wconf.name, e, store, tq, payload, ns, wid)
               resolved <- resolveWconfs(store, Some(e), saved.xid.toSeq, Some(RESOLVE_RID))
               started  <- markStarting(store, resolved)

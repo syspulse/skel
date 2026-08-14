@@ -61,7 +61,7 @@ object WorkflowAssembly {
    *   - WorkflowType = workflowType             (the WorkflowSchema.name)
    *   - WorkflowId   = `wid` (if non-empty), else wconf.title (or wconf.name if title is empty)
    *   - TaskQueue    = taskQueue                (an INDEPENDENT worker polls it)
-   *   - input        = optional JSON payload (caller override, else the WorkflowConfig JSON)
+   *   - input        = optional JSON payload (caller override, else WorkflowSchema.meta.input, else the WorkflowConfig JSON)
    * Then write the Engine truth back: xid = RunId, meta.wid = WorkflowId (name is left unchanged), persist.
    * The returned wconf carries the new binding; callers typically Resolve it to pull live statuses.
    */

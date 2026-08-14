@@ -39,8 +39,9 @@ case class WorkflowSchema(
 
   schema: Option[JsObject],
   uiSchema: Option[JsObject],
-
-  // meta contains arbitrary metadata about the workflow (e.g. "namespace", "")
+  
+  // meta contains arbitrary metadata about the workflow (e.g. "tq", "ns").
+  // `meta.input` is the default start JSON payload, a String (JSON quoted with `"`).
   meta: Option[Map[String, Any]] = None, // metadata of the workflow
 
   graph: WorkflowGraf, // default (template) graph used as a blueprint for WorkflowConfig creation
@@ -50,6 +51,10 @@ case class WorkflowSchema(
 
 object WorkflowSchema {
   val DEFAULT_ID = 0  // ids start at 0 and are never negative
+
+  /** `meta.input` start payload (a JSON string). */
+  def inputOf(meta: Option[Map[String, Any]]): Option[String] =
+    meta.flatMap(_.get("input")).collect { case s: String if s.trim.nonEmpty => s }
 
   object Status {
     val ACTIVE   = "ACTIVE"

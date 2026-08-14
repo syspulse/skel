@@ -64,8 +64,9 @@ final case class WorkflowSchemaDslReq(
   wid: Option[Int] = None,
   name: Option[String] = None,
 )
-/** POST /schema/{id}/start body. Both fields optional: omitted `input` uses the default
- *  WorkflowConfig payload; omitted `config` keeps the schema JsonSchema default. */
+/** POST /schema/{id}/start body. Both fields optional: omitted `input` uses
+ *  WorkflowSchema.meta.input (JSON string) else the WorkflowConfig payload;
+ *  omitted `config` keeps the schema JsonSchema default. */
 final case class WorkflowSchemaStartReq(
   input: Option[JsValue] = None,
   config: Option[JsObject] = None,

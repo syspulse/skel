@@ -236,6 +236,25 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       input shouldBe Some("""{"k":"v"}""")
     }
 
+    "POST /schema/{id}/start uses WorkflowSchema.meta.input when the body omits input" in {
+      val sc = Post("/schema", WorkflowSchemaCreateReq(name = "StartMetaIn")) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      Put(s"/schema/${sc.id}", WorkflowSchemaUpdateReq(meta = Some(Map("input" -> """{"from":"schema"}""")))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[WorkflowSchema].meta.flatMap(_.get("input")) shouldBe Some("""{"from":"schema"}""")
+      }
+      val started = Post(s"/schema/${sc.id}/start") ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val c = responseAs[WorkflowConfigs].configs.head
+        c.meta.flatMap(_.get("input")) shouldBe Some("""{"from":"schema"}""")
+        c
+      }
+      val (_, _, _, input) = stubEngine.lastStart.get
+      input shouldBe Some("""{"from":"schema"}""")
+      Await.result(store.getWConf(started.id), 5.seconds).meta.flatMap(_.get("input")) shouldBe Some("""{"from":"schema"}""")
+    }
+
     "POST /schema/{id}/start without config keeps the JsonSchema default WorkflowConfig.config" in {
       val sc = Post("/schema", WorkflowSchemaCreateReq(
         name = "StartDef",

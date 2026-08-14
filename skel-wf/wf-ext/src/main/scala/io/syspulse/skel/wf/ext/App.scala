@@ -12,8 +12,7 @@ import io.syspulse.skel.wf.ext.store.{WorkflowStore, WorkflowStoreMem, WorkflowS
 import io.syspulse.skel.wf.ext.server.WorkflowRoutes
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
 import io.syspulse.skel.wf.ext.engine.{Engine, EngineMapper, EngineWorkflow, EngineStatus, WorkflowRuntimeView, TrackMapper}
-import io.hacken.ext.wf.WorkflowConfig
-import io.hacken.ext.wf.WorkflowStatus
+import io.hacken.ext.wf.{WorkflowConfig, WorkflowSchema, WorkflowStatus}
 import io.hacken.ext.wf.WorkflowConfigJson._
 import io.hacken.ext.detector.DetectorConfig
 import spray.json._
@@ -377,12 +376,13 @@ object App extends skel.Server {
             val engine = newEngine()
             try {
               // create a WorkflowConfig FROM the schema, then start it (WorkflowType == schema.name,
-              // WorkflowId == <wid>|config.title|name); default payload = the WorkflowConfig JSON
+              // WorkflowId == <wid>|config.title|name); payload = schema.meta.input else WorkflowConfig JSON
               val widOverride = rest.headOption.filter(_.nonEmpty)
               val f = for {
                 wconf  <- store.createWConfFromWSchema(idStr.toInt)
                 tq      = config.tq.getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
-                saved  <- WorkflowAssembly.start(wconf, wconf.name, engine, store, tq, Some(wconf.toJson.compactPrint), config.ns, widOverride)
+                payload = WorkflowSchema.inputOf(wconf.meta).orElse(Some(wconf.toJson.compactPrint))
+                saved  <- WorkflowAssembly.start(wconf, wconf.name, engine, store, tq, payload, config.ns, widOverride)
               } yield saved
               Try(Await.result(f, config.timeout.millis)) match {
                 case Success(wconf) =>
