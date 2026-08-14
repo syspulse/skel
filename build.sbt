@@ -1413,7 +1413,8 @@ lazy val wf_ext = (project in file("skel-wf/wf-ext"))
     sharedConfigDocker,
     dockerBuildxSettings,
     
-    appDockerConfig("wf-ext","io.syspulse.skel.wf.ext.App"),
+    //appDockerConfig("wf-ext","io.syspulse.skel.wf.ext.App"),
+    appDockerConfig("wf-ext","io.syspulse.skel.wf.ext.App",Seq("application-dev.conf")),
 
     libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ libTemporal ++ Seq(
       libOsLib,
