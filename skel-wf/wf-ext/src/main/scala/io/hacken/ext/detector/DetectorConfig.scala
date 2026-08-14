@@ -42,7 +42,8 @@ case class DetectorConfigSchema(
   status: String, //"ACTIVE/DISABLED",
   name: String, // did == Uniqie Detector,
   version: String, //"0.2.7",
-  schema: Option[JsObject]
+  schema: Option[JsObject],
+  uiSchema: Option[JsObject] = None
 )
 
 case class DetectorConfig(
@@ -66,7 +67,7 @@ case class DetectorConfig(
 ) extends Ingestable
 
 object DetectorConfigJson extends JsonCommon { 
-  implicit val jf_dc_sch = jsonFormat7(DetectorConfigSchema)  
+  implicit val jf_dc_sch: RootJsonFormat[DetectorConfigSchema] = jsonFormat8(DetectorConfigSchema.apply)
   implicit val jf_dc_con = jsonFormat10(DetectorConfigContract)
   implicit val jf_dc_dest = jsonFormat7(DetectorConfigDestination)  
   implicit val jf_dc = jsonFormat12(DetectorConfig.apply _)

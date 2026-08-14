@@ -9,7 +9,7 @@ import { IconPicker } from '../../../components/IconPicker';
 import { FormattedTimestamp } from '../../../components/FormattedTimestamp';
 import { TagsInput } from '../../../components/TagsInput';
 import { SliderFieldRow } from '../../../components/SliderFieldRow';
-import { SchemaConfigEditor, defaultConfig } from './SchemaConfigEditor';
+import { SchemaConfigEditor, JsonCodeEditor } from './SchemaConfigEditor';
 import type { JsonSchema, UiSchema } from './SchemaConfigEditor';
 import { useDefaultOid } from '../../../settings/OwnerContext';
 
@@ -62,9 +62,6 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
     if (!s.trim()) return undefined;
     return JSON.parse(s) as Record<string, unknown>;
   };
-  const tryParse = (s: string): Record<string, unknown> | undefined => {
-    try { return parseJsonObj(s); } catch { return undefined; }
-  };
 
   const sourceWSchema = kind === KIND.workflowConfig
     ? schemas.find((s) => s.id === (config?.sid ?? form.sid)) ?? null
@@ -85,7 +82,6 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
       setSchemaJson(schema.schema ? JSON.stringify(schema.schema, null, 2) : '');
       setUiSchemaJson(schema.uiSchema ? JSON.stringify(schema.uiSchema, null, 2) : '');
       setMetaJson(schema.meta && Object.keys(schema.meta).length > 0 ? JSON.stringify(schema.meta, null, 2) : '');
-      setConfigData(defaultConfig(schema.schema as JsonSchema | undefined));
     } else if (kind === KIND.workflowConfig && config) {
       setForm({ name: config.name, title: config.title, description: config.description, author: config.author ?? '', status: config.status, version: config.version, icon: config.icon, tags: (config.tags ?? []).join(', '), oid: config.oid ?? '', pid: config.pid ?? '', xid: config.xid ?? '', sid: config.sid });
       setConfigData(config.config ?? {});
@@ -266,7 +262,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
             </>
           )}
 
-          {/* JsonSchema editors: SchemaConfigEditor on schema (WorkflowSchema) / config (WorkflowConfig) */}
+          {/* schema/uiSchema: plain JSON editors. SchemaConfigEditor is only for WorkflowConfig.config */}
           {kind === KIND.workflowSchema && (
             <>
               {!addMode && (
@@ -278,19 +274,11 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
               )}
               <div className="field-stack">
                 <label className="field-stack-label">{t('workflow.fields.schema')}</label>
-                <SchemaConfigEditor
-                  schema={tryParse(schemaJson) as JsonSchema | undefined}
-                  uiSchema={tryParse(uiSchemaJson) as UiSchema | undefined}
-                  value={configData}
-                  onChange={setConfigData}
-                  onSchemaChange={(s) => setSchemaJson(JSON.stringify(s, null, 2))}
-                  height={260}
-                />
+                <JsonCodeEditor value={schemaJson} onChange={setSchemaJson} height={220} />
               </div>
               <div className="field-stack">
                 <label className="field-stack-label">uiSchema</label>
-                <textarea rows={4} spellCheck={false} value={uiSchemaJson} onChange={(e) => setUiSchemaJson(e.target.value)}
-                  placeholder={'{\n  "ui:order": []\n}'} className="field-code" />
+                <JsonCodeEditor value={uiSchemaJson} onChange={setUiSchemaJson} height={140} />
               </div>
             </>
           )}

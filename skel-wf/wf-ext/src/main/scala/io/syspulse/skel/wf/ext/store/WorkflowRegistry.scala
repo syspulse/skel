@@ -69,9 +69,10 @@ object WorkflowRegistry {
   // Start an Engine (Temporal) execution FROM a WorkflowSchema by id: create a WorkflowConfig from the
   // schema, then start a Workflow with WorkflowType == WorkflowSchema.name and WorkflowId = `wid` (if
   // non-empty) else the new WorkflowConfig.title (or .name if title is empty). taskQueue = request ->
-  // config.meta("tq") -> default; input = caller JSON override else the WorkflowConfig JSON. Sets
+  // config.meta("tq") -> default; input = caller JSON override else the WorkflowConfig JSON.
+  // `config` (when Some) replaces the created WorkflowConfig.config; None keeps the schema default.
   // xid = RunId (+ meta.wid), persists, then Resolves live statuses (STARTING while not yet visible).
-  final case class StartWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String], author: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
+  final case class StartWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], config: Option[JsObject], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String], author: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
 
   // ---- WorkflowConfig ----
   // oid=None skips owner match (admin); pid=None skips project filter. Both are applied in the Store.
@@ -431,7 +432,7 @@ object WorkflowRegistry {
       contract = DetectorConfigContract(0, now, now,
         WorkflowStore.dconfProjectId(req.pid), WorkflowStore.dconfTenantId(req.oid),
         None, None, None, None, req.name),
-      schema = dschemaRef.map(dschema => DetectorConfigSchema(dschema.id, now, now, dschema.status, dschema.name, dschema.version, None)),
+      schema = dschemaRef.map(dschema => DetectorConfigSchema(dschema.id, now, now, dschema.status, dschema.name, dschema.version, dschema.schema, dschema.uiSchema)),
       name = req.name, 
       source = req.source.getOrElse(WorkflowStore.DETECTOR_CONFIG_SOURCE), 
       tags = req.tags.getOrElse(Seq()),
@@ -580,8 +581,8 @@ object WorkflowRegistry {
           })
         Behaviors.same
 
-      case StartWorkflowSchema(id, taskQueue, input, wid, ns, oid, pid, author, replyTo) =>
-        log.info(s"StartWorkflowSchema: sid=${id}, tq=${taskQueue}, wid=${wid}, ns=${ns}, oid=${oid}, pid=${pid}, author=${author} => ${engine}")
+      case StartWorkflowSchema(id, taskQueue, input, config, wid, ns, oid, pid, author, replyTo) =>
+        log.info(s"StartWorkflowSchema: sid=${id}, tq=${taskQueue}, wid=${wid}, ns=${ns}, oid=${oid}, pid=${pid}, author=${author}, config=${config.isDefined} => ${engine}")
         engine match {
           case None =>
             replyTo ! Failure(new Exception("Engine not configured"))
@@ -591,15 +592,18 @@ object WorkflowRegistry {
             //   WorkflowId   = `wid` (if non-empty) else new WorkflowConfig.title (or .name if title is empty)
             // When `wid` is provided it is ALSO used as the WorkflowConfig.title (set at creation).
             // taskQueue: request -> config.meta("tq") -> default; input: caller JSON override else config JSON.
+            // `config` (when Some) replaces WorkflowConfig.config (the JsonSchemaDefault instance);
+            // None keeps the default instantiated from WorkflowSchema.schema.
             // The caller's start input JSON is recorded into meta.input (stored AS A STRING - JsonMap
             // serializes a String value to a JSON string; an empty body leaves meta.input unset). This
             // is folded into the config BEFORE start(), which preserves meta.* on its single write.
             // Then Resolve pulls the live statuses (STARTING while the run is not yet visible on the Engine).
             val f = for {
               wconf0   <- store.createWConfFromWSchema(id, oid = oid.filter(_.nonEmpty), pid = pid.filter(_.nonEmpty), wid = wid, author = author.filter(_.nonEmpty))
+              wconf1    = config.map(c => wconf0.copy(config = Some(c))).getOrElse(wconf0)
               wconf     = input.filter(_.nonEmpty)
-                            .map(in => wconf0.copy(meta = Some(wconf0.meta.getOrElse(Map.empty[String, Any]) + ("input" -> in))))
-                            .getOrElse(wconf0)
+                            .map(in => wconf1.copy(meta = Some(wconf1.meta.getOrElse(Map.empty[String, Any]) + ("input" -> in))))
+                            .getOrElse(wconf1)
               tq        = taskQueue.filter(_.nonEmpty)
                             .orElse(wconf.meta.flatMap(_.get("tq")).map(_.toString).filter(_.nonEmpty))
                             .getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)

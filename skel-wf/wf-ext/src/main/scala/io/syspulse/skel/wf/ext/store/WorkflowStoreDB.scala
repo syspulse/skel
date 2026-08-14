@@ -118,7 +118,28 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   private def rIntOpt(row: RowData, i: Int): Option[Int] = { val v = row.get(i); if (v == null) None else Some(v.asInstanceOf[Number].intValue) }
   private def rLongOpt(row: RowData, i: Int): Option[Long] = { val v = row.get(i); if (v == null) None else Some(v.asInstanceOf[Number].longValue) }
   private def pCsv(s: String): Seq[String] = Option(s).filter(_.nonEmpty).map(_.split(",").toSeq).getOrElse(Seq())
-  private def pJsonbObj(s: String): Option[JsObject] = Option(s).filter(_.nonEmpty).map(_.parseJson.asJsObject)
+  // jsonb object (`{}`) or jsonb string wrapping an object (`"{...}"`, same encoding as faq)
+  private def pJsonbObj(s: String): Option[JsObject] = {
+    def asObj(jv: JsValue): Option[JsObject] = jv match {
+      case o: JsObject  => Some(o)
+      case JsString(in) => Try(in.parseJson).toOption.flatMap(asObj)
+      case _            => None
+    }
+    Option(s).filter(_.nonEmpty).flatMap(t => Try(t.parseJson).toOption).flatMap(asObj)
+  }
+  /** Read a jsonb object column. jasync may return String (after `::text`) or a raw jsonb payload. */
+  private def rJsonbObj(row: RowData, i: Int): Option[JsObject] = {
+    val raw = row.get(i)
+    if (raw == null) None
+    else {
+      val s = raw match {
+        case s: String      => s
+        case b: Array[Byte] => new String(b, java.nio.charset.StandardCharsets.UTF_8)
+        case other          => other.toString
+      }
+      pJsonbObj(s)
+    }
+  }
   private def pTxtJson[T](s: String, r: JsonReader[T]): Option[T] = Option(s).filter(_.nonEmpty).map(_.parseJson.convertTo[T](r))
   private def parseGraf(s: String): WorkflowGraf = s.parseJson.convertTo[WorkflowGraf](fmtGraf)
 
@@ -304,7 +325,7 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
     id = rInt(row,0), createdAt = rLong(row,1), updatedAt = rLong(row,2), status = rStr(row,3),
     name = rStr(row,4), version = rStr(row,5), title = rStrOpt(row,6), description = rStr(row,7), author = rStrOpt(row,8),
     icon = rStrOpt(row,9), faq = pFaq(rStr(row,10), fmtDetFaq), tags = pArr(rStr(row,11)), networkTags = pArr(rStr(row,12)),
-    schema = pJsonbObj(rStr(row,13)), uiSchema = pJsonbObj(rStr(row,14)))
+    schema = rJsonbObj(row,13), uiSchema = rJsonbObj(row,14))
   private def rowDSchema(row: RowData, u: Unit): DetectorSchema = toDetectorSchema(rowDSchemaRow(row, u))
   private def valsDSchema(dschema: DetectorSchema): Seq[String] = { // column order = DSCHEMA_COLS
     Seq(lLit(dschema.id), tsWrite(dschema.createdAt), tsWrite(dschema.updatedAt), q(dschema.status), q(dschema.name), q(dschema.version),

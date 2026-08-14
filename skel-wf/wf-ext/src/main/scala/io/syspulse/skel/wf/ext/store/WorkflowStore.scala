@@ -71,7 +71,8 @@ object WorkflowStore {
         dschema.status, 
         dschema.name, 
         dschema.version, 
-        None
+        dschema.schema,
+        dschema.uiSchema
       )),
       name = dschema.name, 
       source = DETECTOR_CONFIG_SOURCE, 

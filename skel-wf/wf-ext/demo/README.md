@@ -157,4 +157,4 @@ WORKFLOW_NAME=Demo TASK_QUEUE=DEMO_WORKFLOW_QUEUE ./run-worker.sh static
 ```
 A run whose type isn't `WORKFLOW_NAME` that lands on a static worker's queue fails fast with
 `Workflow class <Type> is not registered` — the intended guardrail. The task queue must always match
-between start (`?taskQueue=`) and worker (`TASK_QUEUE`).
+between start (`?tq=`) and worker (`TASK_QUEUE`).

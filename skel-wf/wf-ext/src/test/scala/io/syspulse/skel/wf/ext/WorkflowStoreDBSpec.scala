@@ -200,6 +200,17 @@ class WorkflowStoreDBSpec extends AnyWordSpec with Matchers with BeforeAndAfterA
       p.total shouldBe 2L; p.dschemas.map(_.id) shouldBe Seq(0)
       Await.result(store.delDSchema(1), timeout) shouldBe 1
     }
+    "roundtrip DetectorSchema.schema and ui_schema jsonb objects" in {
+      val sch = JsObject("type" -> JsString("object"), "properties" -> JsObject(
+        "severity" -> JsObject("type" -> JsString("number"), "default" -> JsNumber(0.5))))
+      val ui = JsObject("ui:order" -> JsArray(JsString("severity")))
+      Await.result(store.addDSchema(detSchema(80).copy(schema = Some(sch), uiSchema = Some(ui))), timeout)
+      val got = Await.result(store.getDSchema(80), timeout).get
+      got.schema shouldBe Some(sch)
+      got.uiSchema shouldBe Some(ui)
+      jdbcString("SELECT jsonb_typeof(ui_schema) FROM detector_schema WHERE id=80") shouldBe "object"
+      jdbcString("SELECT jsonb_typeof(schema) FROM detector_schema WHERE id=80") shouldBe "object"
+    }
     "store DetectorSchema.faq as jsonb string (not jsonb array)" in {
       val faq = Seq(DetectorSchemaFaq("What is Native Balance Monitor", "Monitors Account/Contract balance (native token)"))
       Await.result(store.addDSchema(detSchema(50).copy(faq = Some(faq))), timeout)

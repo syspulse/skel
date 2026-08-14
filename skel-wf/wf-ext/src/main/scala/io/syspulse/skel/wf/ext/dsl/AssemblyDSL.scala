@@ -105,7 +105,7 @@ object AssemblyDSL {
         chainUid = None, proxyAddress = None, implementation = None, address = None, name = name),
       schema = Some(DetectorConfigSchema(
         id = ds.id, createdAt = now, updatedAt = now, status = WorkflowSchema.Status.ACTIVE,
-        name = ds.name, version = ds.version, schema = None)),
+        name = ds.name, version = ds.version, schema = ds.schema, uiSchema = ds.uiSchema)),
       name = name, source = "", tags = Seq(), config = None, destinations = Seq(),
     )
   }

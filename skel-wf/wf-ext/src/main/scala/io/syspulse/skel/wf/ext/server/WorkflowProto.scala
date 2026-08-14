@@ -1,6 +1,6 @@
 package io.syspulse.skel.wf.ext.server
 
-import spray.json.JsObject
+import spray.json.{JsObject, JsValue}
 import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf, WorkflowSchemaFaq}
 import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorSchemaFaq}
 
@@ -63,6 +63,12 @@ final case class WorkflowSchemaDslReq(
   pipeline: String,
   wid: Option[Int] = None,
   name: Option[String] = None,
+)
+/** POST /schema/{id}/start body. Both fields optional: omitted `input` uses the default
+ *  WorkflowConfig payload; omitted `config` keeps the schema JsonSchema default. */
+final case class WorkflowSchemaStartReq(
+  input: Option[JsValue] = None,
+  config: Option[JsObject] = None,
 )
 
 // ---------------------------------------------------------------- WorkflowConfig

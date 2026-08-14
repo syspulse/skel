@@ -9,7 +9,7 @@ import scala.concurrent.duration._
 
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
-import akka.http.scaladsl.model.{StatusCodes, HttpEntity, ContentTypes}
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 
 import io.hacken.ext.wf._
@@ -195,17 +195,64 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       input.isDefined shouldBe true
     }
 
-    "POST /schema/{id}/start honors ?taskQueue and a caller-supplied JSON input body" in {
+    "POST /schema/{id}/start honors ?tq and a caller-supplied JSON input body" in {
       val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.ProofOfOwnership", name = Some("StartFlow2"))) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
       }
-      Post(s"/schema/${sc.id}/start?taskQueue=MY_QUEUE").withEntity(HttpEntity(ContentTypes.`application/json`, """{"k":"v"}""")) ~~> routes.routes ~> check {
+      Post(s"/schema/${sc.id}/start?tq=MY_QUEUE", WorkflowSchemaStartReq(input = Some(spray.json.JsObject("k" -> spray.json.JsString("v"))))) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         responseAs[WorkflowConfigs].configs.head.xid shouldBe Some(stubEngine.lastRunId)
       }
       val (_, _, tq, input) = stubEngine.lastStart.get
       tq shouldBe "MY_QUEUE"                                    // request overrides the default
-      input shouldBe Some("""{"k":"v"}""")                     // caller body overrides the config payload
+      input shouldBe Some("""{"k":"v"}""")                     // caller input overrides the config payload
+    }
+
+    "POST /schema/{id}/start {input,config} replaces WorkflowConfig.config and still forwards input" in {
+      val sc = Post("/schema", WorkflowSchemaCreateReq(
+        name = "StartCfg",
+        schema = Some(spray.json.JsObject(
+          "type" -> spray.json.JsString("object"),
+          "properties" -> spray.json.JsObject(
+            "severity" -> spray.json.JsObject("type" -> spray.json.JsString("number"), "default" -> spray.json.JsNumber(0.5))
+          )
+        ))
+      )) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      val started = Post(s"/schema/${sc.id}/start", WorkflowSchemaStartReq(
+        input  = Some(spray.json.JsObject("k" -> spray.json.JsString("v"))),
+        config = Some(spray.json.JsObject("severity" -> spray.json.JsNumber(0.9), "note" -> spray.json.JsString("custom"))),
+      )) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val c = responseAs[WorkflowConfigs].configs.head
+        c.config.flatMap(_.fields.get("severity")) shouldBe Some(spray.json.JsNumber(0.9))
+        c.config.flatMap(_.fields.get("note")) shouldBe Some(spray.json.JsString("custom"))
+        c
+      }
+      val saved = Await.result(store.getWConf(started.id), 5.seconds)
+      saved.config.flatMap(_.fields.get("severity")) shouldBe Some(spray.json.JsNumber(0.9))
+      val (_, _, _, input) = stubEngine.lastStart.get
+      input shouldBe Some("""{"k":"v"}""")
+    }
+
+    "POST /schema/{id}/start without config keeps the JsonSchema default WorkflowConfig.config" in {
+      val sc = Post("/schema", WorkflowSchemaCreateReq(
+        name = "StartDef",
+        schema = Some(spray.json.JsObject(
+          "type" -> spray.json.JsString("object"),
+          "properties" -> spray.json.JsObject(
+            "severity" -> spray.json.JsObject("type" -> spray.json.JsString("number"), "default" -> spray.json.JsNumber(0.5))
+          )
+        ))
+      )) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      val started = Post(s"/schema/${sc.id}/start") ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[WorkflowConfigs].configs.head
+      }
+      started.config.flatMap(_.fields.get("severity")) shouldBe Some(spray.json.JsNumber(0.5))
     }
 
     "WorkflowConfig.from substitutes {id}/{ts}/{meta} placeholders in name and title" in {

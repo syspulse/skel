@@ -73,6 +73,26 @@ class DetectorRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       }
     }
 
+    "update DetectorSchema keeps schema and uiSchema (Mem)" in {
+      import spray.json._
+      val sch = JsObject("type" -> JsString("object"), "properties" -> JsObject(
+        "severity" -> JsObject("type" -> JsString("number"), "default" -> JsNumber(0.5))))
+      val ui = JsObject("ui:order" -> JsArray(JsString("severity")))
+      Put("/detector/schema/0", DetectorSchemaUpdateReq(schema = Some(sch), uiSchema = Some(ui))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val s = responseAs[DetectorSchema]
+        s.schema shouldBe Some(sch)
+        s.uiSchema shouldBe Some(ui)
+      }
+      Put("/detector/schema/0", DetectorSchemaUpdateReq(name = Some("Scanner2"))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val s = responseAs[DetectorSchema]
+        s.name shouldBe "Scanner2"
+        s.schema shouldBe Some(sch)
+        s.uiSchema shouldBe Some(ui)
+      }
+    }
+
     "create MULTIPLE DetectorConfigs of the SAME DetectorSchema (1 schema -> many configs)" in {
       val c1 = Post("/detector/config", DetectorConfigCreateReq(name = "scan-eth", sid = Some(0))) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[DetectorConfig]
@@ -96,6 +116,9 @@ class DetectorRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
         val c = responseAs[DetectorConfig]
         c.status shouldBe "DISABLED"
         c.source shouldBe "eth-mainnet"
+        // nested DetectorSchema.schema/uiSchema copied at create must survive the update
+        c.schema.flatMap(_.schema).isDefined shouldBe true
+        c.schema.flatMap(_.uiSchema).isDefined shouldBe true
       }
     }
 

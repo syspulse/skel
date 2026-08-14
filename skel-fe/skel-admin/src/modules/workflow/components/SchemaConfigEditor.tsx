@@ -179,6 +179,28 @@ function CodeField({ value, onChange, lang, height, readOnly }: {
   );
 }
 
+/** Bordered, resizable syntax-highlighted JSON editor (Start dialog Input, not SchemaConfigEditor). */
+export function JsonCodeEditor({ value, onChange, height = 160, readOnly }: {
+  value: string; onChange?: (v: string) => void; height?: number; readOnly?: boolean;
+}) {
+  return (
+    <div className="schema-config-editor" style={{ minHeight: height }}>
+      <CodeMirror
+        value={value}
+        onChange={readOnly ? undefined : onChange}
+        extensions={[jsonLang(), EditorView.lineWrapping, ...(readOnly ? [EditorView.editable.of(false)] : [])]}
+        height={`${height}px`}
+        style={{ fontSize: '12px' }}
+        basicSetup={{
+          lineNumbers: true, foldGutter: true, dropCursor: false,
+          indentOnInput: !readOnly, syntaxHighlighting: true,
+          autocompletion: false, closeBrackets: true,
+        }}
+      />
+    </div>
+  );
+}
+
 function ScalarEditor({ schema, ui, value, onChange, readOnly }: {
   schema: JsonSchema; ui?: UiSchema; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean;
 }) {

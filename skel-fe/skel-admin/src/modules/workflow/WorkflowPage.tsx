@@ -212,12 +212,12 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   }, []);
 
   // Start a workflow from a WorkflowSchema (Start dialog). Notifies the Dispatcher on success/error.
-  const startFromSchema = useCallback(async (input: unknown | undefined, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string) => {
+  const startFromSchema = useCallback(async (input: unknown | undefined, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string, config?: Record<string, unknown>) => {
     if (startSchemaId === null) return;
     const sid = startSchemaId;
     setSaving(true);
     try {
-      const res = await api.startSchema(token, sid, input, taskQueue, wid, ns, oid, pid);
+      const res = await api.startSchema(token, sid, input, taskQueue, wid, ns, oid, pid, config);
       const c = res.configs?.[0];
       if (c) notifyDispatcher(0.1, t('workflow.startOk'),
         t('workflow.startOkMsg', { id: c.id, name: c.name, title: c.title }),

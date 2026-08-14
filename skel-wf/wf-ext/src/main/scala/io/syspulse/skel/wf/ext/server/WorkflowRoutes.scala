@@ -25,7 +25,7 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody
 import jakarta.ws.rs.{Consumes, POST, PUT, GET, DELETE, Path, Produces}
 import jakarta.ws.rs.core.MediaType
 
-import spray.json.JsValue
+import spray.json.{JsValue, JsObject}
 
 import io.syspulse.skel.auth.Authenticated
 import io.syspulse.skel.auth.permissions.Permissions
@@ -136,7 +136,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def createWorkflowSchemaDsl(req: WorkflowSchemaDslReq): Future[Try[WorkflowSchema]] = registry.ask(CreateWorkflowSchemaDsl(req, _))
   def updateWorkflowSchema(id: Int, req: WorkflowSchemaUpdateReq): Future[Try[WorkflowSchema]] = registry.ask(UpdateWorkflowSchema(id, req, _))
   def deleteWorkflowSchema(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteWorkflowSchema(id, _))
-  def startWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String], author: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(StartWorkflowSchema(id, taskQueue, input, wid, ns, oid, pid, author, _))
+  def startWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], config: Option[JsObject], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String], author: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(StartWorkflowSchema(id, taskQueue, input, config, wid, ns, oid, pid, author, _))
 
   // ---- WorkflowConfig asks ----
   def getWorkflowConfigs(from: Option[Long], size: Option[Long], entity: String, oid: Option[String], pid: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigs(from, size, entity, oid, pid, _))
@@ -397,15 +397,15 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     )
   }
 
-  @POST @Path("/schema/{id}/start") @Produces(Array(MediaType.APPLICATION_JSON))
+  @POST @Path("/schema/{id}/start") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("schema"), summary = "Create a WorkflowConfig from a WorkflowSchema and start an Engine (Temporal) execution (WorkflowType == schema.name, WorkflowId == wid|config.title|name); sets xid=RunId and returns the resolved config",
     parameters = Array(
       new Parameter(name = "id", in = ParameterIn.PATH, description = "WorkflowSchema id"),
-      new Parameter(name = "tq", in = ParameterIn.QUERY, description = "Task Queue an independent worker polls; else config.meta(taskQueue), else default"),
+      new Parameter(name = "tq", in = ParameterIn.QUERY, description = "Task Queue an independent worker polls; else config.meta(tq), else default"),
       new Parameter(name = "wid", in = ParameterIn.QUERY, description = "override the Temporal WorkflowId (else derived from the created config.title|name)"),
       new Parameter(name = "author", in = ParameterIn.QUERY, description = "WorkflowConfig.author; if omitted, JWT `upn` claim; else WorkflowSchema.author")),
-    requestBody = new RequestBody(description = "optional JSON input payload for the workflow (overrides the default WorkflowConfig payload)",
-      content = Array(new Content(schema = new Schema(implementation = classOf[String])))),
+    requestBody = new RequestBody(description = "WorkflowSchemaStartReq: optional input (Temporal payload) and optional config (replaces WorkflowConfig.config; omitted keeps the schema default)",
+      content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchemaStartReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "created + started + resolved config(s)",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
   def startWorkflowSchemaRoute(id: Int) = post {
@@ -416,9 +416,11 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
         val pid = oidOpt(pidQ)
         // author: ?author= else JWT.upn (from() falls back to WorkflowSchema.author if still None)
         val author = oidOpt(authorQ).orElse(ExtAuth.getOwner(authn, "upn").filter(_.nonEmpty))
-        // optional JSON body = caller input payload (overrides the default WorkflowConfig payload)
-        entity(as[JsValue]) { body => complete(startWorkflowSchema(id, tq, Some(body.compactPrint), wid, ns, oid, pid, author)) } ~
-        complete(startWorkflowSchema(id, tq, None, wid, ns, oid, pid, author))
+        entity(as[WorkflowSchemaStartReq]) { req =>
+          val input = req.input.filterNot(_ == spray.json.JsNull).map(_.compactPrint)
+          complete(startWorkflowSchema(id, tq, input, req.config, wid, ns, oid, pid, author))
+        } ~
+        complete(startWorkflowSchema(id, tq, None, None, wid, ns, oid, pid, author))
       })
     }
   }

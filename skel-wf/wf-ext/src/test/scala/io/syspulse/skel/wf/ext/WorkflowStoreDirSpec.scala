@@ -45,6 +45,45 @@ class WorkflowStoreDirSpec extends AnyWordSpec with Matchers {
       Await.result(store2.getGraf(3), timeout).nodes.keySet shouldBe Set(0, 1)
     }
 
+    "persist DetectorSchema.schema/uiSchema and DetectorConfig nested schema on update+reload" in {
+      import spray.json._
+      import io.hacken.ext.detector._
+      import io.hacken.ext.detector.DetectorSchemaJson._
+      import io.hacken.ext.detector.DetectorConfigJson._
+
+      val dir = tmpDir()
+      val now = System.currentTimeMillis()
+      val sch = JsObject("type" -> JsString("object"), "properties" -> JsObject(
+        "severity" -> JsObject("type" -> JsString("number"), "default" -> JsNumber(0.5))))
+      val ui = JsObject("ui:order" -> JsArray(JsString("severity")))
+
+      val store1 = new WorkflowStoreDir(dir)
+      val ds = DetectorSchema(0, now, now, "ACTIVE", "Scan", "1.0.0", "Scan", "", "", None, None, Seq(), Seq(), Some(sch), Some(ui))
+      Await.result(store1.addDSchema(ds), timeout)
+      val dc = DetectorConfig(0, now, now, "ACTIVE",
+        DetectorConfigContract(0, now, now, 0, 0, None, None, None, None, "scan-1"),
+        Some(DetectorConfigSchema(0, now, now, "ACTIVE", "Scan", "1.0.0", Some(sch), Some(ui))),
+        "scan-1", "src", Seq(), Some(JsObject("severity" -> JsNumber(0.9))), Seq())
+      Await.result(store1.addDConf(dc), timeout)
+
+      // update DetectorSchema (name only) must keep schema/uiSchema
+      Await.result(store1.addDSchema(ds.copy(name = "Scan2", updatedAt = now + 1)), timeout)
+      // update DetectorConfig (status only) must keep nested schema/uiSchema + config
+      Await.result(store1.addDConf(dc.copy(status = "DISABLED", updatedAt = now + 1)), timeout)
+
+      val store2 = new WorkflowStoreDir(dir)
+      val ds2 = Await.result(store2.getDSchema(0), timeout).get
+      ds2.name shouldBe "Scan2"
+      ds2.schema shouldBe Some(sch)
+      ds2.uiSchema shouldBe Some(ui)
+
+      val dc2 = Await.result(store2.getDConf(0), timeout).get
+      dc2.status shouldBe "DISABLED"
+      dc2.config.flatMap(_.fields.get("severity")) shouldBe Some(JsNumber(0.9))
+      dc2.schema.flatMap(_.schema) shouldBe Some(sch)
+      dc2.schema.flatMap(_.uiSchema) shouldBe Some(ui)
+    }
+
     "remove files on delete" in {
       val dir = tmpDir()
       val store = new WorkflowStoreDir(dir)

@@ -1,6 +1,6 @@
 import { authHeaders, request } from '../../api';
 import type {
-  WorkflowSchema, WorkflowSchemas, WorkflowSchemaView, WorkflowSchemaCreateReq, WorkflowSchemaUpdateReq,
+  WorkflowSchema, WorkflowSchemas, WorkflowSchemaView, WorkflowSchemaCreateReq, WorkflowSchemaUpdateReq, WorkflowSchemaStartReq,
   WorkflowConfig, WorkflowConfigs, WorkflowConfigView, WorkflowConfigCreateReq, WorkflowConfigUpdateReq,
   WorkflowGraf, WorkflowGrafs, WorkflowGrafCreateReq,
   DetectorSchema, DetectorSchemas, DetectorSchemaCreateReq, DetectorSchemaUpdateReq,
@@ -53,10 +53,10 @@ export const updateSchema = (token: string | null, id: number, req: WorkflowSche
   PUT<WorkflowSchema>(token, `/schema/${id}`, req);
 export const deleteSchema = (token: string | null, id: number) =>
   DEL<WorkflowActionRes>(token, `/schema/${id}`);
-// Start a workflow FROM a WorkflowSchema: POST /schema/{id}/start?tq=&wid= with the workflow
-// input JSON as the body (omitted -> the server uses the default WorkflowConfig payload). Returns the
-// created + resolved WorkflowConfig(s).
-export const startSchema = async (token: string | null, id: number, input?: unknown, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string): Promise<WorkflowConfigs> => {
+// Start a workflow FROM a WorkflowSchema: POST /schema/{id}/start?tq=&wid=
+// Body is always WorkflowSchemaStartReq `{ input?, config? }`. Omitted `input` -> default
+// WorkflowConfig payload; omitted `config` -> schema JsonSchema default.
+export const startSchema = async (token: string | null, id: number, input?: unknown, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string, config?: Record<string, unknown>): Promise<WorkflowConfigs> => {
   const p = new URLSearchParams();
   if (taskQueue) p.set('tq', taskQueue);
   if (wid) p.set('wid', wid);
@@ -64,11 +64,10 @@ export const startSchema = async (token: string | null, id: number, input?: unkn
   if (oid) p.set('oid', oid);
   if (pid) p.set('pid', pid);
   const qs = p.toString();
-  return request<WorkflowConfigs>(`${getBaseUrl()}/schema/${id}/start${qs ? `?${qs}` : ''}`, {
-    method: 'POST',
-    headers: authHeaders(token),
-    body: input !== undefined ? JSON.stringify(input) : undefined,
-  });
+  const req: WorkflowSchemaStartReq = {};
+  if (input !== undefined) req.input = input;
+  if (config !== undefined) req.config = config;
+  return POST<WorkflowConfigs>(token, `/schema/${id}/start${qs ? `?${qs}` : ''}`, req);
 };
 
 // ---------------------------------------------------------------- WorkflowConfig

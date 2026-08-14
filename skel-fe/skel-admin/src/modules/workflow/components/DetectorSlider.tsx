@@ -8,7 +8,7 @@ import { IconPicker } from '../../../components/IconPicker';
 import { FormattedTimestamp } from '../../../components/FormattedTimestamp';
 import { TagsInput } from '../../../components/TagsInput';
 import { SliderFieldRow } from '../../../components/SliderFieldRow';
-import { SchemaConfigEditor, defaultConfig } from './SchemaConfigEditor';
+import { SchemaConfigEditor, JsonCodeEditor, defaultConfig } from './SchemaConfigEditor';
 import type { JsonSchema, UiSchema } from './SchemaConfigEditor';
 
 // lifecycle statuses (DetectorSchema) + engine runtime statuses (DetectorConfig, e.g. RUNNING) - see WorkflowStatus.scala
@@ -60,9 +60,6 @@ export function DetectorSlider(props: DetectorSliderProps) {
     if (!s.trim()) return undefined;
     return JSON.parse(s) as Record<string, unknown>;
   };
-  const tryParse = (s: string): Record<string, unknown> | undefined => {
-    try { return parseJsonObj(s); } catch { return undefined; }
-  };
 
   const sourceDSchema = kind === KIND.detectorConfig
     ? schemas.find((s) => s.id === (addMode ? sid : config?.schema?.id)) ?? null
@@ -84,7 +81,6 @@ export function DetectorSlider(props: DetectorSliderProps) {
       setAuthor(schema.author); setIcon(schema.icon); setStatus(schema.status); setTags((schema.tags ?? []).join(', '));
       setSchemaJson(schema.schema ? JSON.stringify(schema.schema, null, 2) : '');
       setUiSchemaJson(schema.uiSchema ? JSON.stringify(schema.uiSchema, null, 2) : '');
-      setConfigData(defaultConfig(schema.schema as JsonSchema | undefined));
     } else if (kind === KIND.detectorConfig && config) {
       setName(config.name); setStatus(config.status); setSource(config.source); setTags((config.tags ?? []).join(', '));
       setConfigData(config.config ?? {});
@@ -231,22 +227,11 @@ export function DetectorSlider(props: DetectorSliderProps) {
               )}
               <div className="field-stack">
                 <label className="field-stack-label">{t('workflow.fields.schema')}</label>
-                <SchemaConfigEditor
-                  schema={tryParse(schemaJson) as JsonSchema | undefined}
-                  uiSchema={tryParse(uiSchemaJson) as UiSchema | undefined}
-                  value={configData}
-                  onChange={setConfigData}
-                  onSchemaChange={viewOnly ? undefined : (s) => setSchemaJson(JSON.stringify(s, null, 2))}
-                  readOnly={viewOnly}
-                  height={260}
-                />
+                <JsonCodeEditor value={schemaJson} onChange={viewOnly ? undefined : setSchemaJson} height={220} readOnly={viewOnly} />
               </div>
               <div className="field-stack">
                 <label className="field-stack-label">uiSchema</label>
-                {viewOnly
-                  ? <pre className="code-block-sm">{uiSchemaJson || ''}</pre>
-                  : <textarea rows={4} spellCheck={false} value={uiSchemaJson} onChange={(e) => setUiSchemaJson(e.target.value)}
-                      placeholder={'{\n  "ui:order": []\n}'} className="field-code" />}
+                <JsonCodeEditor value={uiSchemaJson} onChange={viewOnly ? undefined : setUiSchemaJson} height={140} readOnly={viewOnly} />
               </div>
             </>
           )}
@@ -295,7 +280,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
                 <label className="field-stack-label">{t('workflow.fields.config')}</label>
                 <SchemaConfigEditor
                   schema={(sourceDSchema?.schema ?? config?.schema?.schema) as JsonSchema | undefined}
-                  uiSchema={sourceDSchema?.uiSchema as UiSchema | undefined}
+                  uiSchema={(sourceDSchema?.uiSchema ?? config?.schema?.uiSchema) as UiSchema | undefined}
                   value={configData}
                   onChange={setConfigData}
                   readOnly={viewOnly}
