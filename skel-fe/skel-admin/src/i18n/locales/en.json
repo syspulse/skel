@@ -20,6 +20,18 @@
       "logout": "Logout..."
     }
   },
+  "tools": {
+    "title": "Tools",
+    "json": "Json",
+    "time": "Time",
+    "serialize": "Serialize",
+    "deserialize": "Deserialize",
+    "jsonInput": "JSON",
+    "stringOutput": "string",
+    "stringInput": "string",
+    "jsonOutput": "JSON",
+    "invalidJson": "Invalid JSON"
+  },
   "login": {
     "subtitle": "Choose how to sign in",
     "guest": "Unauthenticated",
@@ -44,6 +56,7 @@
     "update": "Update",
     "saving": "Saving…",
     "close": "Close",
+    "ok": "Ok",
     "details": "Details",
     "copy": "Copy to clipboard",
     "copied": "Copied",

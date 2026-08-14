@@ -19,6 +19,18 @@
       "logout": "ログアウト..."
     }
   },
+  "tools": {
+    "title": "ツール",
+    "json": "Json",
+    "time": "Time",
+    "serialize": "Serialize",
+    "deserialize": "Deserialize",
+    "jsonInput": "JSON",
+    "stringOutput": "string",
+    "stringInput": "string",
+    "jsonOutput": "JSON",
+    "invalidJson": "JSONが不正です"
+  },
   "login": {
     "subtitle": "サインイン方法を選択",
     "guest": "未認証",
@@ -43,6 +55,7 @@
     "update": "更新",
     "saving": "保存中…",
     "close": "閉じる",
+    "ok": "Ok",
     "details": "詳細",
     "copy": "クリップボードにコピー",
     "copied": "コピーしました",

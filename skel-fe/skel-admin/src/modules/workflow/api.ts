@@ -54,8 +54,9 @@ export const updateSchema = (token: string | null, id: number, req: WorkflowSche
 export const deleteSchema = (token: string | null, id: number) =>
   DEL<WorkflowActionRes>(token, `/schema/${id}`);
 // Start a workflow FROM a WorkflowSchema: POST /schema/{id}/start?tq=&wid=
-// Body is always WorkflowSchemaStartReq `{ input?, config? }`. Omitted `input` -> default
-// WorkflowConfig payload; omitted `config` -> schema JsonSchema default.
+// Body is always WorkflowSchemaStartReq `{ input?, config? }`. Omitted `input` ->
+// WorkflowSchema.meta.input (JSON string) else default WorkflowConfig payload;
+// omitted `config` -> schema JsonSchema default.
 export const startSchema = async (token: string | null, id: number, input?: unknown, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string, config?: Record<string, unknown>): Promise<WorkflowConfigs> => {
   const p = new URLSearchParams();
   if (taskQueue) p.set('tq', taskQueue);

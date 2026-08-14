@@ -8,6 +8,7 @@ import { UserAvatar } from '../auth/UserAvatar';
 import { useAvatarUrl } from '../auth/useAvatarUrl';
 import { AppBrandMark } from './AppBrand';
 import { IconUser, IconLogout, IconBell, IconInfo, IconSettings } from './Icons';
+import { ToolsMenu } from '../modules/tools/ToolsMenu';
 
 interface TopBarProps {
   onOpenSettingsTab?: (tab: string) => void;
@@ -60,6 +61,7 @@ export function TopBar({ onOpenSettingsTab }: TopBarProps) {
         <div className="flex-1" />
 
         <div className="flex items-center gap-3">
+          <ToolsMenu />
           <button
             onClick={handleBellClick}
             className="relative text-header-fg-muted hover:text-header-fg p-1 rounded transition-colors"

@@ -17,7 +17,7 @@ import type { TimeRange } from '../../types';
 import { DEFAULT_SCHEMA_ICON, DEFAULT_CONFIG_ICON, DEFAULT_WF_SCHEMA_ICON, DEFAULT_WF_CONFIG_ICON } from '../../components/IconPicker';
 import { WorkflowSlider } from './components/WorkflowSlider';
 import { DetectorSlider } from './components/DetectorSlider';
-import { SchemaStartDialog } from './components/SchemaStartDialog';
+import { SchemaStartDialog, metaInputText } from './components/SchemaStartDialog';
 import { WorkflowEditor } from './editor/WorkflowEditor';
 import { dispatcher } from '../dispatcher/Dispatcher';
 
@@ -581,7 +581,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           onEdit={() => setWfDetailsOpen(false)}
         />
         {/* Start a workflow from this WorkflowSchema (opened from the editor [Start] button).
-            Pre-fill task queue / namespace from the schema's meta.tq / meta.ns when present. */}
+            Pre-fill tq / ns / input from the schema's meta when present. */}
         {(() => {
           const startSchema = startSchemaId != null ? schemas.find((s) => s.id === startSchemaId) : undefined;
           return (
@@ -593,6 +593,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
               uiSchema={startSchema?.uiSchema}
               defaultTaskQueue={startSchema?.meta?.tq != null ? String(startSchema.meta.tq) : undefined}
               defaultNs={startSchema?.meta?.ns != null ? String(startSchema.meta.ns) : undefined}
+              defaultInput={metaInputText(startSchema?.meta)}
               defaultOid={defaultOid}
               saving={saving}
               onClose={() => setStartOpen(false)}

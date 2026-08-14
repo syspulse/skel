@@ -4,6 +4,15 @@ import { IconClose, IconPlay } from '../../../components/Icons';
 import { SliderFieldRow } from '../../../components/SliderFieldRow';
 import { SchemaConfigEditor, JsonCodeEditor, defaultConfig } from './SchemaConfigEditor';
 import type { JsonSchema, UiSchema } from './SchemaConfigEditor';
+import type { Meta } from '../types';
+
+/** Deserialize WorkflowSchema.meta.input (a JSON string) for the start input editor. */
+export function metaInputText(meta?: Meta): string {
+  const v = meta?.input;
+  if (typeof v !== 'string' || !v.trim()) return '{\n}';
+  try { return JSON.stringify(JSON.parse(v), null, 2); }
+  catch { return v; }
+}
 
 interface SchemaStartDialogProps {
   open: boolean;
@@ -14,6 +23,7 @@ interface SchemaStartDialogProps {
   defaultTaskQueue?: string; // pre-fill from WorkflowSchema.meta.tq
   defaultNs?: string;        // pre-fill from WorkflowSchema.meta.ns
   defaultOid?: string;       // pre-fill owner id from the user profile (see useDefaultOid)
+  defaultInput?: string;     // pre-fill from WorkflowSchema.meta.input (deserialized JSON string)
   saving: boolean;
   onClose: () => void;
   // input: Temporal payload JSON (undefined when empty -> server default WorkflowConfig payload)
@@ -23,7 +33,7 @@ interface SchemaStartDialogProps {
 
 /** Modal to start a workflow from a WorkflowSchema: raw input JSON + schema-driven config + tq / ns / oid / wid. */
 export function SchemaStartDialog(props: SchemaStartDialogProps) {
-  const { open, schemaId, schemaName, schema, uiSchema, defaultTaskQueue, defaultNs, defaultOid, saving, onClose, onStart } = props;
+  const { open, schemaId, schemaName, schema, uiSchema, defaultTaskQueue, defaultNs, defaultOid, defaultInput, saving, onClose, onStart } = props;
   const { t } = useTranslation();
   const [inputText, setInputText] = useState('{\n}');
   const [configData, setConfigData] = useState<unknown>({});
@@ -36,7 +46,7 @@ export function SchemaStartDialog(props: SchemaStartDialogProps) {
 
   useEffect(() => {
     if (open) {
-      setInputText('{\n}');
+      setInputText(defaultInput && defaultInput.trim() ? defaultInput : '{\n}');
       setConfigData(defaultConfig(schema));
       setTaskQueue(defaultTaskQueue ?? '');
       setNs(defaultNs ?? '');
@@ -45,7 +55,7 @@ export function SchemaStartDialog(props: SchemaStartDialogProps) {
       setWid('');
       setError(null);
     }
-  }, [open, defaultTaskQueue, defaultNs, defaultOid, schema]);
+  }, [open, defaultTaskQueue, defaultNs, defaultOid, defaultInput, schema]);
 
   if (!open) return null;
 

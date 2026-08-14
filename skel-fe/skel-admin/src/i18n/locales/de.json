@@ -19,6 +19,18 @@
       "logout": "Abmelden..."
     }
   },
+  "tools": {
+    "title": "Werkzeuge",
+    "json": "Json",
+    "time": "Zeit",
+    "serialize": "Serialisieren",
+    "deserialize": "Deserialisieren",
+    "jsonInput": "JSON",
+    "stringOutput": "string",
+    "stringInput": "string",
+    "jsonOutput": "JSON",
+    "invalidJson": "Ungültiges JSON"
+  },
   "login": {
     "subtitle": "Anmeldemethode wählen",
     "guest": "Unauthentifiziert",
@@ -43,6 +55,7 @@
     "update": "Aktualisieren",
     "saving": "Wird gespeichert…",
     "close": "Schließen",
+    "ok": "Ok",
     "details": "Details",
     "copy": "In Zwischenablage kopieren",
     "copied": "Kopiert",
