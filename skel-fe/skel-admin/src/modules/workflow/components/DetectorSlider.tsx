@@ -8,6 +8,8 @@ import { IconPicker } from '../../../components/IconPicker';
 import { FormattedTimestamp } from '../../../components/FormattedTimestamp';
 import { TagsInput } from '../../../components/TagsInput';
 import { SliderFieldRow } from '../../../components/SliderFieldRow';
+import { SchemaConfigEditor, defaultConfig } from './SchemaConfigEditor';
+import type { JsonSchema, UiSchema } from './SchemaConfigEditor';
 
 // lifecycle statuses (DetectorSchema) + engine runtime statuses (DetectorConfig, e.g. RUNNING) - see WorkflowStatus.scala
 const LIFECYCLE_STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
@@ -49,17 +51,32 @@ export function DetectorSlider(props: DetectorSliderProps) {
   const [source, setSource] = useState('');
   const [tags, setTags] = useState('');
   const [sid, setSid] = useState<number | ''>('');
-  const [configJson, setConfigJson] = useState('');
+  const [configData, setConfigData] = useState<unknown>({});
   const [metaJson, setMetaJson] = useState('');          // DetectorConfig.meta (runtime; e.g. activity_id)
   const [schemaJson, setSchemaJson] = useState('');     // DetectorSchema.schema (JSON)
   const [uiSchemaJson, setUiSchemaJson] = useState(''); // DetectorSchema.uiSchema (JSON)
+
+  const parseJsonObj = (s: string): Record<string, unknown> | undefined => {
+    if (!s.trim()) return undefined;
+    return JSON.parse(s) as Record<string, unknown>;
+  };
+  const tryParse = (s: string): Record<string, unknown> | undefined => {
+    try { return parseJsonObj(s); } catch { return undefined; }
+  };
+
+  const sourceDSchema = kind === KIND.detectorConfig
+    ? schemas.find((s) => s.id === (addMode ? sid : config?.schema?.id)) ?? null
+    : schema;
 
   useEffect(() => {
     setError(null);
     if (addMode) {
       setName(''); setTitle(''); setDescription(''); setVersion('1.0.0'); setAuthor(''); setIcon(undefined);
-      setStatus('ACTIVE'); setSource(''); setTags(''); setSid(schemas[0]?.id ?? ''); setConfigJson('');
+      setStatus('ACTIVE'); setSource(''); setTags(''); setSid(schemas[0]?.id ?? '');
       setMetaJson(''); setSchemaJson(''); setUiSchemaJson('');
+      setConfigData(kind === KIND.detectorConfig
+        ? defaultConfig(schemas[0]?.schema as JsonSchema | undefined)
+        : {});
       return;
     }
     if (kind === KIND.detectorSchema && schema) {
@@ -67,18 +84,15 @@ export function DetectorSlider(props: DetectorSliderProps) {
       setAuthor(schema.author); setIcon(schema.icon); setStatus(schema.status); setTags((schema.tags ?? []).join(', '));
       setSchemaJson(schema.schema ? JSON.stringify(schema.schema, null, 2) : '');
       setUiSchemaJson(schema.uiSchema ? JSON.stringify(schema.uiSchema, null, 2) : '');
+      setConfigData(defaultConfig(schema.schema as JsonSchema | undefined));
     } else if (kind === KIND.detectorConfig && config) {
       setName(config.name); setStatus(config.status); setSource(config.source); setTags((config.tags ?? []).join(', '));
-      setConfigJson(config.config ? JSON.stringify(config.config, null, 2) : '');
+      setConfigData(config.config ?? {});
       setMetaJson(config.meta && Object.keys(config.meta).length > 0 ? JSON.stringify(config.meta, null, 2) : '');
     }
   }, [open, addMode, kind, schema, config, schemas]);
 
   const tagsArr = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
-  const parseConfig = (): Record<string, unknown> | undefined => {
-    if (!configJson.trim()) return undefined;
-    return JSON.parse(configJson) as Record<string, unknown>;
-  };
   /** DetectorConfig.meta is Map[String,String] — coerce JSON values to strings. */
   const parseMeta = (): Record<string, string> | undefined => {
     if (!metaJson.trim()) return undefined;
@@ -86,10 +100,6 @@ export function DetectorSlider(props: DetectorSliderProps) {
     const out: Record<string, string> = {};
     for (const [k, v] of Object.entries(obj)) out[k] = v == null ? '' : String(v);
     return out;
-  };
-  const parseJsonObj = (s: string): Record<string, unknown> | undefined => {
-    if (!s.trim()) return undefined;
-    return JSON.parse(s) as Record<string, unknown>;
   };
 
   const handleCreate = async () => {
@@ -102,9 +112,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
         try { sch = parseJsonObj(schemaJson); uiSch = parseJsonObj(uiSchemaJson); } catch { setError(t('workflow.invalidJson')); return; }
         await onCreateSchema({ name: name.trim(), title: title || undefined, description: description || undefined, version: version || undefined, author: author || undefined, icon, tags: tagsArr(tags), schema: sch, uiSchema: uiSch });
       } else {
-        let cfg: Record<string, unknown> | undefined;
-        try { cfg = parseConfig(); } catch { setError(t('workflow.invalidJson')); return; }
-        await onCreateConfig({ name: name.trim(), sid: sid === '' ? undefined : Number(sid), source: source || undefined, tags: tagsArr(tags), config: cfg });
+        await onCreateConfig({ name: name.trim(), sid: sid === '' ? undefined : Number(sid), source: source || undefined, tags: tagsArr(tags), config: configData as Record<string, unknown> });
       }
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
@@ -120,10 +128,9 @@ export function DetectorSlider(props: DetectorSliderProps) {
         await onUpdateSchema({ name, title, description, version, author, status, icon, tags: tagsArr(tags), schema: sch, uiSchema: uiSch });
       } else {
         // DetectorConfig: status IS editable (editable combo)
-        let cfg: Record<string, unknown> | undefined;
         let meta: Record<string, string> | undefined;
-        try { cfg = parseConfig(); meta = parseMeta(); } catch { setError(t('workflow.invalidJson')); return; }
-        await onUpdateConfig({ name, status, source, tags: tagsArr(tags), config: cfg, meta });
+        try { meta = parseMeta(); } catch { setError(t('workflow.invalidJson')); return; }
+        await onUpdateConfig({ name, status, source, tags: tagsArr(tags), config: configData as Record<string, unknown>, meta });
       }
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
@@ -223,11 +230,16 @@ export function DetectorSlider(props: DetectorSliderProps) {
                 </SliderFieldRow>
               )}
               <div className="field-stack">
-                <label className="field-stack-label">schema</label>
-                {viewOnly
-                  ? <pre className="code-block-sm">{schemaJson || ''}</pre>
-                  : <textarea rows={8} spellCheck={false} value={schemaJson} onChange={(e) => setSchemaJson(e.target.value)}
-                      placeholder={'{\n  "type": "object",\n  "properties": {}\n}'} className="field-code" />}
+                <label className="field-stack-label">{t('workflow.fields.schema')}</label>
+                <SchemaConfigEditor
+                  schema={tryParse(schemaJson) as JsonSchema | undefined}
+                  uiSchema={tryParse(uiSchemaJson) as UiSchema | undefined}
+                  value={configData}
+                  onChange={setConfigData}
+                  onSchemaChange={viewOnly ? undefined : (s) => setSchemaJson(JSON.stringify(s, null, 2))}
+                  readOnly={viewOnly}
+                  height={260}
+                />
               </div>
               <div className="field-stack">
                 <label className="field-stack-label">uiSchema</label>
@@ -243,7 +255,12 @@ export function DetectorSlider(props: DetectorSliderProps) {
             <>
               {addMode && (
                 <SliderFieldRow label={t('workflow.fields.schema')}>
-                  <select className="field-inline" value={sid} onChange={(e) => setSid(e.target.value === '' ? '' : Number(e.target.value))}>
+                  <select className="field-inline" value={sid} onChange={(e) => {
+                    const next = e.target.value === '' ? '' : Number(e.target.value);
+                    setSid(next);
+                    const sch = schemas.find((s) => s.id === next);
+                    setConfigData(defaultConfig(sch?.schema as JsonSchema | undefined));
+                  }}>
                     <option value="">{t('workflow.chooseSchema')}</option>
                     {schemas.map((s) => <option key={s.id} value={s.id}>{s.id} ({s.name})</option>)}
                   </select>
@@ -275,12 +292,15 @@ export function DetectorSlider(props: DetectorSliderProps) {
                 </div>
               )}
               <div className="field-stack">
-                <label className="field-stack-label">config (JSON)</label>
-                {viewOnly
-                  ? <pre className="code-block-sm">{configJson || ''}</pre>
-                  : <textarea rows={14} spellCheck={false} value={configJson} onChange={(e) => setConfigJson(e.target.value)}
-                      placeholder={'{\n  "severity": 0.5\n}'}
-                      className="field-code" />}
+                <label className="field-stack-label">{t('workflow.fields.config')}</label>
+                <SchemaConfigEditor
+                  schema={(sourceDSchema?.schema ?? config?.schema?.schema) as JsonSchema | undefined}
+                  uiSchema={sourceDSchema?.uiSchema as UiSchema | undefined}
+                  value={configData}
+                  onChange={setConfigData}
+                  readOnly={viewOnly}
+                  height={280}
+                />
               </div>
 
               {/* "Detector" extended view: enriched read-only info from the associated Contract + DetectorSchema */}

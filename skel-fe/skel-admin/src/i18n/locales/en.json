@@ -250,6 +250,7 @@
       "schema": "schema",
       "source": "source",
       "config": "config",
+      "raw": "raw",
       "schemaId": "schema_id",
       "schemaName": "schema_name",
       "schemaVersion": "schema_version",

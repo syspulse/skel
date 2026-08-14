@@ -9,6 +9,8 @@ import { IconPicker } from '../../../components/IconPicker';
 import { FormattedTimestamp } from '../../../components/FormattedTimestamp';
 import { TagsInput } from '../../../components/TagsInput';
 import { SliderFieldRow } from '../../../components/SliderFieldRow';
+import { SchemaConfigEditor, defaultConfig } from './SchemaConfigEditor';
+import type { JsonSchema, UiSchema } from './SchemaConfigEditor';
 import { useDefaultOid } from '../../../settings/OwnerContext';
 
 // lifecycle statuses (WorkflowSchema) + engine runtime statuses (WorkflowConfig, e.g. RUNNING) - see WorkflowStatus.scala
@@ -54,12 +56,19 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
   // JsonSchema fields (like DetectorSlider): schema/uiSchema on WorkflowSchema, config on WorkflowConfig
   const [schemaJson, setSchemaJson] = useState('');
   const [uiSchemaJson, setUiSchemaJson] = useState('');
-  const [configJson, setConfigJson] = useState('');
+  const [configData, setConfigData] = useState<unknown>({});
   const [metaJson, setMetaJson] = useState('');  // WorkflowConfig.meta (editable)
   const parseJsonObj = (s: string): Record<string, unknown> | undefined => {
     if (!s.trim()) return undefined;
     return JSON.parse(s) as Record<string, unknown>;
   };
+  const tryParse = (s: string): Record<string, unknown> | undefined => {
+    try { return parseJsonObj(s); } catch { return undefined; }
+  };
+
+  const sourceWSchema = kind === KIND.workflowConfig
+    ? schemas.find((s) => s.id === (config?.sid ?? form.sid)) ?? null
+    : schema;
 
   const entity = kind === KIND.workflowSchema ? schema : config;
   // status options: WorkflowConfig gets the full runtime vocabulary, WorkflowSchema only lifecycle.
@@ -69,16 +78,17 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
 
   useEffect(() => {
     setError(null);
-    setSchemaJson(''); setUiSchemaJson(''); setConfigJson(''); setMetaJson('');
+    setSchemaJson(''); setUiSchemaJson(''); setConfigData({}); setMetaJson('');
     if (addMode) { setForm({ ...emptyForm(), oid: defaultOid }); setSid(schemas[0]?.id ?? ''); return; }
     if (kind === KIND.workflowSchema && schema) {
       setForm({ name: schema.name, title: schema.title, description: schema.description, author: schema.author ?? '', status: schema.status, version: schema.version, icon: schema.icon, tags: (schema.tags ?? []).join(', '), oid: '', pid: '', xid: '' });
       setSchemaJson(schema.schema ? JSON.stringify(schema.schema, null, 2) : '');
       setUiSchemaJson(schema.uiSchema ? JSON.stringify(schema.uiSchema, null, 2) : '');
       setMetaJson(schema.meta && Object.keys(schema.meta).length > 0 ? JSON.stringify(schema.meta, null, 2) : '');
+      setConfigData(defaultConfig(schema.schema as JsonSchema | undefined));
     } else if (kind === KIND.workflowConfig && config) {
       setForm({ name: config.name, title: config.title, description: config.description, author: config.author ?? '', status: config.status, version: config.version, icon: config.icon, tags: (config.tags ?? []).join(', '), oid: config.oid ?? '', pid: config.pid ?? '', xid: config.xid ?? '', sid: config.sid });
-      setConfigJson(config.config ? JSON.stringify(config.config, null, 2) : '');
+      setConfigData(config.config ?? {});
       setMetaJson(config.meta && Object.keys(config.meta).length > 0 ? JSON.stringify(config.meta, null, 2) : '');
     }
   }, [open, addMode, kind, schema, config, schemas, defaultOid]);
@@ -109,7 +119,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
       };
       try {
         if (kind === KIND.workflowSchema) { patch.schema = parseJsonObj(schemaJson); patch.uiSchema = parseJsonObj(uiSchemaJson); patch.meta = parseJsonObj(metaJson); }
-        else { patch.config = parseJsonObj(configJson); patch.meta = parseJsonObj(metaJson); }
+        else { patch.config = configData as Record<string, unknown>; patch.meta = parseJsonObj(metaJson); }
       } catch { setError(t('workflow.invalidJson')); return; }
       if (kind === KIND.workflowConfig) { patch.author = form.author; patch.oid = form.oid || undefined; patch.pid = form.pid || undefined; patch.xid = form.xid || undefined; }
       await onUpdate(patch);
@@ -256,10 +266,9 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
             </>
           )}
 
-          {/* JsonSchema editors: schema + uiSchema on WorkflowSchema; config on WorkflowConfig */}
+          {/* JsonSchema editors: SchemaConfigEditor on schema (WorkflowSchema) / config (WorkflowConfig) */}
           {kind === KIND.workflowSchema && (
             <>
-              {/* WorkflowSchema.meta - editable JSON */}
               {!addMode && (
                 <div className="field-stack">
                   <label className="field-stack-label">{t('workflow.fields.meta')}</label>
@@ -268,23 +277,33 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
                 </div>
               )}
               <div className="field-stack">
-                <label className="field-stack-label">schema</label>
-                <textarea rows={8} spellCheck={false} value={schemaJson} onChange={(e) => setSchemaJson(e.target.value)}
-                  placeholder={'{\n  "type": "object",\n  "properties": {}\n}'} className="field-code" />
+                <label className="field-stack-label">{t('workflow.fields.schema')}</label>
+                <SchemaConfigEditor
+                  schema={tryParse(schemaJson) as JsonSchema | undefined}
+                  uiSchema={tryParse(uiSchemaJson) as UiSchema | undefined}
+                  value={configData}
+                  onChange={setConfigData}
+                  onSchemaChange={(s) => setSchemaJson(JSON.stringify(s, null, 2))}
+                  height={260}
+                />
               </div>
               <div className="field-stack">
                 <label className="field-stack-label">uiSchema</label>
                 <textarea rows={4} spellCheck={false} value={uiSchemaJson} onChange={(e) => setUiSchemaJson(e.target.value)}
                   placeholder={'{\n  "ui:order": []\n}'} className="field-code" />
               </div>
-              
             </>
           )}
           {!addMode && kind === KIND.workflowConfig && (
             <div className="field-stack">
-              <label className="field-stack-label">config</label>
-              <textarea rows={12} spellCheck={false} value={configJson} onChange={(e) => setConfigJson(e.target.value)}
-                placeholder={'{\n}'} className="field-code" />
+              <label className="field-stack-label">{t('workflow.fields.config')}</label>
+              <SchemaConfigEditor
+                schema={sourceWSchema?.schema as JsonSchema | undefined}
+                uiSchema={sourceWSchema?.uiSchema as UiSchema | undefined}
+                value={configData}
+                onChange={setConfigData}
+                height={280}
+              />
             </div>
           )}
 

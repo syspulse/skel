@@ -589,6 +589,8 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
               open={startOpen}
               schemaId={startSchemaId ?? undefined}
               schemaName={startSchema?.name ?? editor.name}
+              schema={startSchema?.schema}
+              uiSchema={startSchema?.uiSchema}
               defaultTaskQueue={startSchema?.meta?.tq != null ? String(startSchema.meta.tq) : undefined}
               defaultNs={startSchema?.meta?.ns != null ? String(startSchema.meta.ns) : undefined}
               defaultOid={defaultOid}

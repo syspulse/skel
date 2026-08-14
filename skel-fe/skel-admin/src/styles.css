@@ -168,6 +168,16 @@
   .slide-section-header {
     @apply flex items-center justify-between px-3 py-2 border-b border-border;
   }
+  /* JSON-Schema config editor (resizable bordered panel) */
+  .schema-config-editor {
+    @apply border border-border rounded bg-card flex flex-col overflow-hidden resize-y w-full;
+  }
+  .schema-config-panel {
+    @apply border border-border rounded p-2 space-y-1.5 bg-muted/40;
+  }
+  .schema-config-item-btn {
+    @apply inline-flex items-center justify-center w-[22px] h-[22px] rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors;
+  }
 
   /* Filter bar (top of every module table) */
   .filter-bar {
