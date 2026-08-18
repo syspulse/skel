@@ -8,7 +8,7 @@ import io.syspulse.skel
 import io.syspulse.skel.config._
 import io.syspulse.skel.auth.jwt.AuthJwt
 
-import io.syspulse.skel.wf.ext.store.{WorkflowStore, WorkflowStoreMem, WorkflowStoreDir, WorkflowStoreDB, WorkflowStoreMany, WorkflowRegistry, WorkflowAssembly}
+import io.syspulse.skel.wf.ext.store.{WorkflowStore, WorkflowStoreMem, WorkflowStoreDir, WorkflowStoreDB, WorkflowStoreMany, WorkflowRegistry, WorkflowAssembly, WorkflowCopy}
 import io.syspulse.skel.wf.ext.server.WorkflowRoutes
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
 import io.syspulse.skel.wf.ext.engine.{Engine, EngineMapper, EngineWorkflow, EngineStatus, WorkflowRuntimeView, TrackMapper}
@@ -23,6 +23,7 @@ case class Config(
   uri: String = "/api/v1/wf/ext",
 
   datastore: String = "mem://",
+  datastore2: String = "",     // --datastore2 : destination store for `copy`
 
   // Assembly DSL options
   wid: Option[Int] = None,    // --wid : WorkflowSchema id (default: next, starting at 0)
@@ -55,7 +56,7 @@ object App extends skel.Server {
   // Known CLI commands. The shared arg parser only recognises a command when it is the
   // first non-option token, so we hoist it to the front - this lets options precede the
   // command (e.g. `--engine=temporal:// link <rid> <pipeline>` as in the requirements).
-  private val KNOWN_CMDS = Set("server", "schema", "assembly", "link", "assembly-track", "runtime-get", "setup0", "start-schema", "stop", "cancel", "signal")
+  private val KNOWN_CMDS = Set("server", "schema", "assembly", "link", "assembly-track", "runtime-get", "setup0", "start-schema", "stop", "cancel", "signal", "copy")
 
   // Commands that take an Assembly DSL pipeline (which contains `->` tokens and spaces).
   private val DSL_CMDS = Set("schema", "assembly", "link", "assembly-track")
@@ -128,6 +129,7 @@ object App extends skel.Server {
         ArgString('u', "http.uri", s"api uri (def: ${d.uri})"),
 
         ArgString('d', "datastore", s"Datastore [mem://,dir://] (def: ${d.datastore})"),
+        ArgString('_', "datastore2", s"Destination datastore for copy [mem://,dir://,postgres://] (def: none)"),
 
         ArgString('_', "wid", s"WorkflowSchema id for schema/assembly (def: next id, starts at 0)"),
         ArgString('_', "wn", s"WorkflowSchema name for schema/assembly (def: random)"),
@@ -159,6 +161,7 @@ object App extends skel.Server {
         ArgCmd("stop", s"Stop (terminate) a WorkflowConfig's running Engine workflow -> status=TERMINATED (param: <configId>, --reason <reason>); requires --engine"),
         ArgCmd("cancel", s"Cancel (request-cancel) a WorkflowConfig's running Engine workflow -> status=CANCELED (param: <configId>, --reason <reason>); requires --engine"),
         ArgCmd("signal", s"Signal a WorkflowConfig's running Engine workflow (params: <configId> [signalName=CONTINUE] [payloadJson]); requires --engine"),
+        ArgCmd("copy", s"Copy from --datastore <src> to --datastore2 <dst> (params: <type> [id]; type: all | WorkflowSchema | WorkflowConfig | DetectorSchema | DetectorConfig)"),
 
         ArgParam("<params>", "DSL pipeline, e.g. 'Detector.a -> Detector.b -> Detector.c'"),
         ArgLogging(),
@@ -172,6 +175,7 @@ object App extends skel.Server {
       uri = c.getString("http.uri").getOrElse(d.uri),
 
       datastore = c.getString("datastore").getOrElse(d.datastore),
+      datastore2 = c.getString("datastore2").getOrElse(d.datastore2),
 
       wid = c.getString("wid").map(_.toInt),
       wn = c.getString("wn"),      
@@ -428,6 +432,34 @@ object App extends skel.Server {
             } finally engine.close()
           case _ =>
             s"Usage: signal <configId> [signalName=CONTINUE] [payloadJson]  (requires --engine=temporal://...)"
+        }
+
+      case "copy" =>
+        if (config.datastore2.isBlank) {
+          s"copy requires --datastore2=<uri> (destination)"
+        } else {
+          val store2 = getStore(config.datastore2)
+          Console.err.println(s"Copy: ${config.datastore} -> ${config.datastore2}")
+          config.params.toList match {
+            case typ :: Nil =>
+              Try(Await.result(WorkflowCopy(store, store2, typ, None), config.timeout.millis)) match {
+                case Success(r) => r.summary
+                case Failure(e) => s"Failed copy: ${e.getMessage}"
+              }
+            case typ :: _ if typ.equalsIgnoreCase("all") =>
+              s"copy all does not take an id"
+            case typ :: idStr :: Nil =>
+              Try(idStr.toInt).toOption match {
+                case Some(id) =>
+                  Try(Await.result(WorkflowCopy(store, store2, typ, Some(id)), config.timeout.millis)) match {
+                    case Success(r) => r.summary
+                    case Failure(e) => s"Failed copy: ${e.getMessage}"
+                  }
+                case None => s"Invalid id: '${idStr}'"
+              }
+            case _ =>
+              s"copy: missing <type> [id]"
+          }
         }
 
       case x =>
