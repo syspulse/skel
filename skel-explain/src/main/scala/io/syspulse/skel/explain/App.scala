@@ -21,7 +21,7 @@ case class Config(
   timeout: Long = 15000,
 
   jwtUri: String = "hs512://",
-  ownerAttr: String = "oid",
+  ownerAttr: String = "tenantId",
   rolesAttr: String = "groups[].",
   serviceRole: String = "extractor-service",
   adminRole: String = "extractor-admin",
