@@ -156,6 +156,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def linkWorkflowConfigLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String): Future[Try[WorkflowConfig]] = registry.ask(LinkWorkflowConfigLinked(req, runtime, fallbackId, _))
   def updateWorkflowConfig(id: Int, req: WorkflowConfigUpdateReq, oid: Option[String], pid: Option[String]): Future[Try[WorkflowConfig]] = registry.ask(UpdateWorkflowConfig(id, req, oid, pid, _))
   def deleteWorkflowConfig(id: Int, oid: Option[String], pid: Option[String]): Future[WorkflowActionRes] = registry.ask(DeleteWorkflowConfig(id, oid, pid, _))
+  def startWorkflowConfig(id: Int, taskQueue: Option[String], input: Option[String], ns: Option[String], wid: Option[String]): Future[Try[WorkflowConfig]] = registry.ask(StartWorkflowConfig(id, taskQueue, input, ns, wid, _))
   def stopWorkflowConfig(id: Int, reason: Option[String]): Future[Try[WorkflowConfig]] = registry.ask(StopWorkflowConfig(id, reason, _))
   def cancelWorkflowConfig(id: Int, reason: Option[String]): Future[Try[WorkflowConfig]] = registry.ask(CancelWorkflowConfig(id, reason, _))
   def signalWorkflowConfig(id: Int, name: String, payload: Option[String]): Future[Try[WorkflowConfig]] = registry.ask(SignalWorkflowConfig(id, name, payload, _))
@@ -276,14 +277,14 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       new Parameter(name = "search", in = ParameterIn.QUERY, description = "case-insensitive substring over name|title|xid"),
       new Parameter(name = "status", in = ParameterIn.QUERY, description = "CSV of statuses (OR)"),
       new Parameter(name = "tags", in = ParameterIn.QUERY, description = "CSV of tags (AND / contains-all)"),
-      new Parameter(name = "ts_start", in = ParameterIn.QUERY, description = "updatedAt >= ts_start (epoch ms)"),
-      new Parameter(name = "ts_end", in = ParameterIn.QUERY, description = "updatedAt <= ts_end (epoch ms)"),
+      new Parameter(name = "ts0", in = ParameterIn.QUERY, description = "updatedAt >= ts0 (epoch ms)"),
+      new Parameter(name = "ts1", in = ParameterIn.QUERY, description = "updatedAt <= ts1 (epoch ms)"),
       new Parameter(name = "sort", in = ParameterIn.QUERY, description = "field:dir (name|title|status|createdAt|updatedAt, asc|desc; default updatedAt:desc)")),
     responses = Array(new ApiResponse(responseCode = "200", description = "configs",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
   def getWorkflowConfigsRoute() = get {
     parameters("from".as[Long].?, "size".as[Long].?, "entity".?, "oid".?, "pid".?,
-               "search".?, "status".?, "tags".?, "ts_start".as[Long].?, "ts_end".as[Long].?, "sort".?) {
+               "search".?, "status".?, "tags".?, "ts0".as[Long].?, "ts1".as[Long].?, "sort".?) {
       (from, size, entity, oidQ, pid, search, status, tags, tsStart, tsEnd, sort) =>
         authenticate()(authn => authorize(canAccessOid(authn, oidQ)) {
           val filter = WorkflowStore.WConfFilter(
@@ -313,6 +314,23 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       authenticate()(authn => authorize(canAccessOid(authn, oidQ)) {
         complete(getWorkflowConfig(id, entityMode(entity), storeOid(authn, oidQ), pid))
       })
+    }
+  }
+
+  @POST @Path("/config/{id}/start") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("config"), summary = "Start an existing WorkflowConfig on the Engine (only UNKNOWN + no-xid; already started/finished is rejected)",
+    parameters = Array(
+      new Parameter(name = "id", in = ParameterIn.PATH, description = "config id"),
+      new Parameter(name = "tq", in = ParameterIn.QUERY, description = "task queue override (else meta.tq / default)"),
+      new Parameter(name = "wid", in = ParameterIn.QUERY, description = "workflow id override (else meta.wid / title)"),
+      new Parameter(name = "ns", in = ParameterIn.QUERY, description = "namespace override (else meta.ns)"),
+      new Parameter(name = "oid", in = ParameterIn.QUERY, description = "owner id (required for users, must match JWT)"),
+      new Parameter(name = "pid", in = ParameterIn.QUERY, description = "optional project id filter")),
+    responses = Array(new ApiResponse(responseCode = "200", description = "started + updated config",
+      content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
+  def startWorkflowConfigRoute(id: Int) = post {
+    parameters("tq".?, "wid".?, "ns".?, "oid".?, "pid".?) { (tq, wid, ns, oidQ, pid) =>
+      authConfig(id, oidQ, pid) { complete(startWorkflowConfig(id, tq, None, ns, wid)) }
     }
   }
 
@@ -712,6 +730,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
           pathPrefix("xid") { pathPrefix(Segment) { xid => getWorkflowConfigByXidRoute(xid) } },
           pathPrefix("oid") { pathPrefix(Segment) { oid => getWorkflowConfigsByOidRoute(oid) } },
           pathPrefix(IntNumber) { id =>
+            pathPrefix("start")  { pathEndOrSingleSlash { startWorkflowConfigRoute(id) } } ~
             pathPrefix("stop")   { pathEndOrSingleSlash { stopWorkflowConfigRoute(id) } } ~
             pathPrefix("cancel") { pathEndOrSingleSlash { cancelWorkflowConfigRoute(id) } } ~
             pathPrefix("signal") { pathEndOrSingleSlash { signalWorkflowConfigRoute(id) } } ~

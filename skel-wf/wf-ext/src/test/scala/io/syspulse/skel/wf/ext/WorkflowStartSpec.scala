@@ -80,4 +80,46 @@ class WorkflowStartSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
       }
     }
   }
+
+  "POST /config/{id}/start (start an existing WorkflowConfig)" should {
+    "start an UNKNOWN + no-xid config, and reject one already started or in another state" in {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.A -> Detector.B", name = Some("SaveThenStart"))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+
+      // [Save]: create a NOT-started config (status UNKNOWN, no xid) via the POST /config overlay
+      val saved = Post("/config", WorkflowConfigCreateReq(sid = sc.id, name = Some("saved-1"), status = Some(WorkflowStatus.UNKNOWN))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val c = responseAs[WorkflowConfig]
+        c.status shouldBe WorkflowStatus.UNKNOWN
+        c.xid shouldBe None
+        c
+      }
+
+      // [Start]: an UNKNOWN + no-xid config starts -> xid bound (persisted). (The mock Engine's
+      // getRuntime returns None, so the resolved status is engine-dependent; the reliable "started"
+      // signal is the bound runtime id.)
+      val started = Post(s"/config/${saved.id}/start") ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val c = responseAs[WorkflowConfig]
+        c.xid shouldBe Some("run-new-1")            // start succeeded -> runtime id bound
+        c
+      }
+      Await.result(store.getWConf(started.id), 5.seconds).xid shouldBe Some("run-new-1")
+
+      // rejected: already started (xid present, status != UNKNOWN)
+      Post(s"/config/${started.id}/start") ~~> routes.routes ~> check {
+        status should not be StatusCodes.OK
+      }
+
+      // rejected: a config in another state (ACTIVE, no xid) is not startable
+      val active = Post("/config", WorkflowConfigCreateReq(sid = sc.id, name = Some("active-1"))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
+      }
+      active.status shouldBe WorkflowStatus.ACTIVE
+      Post(s"/config/${active.id}/start") ~~> routes.routes ~> check {
+        status should not be StatusCodes.OK
+      }
+    }
+  }
 }

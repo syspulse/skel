@@ -186,6 +186,9 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
         s"CREATE INDEX IF NOT EXISTS ${TABLE_WORKFLOW_CONFIG}_xid ON ${TABLE_WORKFLOW_CONFIG} (lower(xid))",
       s"${TABLE_WORKFLOW_CONFIG}_oid" ->
         s"CREATE INDEX IF NOT EXISTS ${TABLE_WORKFLOW_CONFIG}_oid ON ${TABLE_WORKFLOW_CONFIG} (oid)",
+      // index for fast updatedAt time-range queries (ts0..ts1 filter on GET /config)
+      s"${TABLE_WORKFLOW_CONFIG}_updated" ->
+        s"CREATE INDEX IF NOT EXISTS ${TABLE_WORKFLOW_CONFIG}_updated ON ${TABLE_WORKFLOW_CONFIG} (updated_at)",
     )
     
     if (getDbType != "postgres") {
@@ -285,6 +288,34 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
       total <- countOf(TABLE_WORKFLOW_CONFIG, where)
       items <- query(s"SELECT $CONFIG_SEL FROM $TABLE_WORKFLOW_CONFIG $where ORDER BY id ${limitClause(from,size)}", rowConfig)
     } yield WorkflowStore.PageWConf(items, total)
+  }
+
+  /**
+   * Filtered list (server-side). The indexed, high-selectivity dimensions — owner (oid/pid)
+   * and the updatedAt time range (ts0..ts1) — are pushed into SQL so the updated_at index
+   * serves fast time-range queries. The fuzzy dimensions (search/status/tags) + sort + paging
+   * are then applied by the shared WorkflowStore.filterSortWConfs over the reduced set, so the
+   * semantics stay identical to the in-memory stores.
+   */
+  override def listWConfs(from: Option[Long], size: Option[Long], oid: Option[String], pid: Option[String],
+                          filter: WorkflowStore.WConfFilter)(implicit ec: ExecutionContext): Future[WorkflowStore.PageWConf] = {
+    val where = Seq(
+      oid.map(o => s"oid = ${q(o)}"),
+      pid.map(p => s"pid = ${q(p)}"),
+      filter.tsStart.map(ts => s"updated_at >= ${lLit(ts)}"),
+      filter.tsEnd.map(ts => s"updated_at <= ${lLit(ts)}"),
+    ).flatten match {
+      case Nil => ""
+      case xs  => "WHERE " + xs.mkString(" AND ")
+    }
+    query(s"SELECT $CONFIG_SEL FROM $TABLE_WORKFLOW_CONFIG $where ORDER BY updated_at DESC", rowConfig).map { rows =>
+      val filtered = WorkflowStore.filterSortWConfs(rows, filter)
+      val items = (from, size) match {
+        case (Some(f), Some(s)) => WorkflowStore.page(filtered, f, s)
+        case _                  => filtered
+      }
+      WorkflowStore.PageWConf(items, filtered.size.toLong)
+    }
   }
 
   // ========================================================= WorkflowGraf  (data -> jsonb)

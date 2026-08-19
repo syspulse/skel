@@ -16,7 +16,7 @@ import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import io.syspulse.skel.config.{Configuration, ConfigurationMap}
 import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf, WorkflowNode, WorkflowLink, WorkflowSchemaFaq}
 import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigContract, DetectorSchemaFaq}
-import io.syspulse.skel.wf.ext.store.WorkflowStoreDB
+import io.syspulse.skel.wf.ext.store.{WorkflowStore, WorkflowStoreDB}
 
 class WorkflowStoreDBSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll {
 
@@ -178,6 +178,30 @@ class WorkflowStoreDBSpec extends AnyWordSpec with Matchers with BeforeAndAfterA
       got.xid shouldBe Some("Run-XYZ")   // other columns untouched
       got.oid shouldBe Some("owner-1")
       Await.result(store.updateWConfStatus(999, "DISABLED"), timeout) shouldBe 0 // missing id -> 0
+    }
+    "filter by updatedAt range (ts0..ts1) in SQL and create the updated_at index" in {
+      // clean slate for deterministic timestamps (runs after the CRUD/status tests above)
+      jdbcExec("DELETE FROM workflow_config")
+      Seq(1000L, 2000L, 3000L).zipWithIndex.foreach { case (ts, i) =>
+        Await.result(
+          store.addWConf(WorkflowConfig.from(i, schema(0)).copy(updatedAt = ts, oid = Some("owner-ts"))),
+          timeout)
+      }
+      // ts0=1500, ts1=2500 -> only the 2000 one (pushed into the SQL WHERE)
+      val mid = Await.result(store.listWConfs(None, None, None, None,
+        WorkflowStore.WConfFilter(tsStart = Some(1500L), tsEnd = Some(2500L))), timeout)
+      mid.total shouldBe 1L
+      mid.wconfs.map(_.updatedAt) shouldBe Seq(2000L)
+      // ts0=2000 (inclusive) -> 3000 + 2000 (sorted updatedAt desc)
+      Await.result(store.listWConfs(None, None, None, None,
+        WorkflowStore.WConfFilter(tsStart = Some(2000L))), timeout).wconfs.map(_.updatedAt) shouldBe Seq(3000L, 2000L)
+      // range combined with owner scope (both pushed into SQL)
+      Await.result(store.listWConfs(None, None, Some("owner-ts"), None,
+        WorkflowStore.WConfFilter(tsEnd = Some(2000L))), timeout).wconfs.map(_.updatedAt).toSet shouldBe Set(1000L, 2000L)
+      // the updated_at index was created for fast time-range queries
+      jdbcCount(
+        "SELECT count(*) FROM pg_indexes WHERE tablename='workflow_config' AND indexname='workflow_config_updated'"
+      ) shouldBe 1L
     }
   }
 

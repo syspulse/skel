@@ -24,7 +24,7 @@ object WorkflowStore {
    *   - search: case-insensitive substring over name | title | xid
    *   - status: OR set-membership (empty = any)
    *   - tags:   AND / contains-all (empty = any)
-   *   - tsStart/tsEnd: updatedAt range (epoch ms)
+   *   - tsStart/tsEnd: updatedAt range (epoch ms); API params ts0 (>=) / ts1 (<=)
    *   - sort:   "field:dir" (field = name|title|status|createdAt|updatedAt, dir = asc|desc; default updatedAt:desc)
    */
   final case class WConfFilter(

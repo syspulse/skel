@@ -91,6 +91,11 @@ final case class WorkflowConfigCreateReq(
   oid: Option[String] = None,
   pid: Option[String] = None,
   xid: Option[String] = None,
+  // optional overlay applied on creation (used by [Save]: persist the edited config + engine
+  // metadata + an initial status such as UNKNOWN so the config can be started later)
+  config: Option[JsObject] = None,
+  meta: Option[Map[String, Any]] = None,
+  status: Option[String] = None,
 )
 final case class WorkflowConfigUpdateReq(
   name: Option[String] = None,

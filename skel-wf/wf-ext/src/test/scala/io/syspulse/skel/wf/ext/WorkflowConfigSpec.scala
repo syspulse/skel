@@ -10,7 +10,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import spray.json._
 import io.hacken.ext.wf._
 import io.hacken.ext.wf.WorkflowConfigJson._
-import io.syspulse.skel.wf.ext.store.WorkflowStoreMem
+import io.syspulse.skel.wf.ext.store.{WorkflowStore, WorkflowStoreMem}
 
 class WorkflowConfigSpec extends AnyWordSpec with Matchers {
   val timeout = Duration(5, "seconds")
@@ -100,6 +100,35 @@ class WorkflowConfigSpec extends AnyWordSpec with Matchers {
       val p = Await.result(store.listWConfs(Some(0), Some(5)), timeout)
       p.total shouldBe 7L
       p.wconfs should have size 5
+    }
+
+    "filter configs by updatedAt time range (ts0..ts1), inclusive on both ends" in {
+      val store = new WorkflowStoreMem()
+      Seq(1000L, 2000L, 3000L).zipWithIndex.foreach { case (ts, i) =>
+        Await.result(store.addWConf(WorkflowConfig.from(i, schema(0)).copy(updatedAt = ts)), timeout)
+      }
+      // ts0=1500, ts1=2500 -> only the 2000 one
+      val mid = Await.result(store.listWConfs(None, None, None, None,
+        WorkflowStore.WConfFilter(tsStart = Some(1500L), tsEnd = Some(2500L))), timeout)
+      mid.total shouldBe 1L
+      mid.wconfs.map(_.updatedAt) shouldBe Seq(2000L)
+      // ts0=2000 (inclusive lower bound) -> 2000 + 3000
+      Await.result(store.listWConfs(None, None, None, None,
+        WorkflowStore.WConfFilter(tsStart = Some(2000L))), timeout).wconfs.map(_.updatedAt).toSet shouldBe Set(2000L, 3000L)
+      // ts1=2000 (inclusive upper bound) -> 1000 + 2000
+      Await.result(store.listWConfs(None, None, None, None,
+        WorkflowStore.WConfFilter(tsEnd = Some(2000L))), timeout).wconfs.map(_.updatedAt).toSet shouldBe Set(1000L, 2000L)
+      // no range -> all
+      Await.result(store.listWConfs(None, None, None, None, WorkflowStore.WConfFilter()), timeout).total shouldBe 3L
+    }
+
+    "filterSortWConfs applies the updatedAt range and default updatedAt-desc sort" in {
+      val xs = Seq(1000L, 2000L, 3000L).zipWithIndex.map { case (ts, i) =>
+        WorkflowConfig.from(i, schema(0)).copy(updatedAt = ts)
+      }
+      WorkflowStore
+        .filterSortWConfs(xs, WorkflowStore.WConfFilter(tsStart = Some(2000L), tsEnd = Some(3000L)))
+        .map(_.updatedAt) shouldBe Seq(3000L, 2000L)
     }
   }
 }
