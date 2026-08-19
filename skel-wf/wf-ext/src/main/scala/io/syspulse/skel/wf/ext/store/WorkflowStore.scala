@@ -20,6 +20,61 @@ object WorkflowStore {
     xs.drop(from.max(0).toInt).take(size.max(0).toInt)
 
   /**
+   * Optional server-side filter/sort for WorkflowConfig listing (used by GET /config):
+   *   - search: case-insensitive substring over name | title | xid
+   *   - status: OR set-membership (empty = any)
+   *   - tags:   AND / contains-all (empty = any)
+   *   - tsStart/tsEnd: updatedAt range (epoch ms)
+   *   - sort:   "field:dir" (field = name|title|status|createdAt|updatedAt, dir = asc|desc; default updatedAt:desc)
+   */
+  final case class WConfFilter(
+    search: Option[String] = None,
+    status: Seq[String] = Seq(),
+    tags: Seq[String] = Seq(),
+    tsStart: Option[Long] = None,
+    tsEnd: Option[Long] = None,
+    sort: Option[String] = None,
+  )
+  val WConfFilterNone = WConfFilter()
+
+  def sortWConfs(xs: Seq[WorkflowConfig], sort: Option[String]): Seq[WorkflowConfig] = {
+    val (field, asc) = sort.map(_.split(":").toList match {
+      case f :: dir :: _ => (f, dir.equalsIgnoreCase("asc"))
+      case f :: Nil      => (f, false)
+      case _             => ("updatedAt", false)
+    }).getOrElse(("updatedAt", false))
+    val ordered = field match {
+      case "name"      => xs.sortBy(_.name.toLowerCase)
+      case "title"     => xs.sortBy(_.title.toLowerCase)
+      case "status"    => xs.sortBy(_.status.toLowerCase)
+      case "createdAt" => xs.sortBy(_.createdAt)
+      case _           => xs.sortBy(_.updatedAt)
+    }
+    if (asc) ordered else ordered.reverse
+  }
+
+  def filterSortWConfs(xs: Seq[WorkflowConfig], f: WConfFilter): Seq[WorkflowConfig] = {
+    val searched = f.search.map(_.trim.toLowerCase).filter(_.nonEmpty) match {
+      case Some(q) =>
+        xs.filter(w =>
+          w.name.toLowerCase.contains(q) ||
+          w.title.toLowerCase.contains(q) ||
+          w.xid.exists(_.toLowerCase.contains(q)))
+      case None => xs
+    }
+    val statusSet = f.status.map(_.toUpperCase).filter(_.nonEmpty).toSet
+    val byStatus =
+      if (statusSet.isEmpty) searched
+      else searched.filter(w => statusSet.contains(w.status.toUpperCase))
+    val byTags =
+      if (f.tags.isEmpty) byStatus
+      else byStatus.filter(w => f.tags.forall(tg => w.tags.exists(_.equalsIgnoreCase(tg))))
+    val byTime = byTags.filter(w =>
+      f.tsStart.forall(w.updatedAt >= _) && f.tsEnd.forall(w.updatedAt <= _))
+    sortWConfs(byTime, f.sort)
+  }
+
+  /**
    * Owner/project access filter for WorkflowConfig (string oid/pid fields).
    *   - `oid = None`  -> ignore owner (admin); `Some(o)` -> entity.oid must be Some(o)
    *   - `pid = None`  -> no project filter; `Some(p)` -> entity.pid must be Some(p)
@@ -134,6 +189,27 @@ trait WorkflowStore {
       }
       WorkflowStore.PageWConf(items, xs.size.toLong)
     }
+  /**
+   * List WorkflowConfigs with optional server-side search/status/tags/time/sort filtering.
+   * Store-agnostic: loads the owner scope (findWConfByOid when oid is set, else allWConfs),
+   * applies owned(oid/pid) + filterSort, then pages. `total` is the filtered count.
+   */
+  def listWConfs(from: Option[Long], size: Option[Long], oid: Option[String], pid: Option[String],
+                 filter: WorkflowStore.WConfFilter)(implicit ec: ExecutionContext): Future[WorkflowStore.PageWConf] = {
+    val base: Future[Seq[WorkflowConfig]] = oid match {
+      case Some(o) => findWConfByOid(o)
+      case None    => allWConfs
+    }
+    base.map { xs =>
+      val owned = xs.filter(w => WorkflowStore.owned(w.oid, w.pid, oid, pid))
+      val filtered = WorkflowStore.filterSortWConfs(owned, filter)
+      val items = (from, size) match {
+        case (Some(f), Some(s)) => WorkflowStore.page(filtered, f, s)
+        case _                  => filtered
+      }
+      WorkflowStore.PageWConf(items, filtered.size.toLong)
+    }
+  }
   /** Get by id; fails with ErrNotFound when oid/pid filter does not match. */
   def getWConf(id: Int, oid: Option[String], pid: Option[String])(implicit ec: ExecutionContext): Future[WorkflowConfig] =
     getWConf(id).flatMap { wconf =>

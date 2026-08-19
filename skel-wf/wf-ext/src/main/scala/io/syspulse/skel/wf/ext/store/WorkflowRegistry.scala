@@ -76,7 +76,7 @@ object WorkflowRegistry {
 
   // ---- WorkflowConfig ----
   // oid=None skips owner match (admin); pid=None skips project filter. Both are applied in the Store.
-  final case class GetWorkflowConfigs(from: Option[Long], size: Option[Long], entity: String, oid: Option[String], pid: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
+  final case class GetWorkflowConfigs(from: Option[Long], size: Option[Long], entity: String, oid: Option[String], pid: Option[String], filter: WorkflowStore.WConfFilter, replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
   final case class GetWorkflowConfig(id: Int, entity: String, oid: Option[String], pid: Option[String], replyTo: ActorRef[Try[WorkflowConfigView]]) extends Command
   final case class GetWorkflowConfigByXid(xid: String, replyTo: ActorRef[Option[WorkflowConfig]]) extends Command
   final case class GetWorkflowConfigsByOid(oid: String, pid: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
@@ -540,9 +540,9 @@ object WorkflowRegistry {
         Behaviors.same
 
       // -------------------------------------------------- WorkflowConfig
-      case GetWorkflowConfigs(from, size, entity, oid, pid, replyTo) =>
+      case GetWorkflowConfigs(from, size, entity, oid, pid, filter, replyTo) =>
         val ents = parseEntities(entity)
-        store.listWConfs(from, size, oid, pid).flatMap { p =>
+        store.listWConfs(from, size, oid, pid, filter).flatMap { p =>
           val wconfs = if (ents(ENTITY_GRAF)) p.wconfs else p.wconfs.map(wconf => wconf.copy(graph = stripGraf(wconf.graph)))
           val fDet: Future[Option[Map[String, DetectorConfig]]] =
             if (ents(ENTITY_DETECTOR)) wconfDconfs(store, p.wconfs).map(Some(_)) else Future.successful(None)

@@ -39,7 +39,7 @@ case class Config(
 
   // Auth / permissions (JWT), mirrors skel-explain
   jwtUri: String = "hs512://",
-  ownerAttr: String = "oid",              // JWT claim carrying the owner id (matched against WorkflowConfig.oid)
+  ownerAttr: String = "tenantId",          // JWT claim carrying the owner id (matched against WorkflowConfig.oid)
   rolesAttr: String = "groups[].",        // JWT claim path carrying roles
   serviceRole: String = "extractor-service",
   adminRole: String = "extractor-admin",

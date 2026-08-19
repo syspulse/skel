@@ -139,7 +139,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def startWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], config: Option[JsObject], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String], author: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(StartWorkflowSchema(id, taskQueue, input, config, wid, ns, oid, pid, author, _))
 
   // ---- WorkflowConfig asks ----
-  def getWorkflowConfigs(from: Option[Long], size: Option[Long], entity: String, oid: Option[String], pid: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigs(from, size, entity, oid, pid, _))
+  def getWorkflowConfigs(from: Option[Long], size: Option[Long], entity: String, oid: Option[String], pid: Option[String], filter: WorkflowStore.WConfFilter): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigs(from, size, entity, oid, pid, filter, _))
   def getWorkflowConfig(id: Int, entity: String, oid: Option[String], pid: Option[String]): Future[Try[WorkflowConfigView]] = registry.ask(GetWorkflowConfig(id, entity, oid, pid, _))
   def getWorkflowConfigByXid(xid: String): Future[Option[WorkflowConfig]] = registry.ask(GetWorkflowConfigByXid(xid, _))
   def getWorkflowConfigsByOid(oid: String, pid: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigsByOid(oid, pid, _))
@@ -272,14 +272,30 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       new Parameter(name = "size", in = ParameterIn.QUERY, description = "Page size"),
       new Parameter(name = "entity", in = ParameterIn.QUERY, description = "CSV of graf,detector,schema (or all); default graf"),
       new Parameter(name = "oid", in = ParameterIn.QUERY, description = "owner id (required for users, must match JWT; admin may omit or set any)"),
-      new Parameter(name = "pid", in = ParameterIn.QUERY, description = "optional project id filter")),
+      new Parameter(name = "pid", in = ParameterIn.QUERY, description = "optional project id filter"),
+      new Parameter(name = "search", in = ParameterIn.QUERY, description = "case-insensitive substring over name|title|xid"),
+      new Parameter(name = "status", in = ParameterIn.QUERY, description = "CSV of statuses (OR)"),
+      new Parameter(name = "tags", in = ParameterIn.QUERY, description = "CSV of tags (AND / contains-all)"),
+      new Parameter(name = "ts_start", in = ParameterIn.QUERY, description = "updatedAt >= ts_start (epoch ms)"),
+      new Parameter(name = "ts_end", in = ParameterIn.QUERY, description = "updatedAt <= ts_end (epoch ms)"),
+      new Parameter(name = "sort", in = ParameterIn.QUERY, description = "field:dir (name|title|status|createdAt|updatedAt, asc|desc; default updatedAt:desc)")),
     responses = Array(new ApiResponse(responseCode = "200", description = "configs",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
   def getWorkflowConfigsRoute() = get {
-    parameters("from".as[Long].?, "size".as[Long].?, "entity".?, "oid".?, "pid".?) { (from, size, entity, oidQ, pid) =>
-      authenticate()(authn => authorize(canAccessOid(authn, oidQ)) {
-        complete(getWorkflowConfigs(pageFrom(from, size), pageSize(from, size), entityMode(entity), storeOid(authn, oidQ), pid))
-      })
+    parameters("from".as[Long].?, "size".as[Long].?, "entity".?, "oid".?, "pid".?,
+               "search".?, "status".?, "tags".?, "ts_start".as[Long].?, "ts_end".as[Long].?, "sort".?) {
+      (from, size, entity, oidQ, pid, search, status, tags, tsStart, tsEnd, sort) =>
+        authenticate()(authn => authorize(canAccessOid(authn, oidQ)) {
+          val filter = WorkflowStore.WConfFilter(
+            search = search,
+            status = status.map(splitIds).getOrElse(Seq()),
+            tags = tags.map(splitIds).getOrElse(Seq()),
+            tsStart = tsStart,
+            tsEnd = tsEnd,
+            sort = sort,
+          )
+          complete(getWorkflowConfigs(pageFrom(from, size), pageSize(from, size), entityMode(entity), storeOid(authn, oidQ), pid, filter))
+        })
     }
   }
 
@@ -410,8 +426,9 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
   def startWorkflowSchemaRoute(id: Int) = post {
     parameters("tq".?, "wid".?, "ns".?, "oid".?, "pid".?, "author".?) { (tq, wid, ns, oidQ, pidQ, authorQ) =>
-      // admin/service only; honor the requested oid as the created WorkflowConfig owner (storeOid)
-      authenticate()(authn => authorize(canAccessAdmin(authn)) {
+      // any authenticated user may start a workflow for their own oid (admin/service: any oid).
+      // storeOid() forces the JWT owner for non-admins, so a user cannot start under a foreign oid.
+      authenticate()(authn => authorize(canAccessOid(authn, oidQ)) {
         val oid = storeOid(authn, oidQ)
         val pid = oidOpt(pidQ)
         // author: ?author= else JWT.upn (from() falls back to WorkflowSchema.author if still None)
