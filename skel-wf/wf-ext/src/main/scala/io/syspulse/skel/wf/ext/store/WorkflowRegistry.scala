@@ -16,6 +16,7 @@ import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf, WorkflowN
 import io.hacken.ext.wf.WorkflowConfigJson._
 import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigContract, DetectorConfigSchema}
 import io.syspulse.skel.{ErrNotFound, ErrAuthorization}
+import io.syspulse.skel.util.UriUtil
 import io.syspulse.skel.wf.ext.server._
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
 import io.syspulse.skel.wf.ext.engine.{Engine, TrackMapper, EngineWorkflow, EngineMapper}
@@ -366,24 +367,48 @@ object WorkflowRegistry {
   }
 
   // ---------------------------------------------------------------- update merge
-  private def applyUpdate(wschema: WorkflowSchema, req: WorkflowSchemaUpdateReq): WorkflowSchema =
-    wschema.copy(
+  private def applyUpdate(wschema: WorkflowSchema, req: WorkflowSchemaUpdateReq): Try[WorkflowSchema] = {
+    val iconT = req.icon match {
+      case Some(ic) => UriUtil.uriSanitize(ic).map(Some(_))
+      case None     => Success(wschema.icon)
+    }
+    val graphT = req.graph match {
+      case Some(g) => WorkflowStore.uriSanitize(g).map(WorkflowGraf.sync)
+      case None    => Success(wschema.graph)
+    }
+    for {
+      icon  <- iconT
+      graph <- graphT
+    } yield wschema.copy(
       updatedAt = System.currentTimeMillis(),
       name = req.name.getOrElse(wschema.name),
       version = req.version.getOrElse(wschema.version),
       title = req.title.getOrElse(wschema.title),
       description = req.description.getOrElse(wschema.description),
       status = req.status.getOrElse(wschema.status),
-      icon = req.icon.orElse(wschema.icon),
+      author = req.author.getOrElse(wschema.author),
+      icon = icon,
       tags = req.tags.getOrElse(wschema.tags),
       schema = req.schema.orElse(wschema.schema),
       uiSchema = req.uiSchema.orElse(wschema.uiSchema),
-      graph = req.graph.map(WorkflowGraf.sync).getOrElse(wschema.graph),
+      graph = graph,
       meta = req.meta.orElse(wschema.meta),  // allow editing schema metadata
     )
+  }
 
-  private def applyUpdate(wconf: WorkflowConfig, req: WorkflowConfigUpdateReq): WorkflowConfig =
-    wconf.copy(
+  private def applyUpdate(wconf: WorkflowConfig, req: WorkflowConfigUpdateReq): Try[WorkflowConfig] = {
+    val iconT = req.icon match {
+      case Some(ic) => UriUtil.uriSanitize(ic).map(Some(_))
+      case None     => Success(wconf.icon)
+    }
+    val graphT = req.graph match {
+      case Some(g) => WorkflowStore.uriSanitize(g).map(WorkflowGraf.sync)
+      case None    => Success(wconf.graph)
+    }
+    for {
+      icon  <- iconT
+      graph <- graphT
+    } yield wconf.copy(
       updatedAt = System.currentTimeMillis(),
       name = req.name.getOrElse(wconf.name),
       version = req.version.getOrElse(wconf.version),
@@ -391,36 +416,39 @@ object WorkflowRegistry {
       description = req.description.getOrElse(wconf.description),
       author = req.author.getOrElse(wconf.author),
       status = req.status.getOrElse(wconf.status),
-      icon = req.icon.orElse(wconf.icon),
+      icon = icon,
       tags = req.tags.getOrElse(wconf.tags),
       config = req.config.orElse(wconf.config),
-      graph = req.graph.map(WorkflowGraf.sync).getOrElse(wconf.graph),
+      graph = graph,
       oid = req.oid.orElse(wconf.oid),
       pid = req.pid.orElse(wconf.pid),
       xid = req.xid.orElse(wconf.xid),
       meta = req.meta.orElse(wconf.meta),  // allow editing engine metadata (wid/engine/ns/tq/uri/...)
     )
+  }
 
   // ---------------------------------------------------------------- detector builders
-  private def dschemaFromReq(id: Int, req: DetectorSchemaCreateReq): DetectorSchema = {
+  private def dschemaFromReq(id: Int, req: DetectorSchemaCreateReq): Try[DetectorSchema] = {
     val now = System.currentTimeMillis()
-    DetectorSchema(
-      id = id, 
-      createdAt = now, 
-      updatedAt = now, 
-      status = WorkflowSchema.Status.ACTIVE,
-      name = req.name, 
-      version = req.version.getOrElse(WorkflowSchema.Version.DEF_VERSION),
-      title = req.title.getOrElse(req.name), 
-      description = req.description.getOrElse(""),
-      author = req.author.getOrElse(""), 
-      icon = req.icon, 
-      faq = req.faq,
-      tags = req.tags.getOrElse(Seq()), 
-      networkTags = Seq(),
-      schema = req.schema, 
-      uiSchema = req.uiSchema,
-    )
+    UriUtil.uriSanitize(req.icon).map { icon =>
+      DetectorSchema(
+        id = id, 
+        createdAt = now, 
+        updatedAt = now, 
+        status = WorkflowSchema.Status.ACTIVE,
+        name = req.name, 
+        version = req.version.getOrElse(WorkflowSchema.Version.DEF_VERSION),
+        title = req.title.getOrElse(req.name), 
+        description = req.description.getOrElse(""),
+        author = req.author.getOrElse(""), 
+        icon = icon, 
+        faq = req.faq,
+        tags = req.tags.getOrElse(Seq()), 
+        networkTags = Seq(),
+        schema = req.schema, 
+        uiSchema = req.uiSchema,
+      )
+    }
   }
 
   /** Build a DetectorConfig, linking it to an existing DetectorSchema (`sid`) when provided. */
@@ -462,20 +490,27 @@ object WorkflowRegistry {
     )
   }
 
-  private def applyUpdate(dschema: DetectorSchema, req: DetectorSchemaUpdateReq): DetectorSchema =
-    dschema.copy(
-      updatedAt = System.currentTimeMillis(),
-      name = req.name.getOrElse(dschema.name),
-      version = req.version.getOrElse(dschema.version),
-      title = req.title.getOrElse(dschema.title),
-      description = req.description.getOrElse(dschema.description),
-      author = req.author.getOrElse(dschema.author),
-      status = req.status.getOrElse(dschema.status),
-      icon = req.icon.orElse(dschema.icon),
-      tags = req.tags.getOrElse(dschema.tags),
-      schema = req.schema.orElse(dschema.schema),
-      uiSchema = req.uiSchema.orElse(dschema.uiSchema),
-    )
+  private def applyUpdate(dschema: DetectorSchema, req: DetectorSchemaUpdateReq): Try[DetectorSchema] = {
+    val iconT = req.icon match {
+      case Some(ic) => UriUtil.uriSanitize(ic).map(Some(_))
+      case None     => Success(dschema.icon)
+    }
+    iconT.map { icon =>
+      dschema.copy(
+        updatedAt = System.currentTimeMillis(),
+        name = req.name.getOrElse(dschema.name),
+        version = req.version.getOrElse(dschema.version),
+        title = req.title.getOrElse(dschema.title),
+        description = req.description.getOrElse(dschema.description),
+        author = req.author.getOrElse(dschema.author),
+        status = req.status.getOrElse(dschema.status),
+        icon = icon,
+        tags = req.tags.getOrElse(dschema.tags),
+        schema = req.schema.orElse(dschema.schema),
+        uiSchema = req.uiSchema.orElse(dschema.uiSchema),
+      )
+    }
+  }
 
   // ---------------------------------------------------------------- behavior
   private def registry(store: WorkflowStore, engine: Option[Engine], context: ActorContext[Command])(implicit ec: ExecutionContext): Behavior[Command] =
@@ -498,9 +533,12 @@ object WorkflowRegistry {
       case CreateWorkflowSchema(req, replyTo) =>
         log.info(s"CreateWorkflowSchema: ${req}")
 
-        store.nextWSchemaId.flatMap { id =>
-          val now = System.currentTimeMillis()
-          val wschema = WorkflowSchema(
+        val f = for {
+          icon  <- Future.fromTry(UriUtil.uriSanitize(req.icon))
+          graph <- Future.fromTry(req.graph.map(WorkflowStore.uriSanitize).getOrElse(Success(WorkflowGraf(id = 0))))
+          id    <- store.nextWSchemaId
+          now    = System.currentTimeMillis()
+          wschema = WorkflowSchema(
             id = id, 
             createdAt = now, 
             updatedAt = now, 
@@ -510,15 +548,16 @@ object WorkflowRegistry {
             title = req.title.getOrElse(req.name), 
             description = req.description.getOrElse(""),
             author = req.author.getOrElse(""), 
-            icon = req.icon,
+            icon = icon,
             faq = req.faq,
             tags = req.tags.getOrElse(Seq()),
             schema = req.schema,
             uiSchema = req.uiSchema,
-            graph = req.graph.map(WorkflowGraf.sync).getOrElse(WorkflowGraf(id = 0, sid = Some(id))),
+            graph = WorkflowGraf.sync(graph.copy(sid = graph.sid.orElse(Some(id)))),
           )
-          store.addWSchema(wschema)
-        }.andThen(logFail).onComplete(replyTo ! _)
+          saved <- store.addWSchema(wschema)
+        } yield saved
+        f.andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case CreateWorkflowSchemaDsl(req, replyTo) =>
@@ -530,7 +569,7 @@ object WorkflowRegistry {
       case UpdateWorkflowSchema(id, req, replyTo) =>
         log.info(s"UpdateWorkflowSchema: ${id}: ${req}")
 
-        store.getWSchema(id).map(wschema => applyUpdate(wschema, req)).flatMap(store.addWSchema).andThen(logFail).onComplete(replyTo ! _)
+        store.getWSchema(id).flatMap(wschema => Future.fromTry(applyUpdate(wschema, req)).flatMap(store.addWSchema)).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case DeleteWorkflowSchema(id, replyTo) =>
@@ -732,7 +771,7 @@ object WorkflowRegistry {
 
       case UpdateWorkflowConfig(id, req, oid, pid, replyTo) =>
         log.info(s"UpdateWorkflowConfig: ${req} oid=${oid} pid=${pid}")
-        store.getWConf(id, oid, pid).map(wconf => applyUpdate(wconf, req)).flatMap(store.addWConf).andThen(logFail).onComplete(replyTo ! _)
+        store.getWConf(id, oid, pid).flatMap(wconf => Future.fromTry(applyUpdate(wconf, req)).flatMap(store.addWConf)).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case DeleteWorkflowConfig(id, oid, pid, replyTo) =>
@@ -768,14 +807,17 @@ object WorkflowRegistry {
 
       case CreateWorkflowGraf(req, replyTo) =>
         val base = req.graph.getOrElse(WorkflowGraf(id = 0))
-        store.nextGrafId.flatMap { nid =>
-          val g = base.copy(
+        val f = for {
+          sanitized <- Future.fromTry(WorkflowStore.uriSanitize(base))
+          nid       <- store.nextGrafId
+          g          = sanitized.copy(
             id = req.id.getOrElse(nid),
-            sid = req.sid.orElse(base.sid),
-            cid = req.cid.orElse(base.cid),
+            sid = req.sid.orElse(sanitized.sid),
+            cid = req.cid.orElse(sanitized.cid),
           )
-          store.addGraf(g)
-        }.andThen(logFail).onComplete(replyTo ! _)
+          saved     <- store.addGraf(g)
+        } yield saved
+        f.andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case DeleteWorkflowGraf(id, replyTo) =>
@@ -799,14 +841,14 @@ object WorkflowRegistry {
 
       case CreateDetectorSchema(req, replyTo) =>
         log.info(s"CreateDetectorSchema: ${req.name}")
-        store.nextDSchemaId.flatMap(id => store.addDSchema(dschemaFromReq(id, req))).andThen(logFail).onComplete(replyTo ! _)
+        store.nextDSchemaId.flatMap(id => Future.fromTry(dschemaFromReq(id, req)).flatMap(store.addDSchema)).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case UpdateDetectorSchema(id, req, replyTo) =>
         log.info(s"UpdateDetectorSchema: ${id}")
-        store.getDSchema(id).map {
-          case Some(dschema) => applyUpdate(dschema, req)
-          case None    => throw new ErrNotFound(s"DetectorSchema: ${id}")
+        store.getDSchema(id).flatMap {
+          case Some(dschema) => Future.fromTry(applyUpdate(dschema, req))
+          case None          => Future.failed(new ErrNotFound(s"DetectorSchema: ${id}"))
         }.flatMap(store.addDSchema).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 

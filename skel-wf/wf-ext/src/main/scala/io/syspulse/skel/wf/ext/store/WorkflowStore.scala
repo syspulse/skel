@@ -1,9 +1,11 @@
 package io.syspulse.skel.wf.ext.store
 
 import scala.concurrent.{Future, ExecutionContext}
+import scala.util.{Try, Success, Failure}
 
-import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf, WorkflowStatus}
+import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf, WorkflowNode, WorkflowStatus}
 import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigContract, DetectorConfigSchema, JsonSchemaDefault}
+import io.syspulse.skel.util.UriUtil
 
 object WorkflowStore {
   val DETECTOR_CONFIG_SOURCE = "WORKFLOW" //"ext:workflow"
@@ -136,6 +138,14 @@ object WorkflowStore {
       destinations = Seq(),
     )
   }
+
+  /** Sanitize icon URIs on every graph node (see [[UriUtil.uriSanitize]]). */
+  def uriSanitize(g: WorkflowGraf): Try[WorkflowGraf] =
+    g.nodes.foldLeft[Try[Map[Int, WorkflowNode]]](Success(Map.empty)) { case (acc, (id, n)) =>
+      acc.flatMap { m =>
+        UriUtil.uriSanitize(n.icon).map(ic => m + (id -> n.copy(icon = ic)))
+      }
+    }.map(nodes => g.copy(nodes = nodes))
 }
 
 /**
