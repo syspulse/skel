@@ -5,6 +5,7 @@ import java.time.Duration
 import scala.jdk.CollectionConverters._
 
 import com.typesafe.scalalogging.Logger
+import com.typesafe.config.{Config, ConfigValueFactory, ConfigValueType}
 import java.net.URL
 import scala.io.BufferedSource
 
@@ -215,6 +216,18 @@ object Configuration {
     val envPairs = env.map(s => (s,sys.env.get(s).getOrElse("${"+s+"}")))
 
     envPairs.foldLeft(value)( (value,pair) => { value.replace("${"+pair._1+"}",pair._2) })
-  } 
+  }
+
+  /** Apply {@link #withEnv} to every STRING value. HOCON does not interpolate `${VAR}` inside
+   *  quoted strings (`uri="temporal://${TEMPORAL_GRPC}/..."` is a JSON literal), so Config.resolve()
+   *  leaves them untouched. Walk the tree after parse so file-loaded config matches CLI `--arg=${ENV}`. */
+  def resolveEnv(c: Config): Config =
+    c.entrySet().asScala.foldLeft(c) { (acc, e) =>
+      if (e.getValue.valueType == ConfigValueType.STRING) {
+        val raw = e.getValue.unwrapped.asInstanceOf[String]
+        val v = withEnv(raw)
+        if (v != raw) acc.withValue(e.getKey, ConfigValueFactory.fromAnyRef(v)) else acc
+      } else acc
+    } 
 
 }

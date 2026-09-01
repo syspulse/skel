@@ -168,12 +168,16 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
               System.setProperty("config.file", x)
               // ---------------------------------------------------------------------------------------------
               
-              // Load the config with environment variable resolution
-              val conf1 = ConfigFactory.parseFile(new File(x))
-                // .withFallback(ConfigFactory.systemProperties())
-                // .withFallback(ConfigFactory.systemEnvironment())                
-                .resolve()
-                
+              // parseFile().resolve() only substitutes UNQUOTED ${VAR} (HOCON). Quoted strings
+              // ("temporal://${TEMPORAL_GRPC}/...") are JSON literals — Config.resolve() will not
+              // touch them. resolveEnv() applies the same ${ENV} rewrite used for CLI args.
+              val conf1 = Configuration.resolveEnv(
+                ConfigFactory.parseFile(new File(x))
+                  // .withFallback(ConfigFactory.systemProperties())
+                  // .withFallback(ConfigFactory.systemEnvironment())
+                  .resolve()
+              )
+
               log.info(s"Config: '${x}': ${conf1}")
               
               overrideConfig = Some(new ConfigurationAkkaOverride(conf1))

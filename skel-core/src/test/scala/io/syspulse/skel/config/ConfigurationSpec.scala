@@ -99,6 +99,19 @@ class ConfigurationSpec extends AnyWordSpec with Matchers {
       var2 should === (s"var-${sys.env("HOME")}-_-${sys.env("USER")}")
     }
 
+    "resolve ${ENV} inside quoted strings when loading --conf" in {
+      val f = java.io.File.createTempFile("skel-conf-", ".conf")
+      f.deleteOnExit()
+      java.nio.file.Files.writeString(f.toPath,
+        """engine { uri="temporal://${USER}/ext_workflows?tls=ignore&auth=${HOME}" }""")
+      val c = Configuration.withPriority(Seq(
+        new ConfigurationArgs(Array(s"--conf=${f.getAbsolutePath}"), "test-conf", "",
+          ArgConfig()
+        )
+      ))
+      c.getString("engine.uri") should === (Some(s"temporal://${sys.env("USER")}/ext_workflows?tls=ignore&auth=${sys.env("HOME")}"))
+    }
+
     "return String arg with Environment Var" in {
       val args = Array("-s","value-${USER}")
       val c = Configuration.withPriority(Seq(
