@@ -38,7 +38,7 @@ class WorkflowStartSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
   import io.hacken.ext.wf.WorkflowSchemaJson._
 
   val store = new WorkflowStoreMem()
-  val engine = Some(new StartingEngine)
+  val engine = new StartingEngine
   val typedSystem = ActorSystem(Behaviors.empty, "StartTestSystem")
   val registry = typedSystem.systemActorOf(WorkflowRegistry(store, engine), "WorkflowRegistry")
 

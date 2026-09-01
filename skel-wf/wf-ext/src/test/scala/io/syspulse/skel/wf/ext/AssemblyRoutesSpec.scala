@@ -56,13 +56,12 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
 
   val store = new WorkflowStoreMem()
   val stubEngine = new StubEngine
-  val engine = Some(stubEngine)
   val typedSystem = ActorSystem(Behaviors.empty, "AsmTestSystem")
-  val registry = typedSystem.systemActorOf(WorkflowRegistry(store, engine), "WorkflowRegistry")
+  val registry = typedSystem.systemActorOf(WorkflowRegistry(store, stubEngine), "WorkflowRegistry")
 
   val routesPromise = Promise[WorkflowRoutes]()
   typedSystem.systemActorOf(Behaviors.setup[Any] { context =>
-    routesPromise.success(new WorkflowRoutes(registry, engine)(context, config))
+    routesPromise.success(new WorkflowRoutes(registry, stubEngine)(context, config))
     Behaviors.empty
   }, "test-actor")
   val routes = Await.result(routesPromise.future, 5.seconds)

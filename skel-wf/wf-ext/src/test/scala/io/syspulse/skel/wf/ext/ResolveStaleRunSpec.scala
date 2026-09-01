@@ -40,7 +40,7 @@ class ResolveStaleRunSpec extends AnyWordSpec with Matchers with ScalatestRouteT
   import io.hacken.ext.wf.WorkflowConfigJson._
 
   val store = new WorkflowStoreMem()
-  val engine = Some(new StaleRunEngine)
+  val engine = new StaleRunEngine
   val typedSystem = ActorSystem(Behaviors.empty, "ResolveStaleRunSystem")
   val registry = typedSystem.systemActorOf(WorkflowRegistry(store, engine), "WorkflowRegistry")
 

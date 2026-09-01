@@ -137,7 +137,7 @@ object WorkflowRegistry {
   final case class UpdateDetectorConfig(id: Int, req: DetectorConfigUpdateReq, oid: Option[String], pid: Option[String], replyTo: ActorRef[Try[DetectorConfig]]) extends Command
   final case class DeleteDetectorConfig(id: Int, oid: Option[String], pid: Option[String], replyTo: ActorRef[WorkflowActionRes]) extends Command
 
-  def apply(store: WorkflowStore, engine: Option[Engine] = None): Behavior[Command] =
+  def apply(store: WorkflowStore, engine: Engine): Behavior[Command] =
     Behaviors.setup { context =>
       implicit val ec: ExecutionContext = context.executionContext
       registry(store, engine, context)
@@ -220,7 +220,7 @@ object WorkflowRegistry {
    * LIVE from the Engine (see `enrichWithEngine`). The resolution MODE that matched each config is
    * kept so the Engine is queried the SAME way (rid -> exact RunId; wid -> latest run).
    */
-  private def resolveWconfs(store: WorkflowStore, engine: Option[Engine], ids: Seq[String], typ: Option[String],
+  private def resolveWconfs(store: WorkflowStore, engine: Engine, ids: Seq[String], typ: Option[String],
                             oid: Option[String] = None)(implicit ec: ExecutionContext): Future[WorkflowConfigs] =
     store.allWConfs.flatMap { all =>
       def byRid(id: String) = all.filter(_.xid.contains(id))
@@ -284,8 +284,7 @@ object WorkflowRegistry {
 
   /**
    * Take the statuses LIVE from the Engine (the stored/cached statuses are never trusted): map each
-   * config's runtime state onto its status and its DetectorConfigs' statuses. No-op only when no Engine
-   * is configured.
+   * config's runtime state onto its status and its DetectorConfigs' statuses.
    *
    * ENGINE RETURNS NOTHING (Temporal archives non-RUNNING workflows, so a closed/archived run resolves
    * to None - as does a transient query failure): the WorkflowConfig and its DetectorConfigs KEEP their
@@ -296,73 +295,68 @@ object WorkflowRegistry {
    *     uses the cheap status-only UPDATE; a meta change needs the full config write).
    *   - DetectorConfig.status is updated (status-only) whenever it differs.
    */
-  private def enrichWithEngine(store: WorkflowStore, engine: Option[Engine], foundWithMode: Seq[(WorkflowConfig, String)], dconfs: Map[String, DetectorConfig])(implicit ec: ExecutionContext): Future[WorkflowConfigs] = {
+  private def enrichWithEngine(store: WorkflowStore, engine: Engine, foundWithMode: Seq[(WorkflowConfig, String)], dconfs: Map[String, DetectorConfig])(implicit ec: ExecutionContext): Future[WorkflowConfigs] = {
     val found = foundWithMode.map(_._1)
-    
-    engine match {
-      case None => Future.successful(WorkflowConfigs(found, found.size.toLong, Some(dconfs)))
-      case Some(e) =>
-        val dconfsByCid: Map[Int, DetectorConfig] = dconfs.map { case (k, v) => k.toInt -> v }
-        Future.traverse(foundWithMode) { case (wconf, mode) =>
-          resolveRuntime(e, wconf, mode).map {
-            case Right(w) =>
-              val view = EngineMapper.map(w, Some(wconf), dconfsByCid)
-              // cid -> (live status, matched engine activity id)
-              val stepInfo = view.steps.flatMap(s => s.cid.map(_ -> (s.status, s.activityId))).toMap
-              val base0 = wconf.meta.getOrElse(Map.empty[String, Any])
-              // err: carry a failing task's message into meta.err (dropped when the engine reports none)
-              val base1 = w.meta.get("err").map(err => base0 + ("err" -> err)).getOrElse(base0 - "err")
-              // result: carry the completed run's return value into meta.result (raw JSON string, stored
-              // as a String like meta.input). Keep any previously stored result while the run has none yet.
-              val base2 = w.meta.get("result").map(r => base1 + ("result" -> r)).getOrElse(base1)
-              val meta = Option(base2).filter(_.nonEmpty)
-              (wconf.copy(status = view.status, meta = meta), stepInfo)
-            case Left(reason) =>
-              // engine returned nothing (archived/closed non-RUNNING run, or a query failure): DO NOT
-              // change WorkflowConfig/DetectorConfig status - only record the reason in meta.err. Emit
-              // each step's CURRENT status so the persistence diff is a no-op for the detectors.
-              val meta = Some(wconf.meta.getOrElse(Map.empty[String, Any]) + ("err" -> reason))
-              val keep = wconf.graph.nodes.values.flatMap(_.cid)
-                .map(cid => cid -> (dconfsByCid.get(cid).map(_.status).getOrElse(WorkflowStatus.UNKNOWN), Option.empty[String]))
-                .toMap
-              (wconf.copy(meta = meta), keep) // status intentionally UNCHANGED
-          }
-        }.flatMap { results =>
-          val newWconfs   = results.map(_._1)
-          val stepInfoAll  = results.flatMap(_._2).toMap    // cid -> (status, activityId)
-          val newDconfs = dconfsByCid.map { case (cid, dconf) =>
-            val (st, aid) = stepInfoAll.getOrElse(cid, (WorkflowStatus.UNRESOLVED, None))
-            // set DetectorConfig.meta.activity_id from the resolved engine activity (dropped when absent)
-            val meta = aid.map(a => (dconf.meta.getOrElse(Map.empty) + ("activity_id" -> a)))
-              .orElse(dconf.meta.map(_ - "activity_id").filter(_.nonEmpty))
-            cid.toString -> dconf.copy(status = st, meta = meta)
-          }
+    val dconfsByCid: Map[Int, DetectorConfig] = dconfs.map { case (k, v) => k.toInt -> v }
+    Future.traverse(foundWithMode) { case (wconf, mode) =>
+      resolveRuntime(engine, wconf, mode).map {
+        case Right(w) =>
+          val view = EngineMapper.map(w, Some(wconf), dconfsByCid)
+          // cid -> (live status, matched engine activity id)
+          val stepInfo = view.steps.flatMap(s => s.cid.map(_ -> (s.status, s.activityId))).toMap
+          val base0 = wconf.meta.getOrElse(Map.empty[String, Any])
+          // err: carry a failing task's message into meta.err (dropped when the engine reports none)
+          val base1 = w.meta.get("err").map(err => base0 + ("err" -> err)).getOrElse(base0 - "err")
+          // result: carry the completed run's return value into meta.result (raw JSON string, stored
+          // as a String like meta.input). Keep any previously stored result while the run has none yet.
+          val base2 = w.meta.get("result").map(r => base1 + ("result" -> r)).getOrElse(base1)
+          val meta = Option(base2).filter(_.nonEmpty)
+          (wconf.copy(status = view.status, meta = meta), stepInfo)
+        case Left(reason) =>
+          // engine returned nothing (archived/closed non-RUNNING run, or a query failure): DO NOT
+          // change WorkflowConfig/DetectorConfig status - only record the reason in meta.err. Emit
+          // each step's CURRENT status so the persistence diff is a no-op for the detectors.
+          val meta = Some(wconf.meta.getOrElse(Map.empty[String, Any]) + ("err" -> reason))
+          val keep = wconf.graph.nodes.values.flatMap(_.cid)
+            .map(cid => cid -> (dconfsByCid.get(cid).map(_.status).getOrElse(WorkflowStatus.UNKNOWN), Option.empty[String]))
+            .toMap
+          (wconf.copy(meta = meta), keep) // status intentionally UNCHANGED
+      }
+    }.flatMap { results =>
+      val newWconfs   = results.map(_._1)
+      val stepInfoAll  = results.flatMap(_._2).toMap    // cid -> (status, activityId)
+      val newDconfs = dconfsByCid.map { case (cid, dconf) =>
+        val (st, aid) = stepInfoAll.getOrElse(cid, (WorkflowStatus.UNRESOLVED, None))
+        // set DetectorConfig.meta.activity_id from the resolved engine activity (dropped when absent)
+        val meta = aid.map(a => (dconf.meta.getOrElse(Map.empty) + ("activity_id" -> a)))
+          .orElse(dconf.meta.map(_ - "activity_id").filter(_.nonEmpty))
+        cid.toString -> dconf.copy(status = st, meta = meta)
+      }
 
-          // ---- persist the Engine truth back into the store (only when something changed) ----
-          // 1. WorkflowConfig: persist on status change OR when meta.err/meta.result differs. A changed
-          //    meta needs the full config write (updateWConfStatus is status-only); a pure status change
-          //    keeps the cheap status-only path (targeted UPDATE on the DB store). The archived case
-          //    (status unchanged, meta.err newly set) therefore takes the full-write branch.
-          def metaKey(wconf: WorkflowConfig, k: String): Option[String] = wconf.meta.flatMap(_.get(k)).map(_.toString)
-          val wconfUpdates: Seq[Future[_]] = newWconfs.zip(found).flatMap { case (wconf, wconf0) =>
-            if (metaKey(wconf, "result") != metaKey(wconf0, "result") || metaKey(wconf, "err") != metaKey(wconf0, "err")) {
-              log.info(s"Resolve: WorkflowConfig(${wconf.id}).status ${wconf0.status} -> ${wconf.status} (meta err/result changed)")
-              Some(store.addWConf(wconf.copy(updatedAt = System.currentTimeMillis())))
-            } else if (wconf.status != wconf0.status) {
-              log.info(s"Resolve: WorkflowConfig(${wconf.id}).status ${wconf0.status} -> ${wconf.status}")
-              Some(store.updateWConfStatus(wconf.id, wconf.status))
-            } else None
-          }
-          // 2. DetectorConfig.status - status-only update is implemented for every store (incl. DB)
-          val dconfUpdates: Seq[Future[_]] = newDconfs.toSeq.collect {
-            case (cidStr, dconf) if dconfs.get(cidStr).exists(_.status != dconf.status) =>
-              log.info(s"Resolve: DetectorConfig(${dconf.id}).status ${dconfs(cidStr).status} -> ${dconf.status}")
-              store.updateDConfStatus(dconf.id, dconf.status)
-          }
+      // ---- persist the Engine truth back into the store (only when something changed) ----
+      // 1. WorkflowConfig: persist on status change OR when meta.err/meta.result differs. A changed
+      //    meta needs the full config write (updateWConfStatus is status-only); a pure status change
+      //    keeps the cheap status-only path (targeted UPDATE on the DB store). The archived case
+      //    (status unchanged, meta.err newly set) therefore takes the full-write branch.
+      def metaKey(wconf: WorkflowConfig, k: String): Option[String] = wconf.meta.flatMap(_.get(k)).map(_.toString)
+      val wconfUpdates: Seq[Future[_]] = newWconfs.zip(found).flatMap { case (wconf, wconf0) =>
+        if (metaKey(wconf, "result") != metaKey(wconf0, "result") || metaKey(wconf, "err") != metaKey(wconf0, "err")) {
+          log.info(s"Resolve: WorkflowConfig(${wconf.id}).status ${wconf0.status} -> ${wconf.status} (meta err/result changed)")
+          Some(store.addWConf(wconf.copy(updatedAt = System.currentTimeMillis())))
+        } else if (wconf.status != wconf0.status) {
+          log.info(s"Resolve: WorkflowConfig(${wconf.id}).status ${wconf0.status} -> ${wconf.status}")
+          Some(store.updateWConfStatus(wconf.id, wconf.status))
+        } else None
+      }
+      // 2. DetectorConfig.status - status-only update is implemented for every store (incl. DB)
+      val dconfUpdates: Seq[Future[_]] = newDconfs.toSeq.collect {
+        case (cidStr, dconf) if dconfs.get(cidStr).exists(_.status != dconf.status) =>
+          log.info(s"Resolve: DetectorConfig(${dconf.id}).status ${dconfs(cidStr).status} -> ${dconf.status}")
+          store.updateDConfStatus(dconf.id, dconf.status)
+      }
 
-          Future.sequence(wconfUpdates ++ dconfUpdates)
-            .map(_ => WorkflowConfigs(newWconfs, newWconfs.size.toLong, Some(newDconfs)))
-        }
+      Future.sequence(wconfUpdates ++ dconfUpdates)
+        .map(_ => WorkflowConfigs(newWconfs, newWconfs.size.toLong, Some(newDconfs)))
     }
   }
 
@@ -513,7 +507,7 @@ object WorkflowRegistry {
   }
 
   // ---------------------------------------------------------------- behavior
-  private def registry(store: WorkflowStore, engine: Option[Engine], context: ActorContext[Command])(implicit ec: ExecutionContext): Behavior[Command] =
+  private def registry(store: WorkflowStore, engine: Engine, context: ActorContext[Command])(implicit ec: ExecutionContext): Behavior[Command] =
     Behaviors.receiveMessage {
 
       // -------------------------------------------------- WorkflowSchema
@@ -625,67 +619,59 @@ object WorkflowRegistry {
 
       case StartWorkflowSchema(id, taskQueue, input, config, wid, ns, oid, pid, author, replyTo) =>
         log.info(s"StartWorkflowSchema: sid=${id}, tq=${taskQueue}, wid=${wid}, ns=${ns}, oid=${oid}, pid=${pid}, author=${author}, config=${config.isDefined} => ${engine}")
-        engine match {
-          case None =>
-            replyTo ! Failure(new Exception("Engine not configured"))
-          case Some(e) =>
-            // Create a WorkflowConfig FROM the schema, then start it on the Engine:
-            //   WorkflowType = WorkflowSchema.name (== the created config.name, which defaults to the schema name)
-            //   WorkflowId   = `wid` (if non-empty) else new WorkflowConfig.title (or .name if title is empty)
-            // When `wid` is provided it is ALSO used as the WorkflowConfig.title (set at creation).
-            // taskQueue: request -> config.meta("tq") -> default.
-            // input: caller JSON override else WorkflowSchema.meta.input (JSON string) else config JSON.
-            // `config` (when Some) replaces WorkflowConfig.config (the JsonSchemaDefault instance);
-            // None keeps the default instantiated from WorkflowSchema.schema.
-            // The start input JSON is recorded into meta.input as a String (JsonMap serializes String
-            // to a JSON string). Caller input overwrites; omitted body keeps schema.meta.input (already
-            // copied onto the config). Folded in BEFORE start(), which preserves meta.* on its single write.
-            // Then Resolve pulls the live statuses (STARTING while the run is not yet visible on the Engine).
-            val f = for {
-              wconf0   <- store.createWConfFromWSchema(id, oid = oid.filter(_.nonEmpty), pid = pid.filter(_.nonEmpty), wid = wid, author = author.filter(_.nonEmpty))
-              wconf1    = config.map(c => wconf0.copy(config = Some(c))).getOrElse(wconf0)
-              wconf     = input.filter(_.nonEmpty)
-                            .map(in => wconf1.copy(meta = Some(wconf1.meta.getOrElse(Map.empty[String, Any]) + ("input" -> in))))
-                            .getOrElse(wconf1)
-              tq        = taskQueue.filter(_.nonEmpty)
-                            .orElse(wconf.meta.flatMap(_.get("tq")).map(_.toString).filter(_.nonEmpty))
-                            .getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
-              payload   = input.filter(_.nonEmpty).orElse(WorkflowSchema.inputOf(wconf.meta)).orElse(Some(wconf.toJson.compactPrint))
-              saved    <- WorkflowAssembly.start(wconf, wconf.name, e, store, tq, payload, ns, wid)
-              resolved <- resolveWconfs(store, Some(e), saved.xid.toSeq, Some(RESOLVE_RID))
-              started  <- markStarting(store, resolved)
-            } yield started
-            f.andThen(logFail).onComplete(replyTo ! _)
-        }
+        // Create a WorkflowConfig FROM the schema, then start it on the Engine:
+        //   WorkflowType = WorkflowSchema.name (== the created config.name, which defaults to the schema name)
+        //   WorkflowId   = `wid` (if non-empty) else new WorkflowConfig.title (or .name if title is empty)
+        // When `wid` is provided it is ALSO used as the WorkflowConfig.title (set at creation).
+        // taskQueue: request -> config.meta("tq") -> default.
+        // input: caller JSON override else WorkflowSchema.meta.input (JSON string) else config JSON.
+        // `config` (when Some) replaces WorkflowConfig.config (the JsonSchemaDefault instance);
+        // None keeps the default instantiated from WorkflowSchema.schema.
+        // The start input JSON is recorded into meta.input as a String (JsonMap serializes String
+        // to a JSON string). Caller input overwrites; omitted body keeps schema.meta.input (already
+        // copied onto the config). Folded in BEFORE start(), which preserves meta.* on its single write.
+        // Then Resolve pulls the live statuses (STARTING while the run is not yet visible on the Engine).
+        val f = for {
+          wconf0   <- store.createWConfFromWSchema(id, oid = oid.filter(_.nonEmpty), pid = pid.filter(_.nonEmpty), wid = wid, author = author.filter(_.nonEmpty))
+          wconf1    = config.map(c => wconf0.copy(config = Some(c))).getOrElse(wconf0)
+          wconf     = input.filter(_.nonEmpty)
+                        .map(in => wconf1.copy(meta = Some(wconf1.meta.getOrElse(Map.empty[String, Any]) + ("input" -> in))))
+                        .getOrElse(wconf1)
+          tq        = taskQueue.filter(_.nonEmpty)
+                        .orElse(wconf.meta.flatMap(_.get("tq")).map(_.toString).filter(_.nonEmpty))
+                        .getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
+          payload   = input.filter(_.nonEmpty).orElse(WorkflowSchema.inputOf(wconf.meta)).orElse(Some(wconf.toJson.compactPrint))
+          saved    <- WorkflowAssembly.start(wconf, wconf.name, engine, store, tq, payload, ns, wid)
+          resolved <- resolveWconfs(store, engine, saved.xid.toSeq, Some(RESOLVE_RID))
+          started  <- markStarting(store, resolved)
+        } yield started
+        f.andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case StartWorkflowConfig(id, taskQueue, input, ns, wid, replyTo) =>
         log.info(s"StartWorkflowConfig: id=${id} tq=${taskQueue} ns=${ns} wid=${wid}")
-        // Precondition is checked BEFORE the Engine is required, so an already-started/finished
-        // config is rejected regardless of Engine availability: only UNKNOWN + no-xid may start.
+        // Only UNKNOWN configs without xid may start; already-started/finished configs are rejected.
         val f = store.getWConf(id).flatMap { wconf =>
           if (wconf.xid.exists(_.trim.nonEmpty) || !wconf.status.equalsIgnoreCase(WorkflowStatus.UNKNOWN))
             Future.failed(new Exception(
               s"WorkflowConfig ${id} cannot be started (status=${wconf.status}, xid=${wconf.xid.getOrElse("")}): only UNKNOWN configs without xid can be started"))
-          else engine match {
-            case None => Future.failed(new Exception("no Engine configured (start with --engine=temporal://...)"))
-            case Some(e) =>
-              // fold the input override into meta.input; resolve tq/ns/wid from request else saved meta
-              val wc  = input.filter(_.nonEmpty)
-                          .map(in => wconf.copy(meta = Some(wconf.meta.getOrElse(Map.empty[String, Any]) + ("input" -> in))))
-                          .getOrElse(wconf)
-              val tq  = taskQueue.filter(_.nonEmpty)
-                          .orElse(wc.meta.flatMap(_.get("tq")).map(_.toString).filter(_.nonEmpty))
-                          .getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
-              val payload = input.filter(_.nonEmpty).orElse(WorkflowSchema.inputOf(wc.meta)).orElse(Some(wc.toJson.compactPrint))
-              val nsEff  = ns.filter(_.nonEmpty).orElse(wc.meta.flatMap(_.get("ns")).map(_.toString).filter(_.nonEmpty))
-              val widEff = wid.filter(_.nonEmpty).orElse(wc.meta.flatMap(_.get("wid")).map(_.toString).filter(_.nonEmpty))
-              for {
-                saved    <- WorkflowAssembly.start(wc, wc.name, e, store, tq, payload, nsEff, widEff)
-                resolved <- resolveWconfs(store, Some(e), saved.xid.toSeq, Some(RESOLVE_RID))
-                _        <- markStarting(store, resolved)
-                fresh    <- store.getWConf(saved.id)
-              } yield fresh
+          else {
+            // fold the input override into meta.input; resolve tq/ns/wid from request else saved meta
+            val wc  = input.filter(_.nonEmpty)
+                        .map(in => wconf.copy(meta = Some(wconf.meta.getOrElse(Map.empty[String, Any]) + ("input" -> in))))
+                        .getOrElse(wconf)
+            val tq  = taskQueue.filter(_.nonEmpty)
+                        .orElse(wc.meta.flatMap(_.get("tq")).map(_.toString).filter(_.nonEmpty))
+                        .getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
+            val payload = input.filter(_.nonEmpty).orElse(WorkflowSchema.inputOf(wc.meta)).orElse(Some(wc.toJson.compactPrint))
+            val nsEff  = ns.filter(_.nonEmpty).orElse(wc.meta.flatMap(_.get("ns")).map(_.toString).filter(_.nonEmpty))
+            val widEff = wid.filter(_.nonEmpty).orElse(wc.meta.flatMap(_.get("wid")).map(_.toString).filter(_.nonEmpty))
+            for {
+              saved    <- WorkflowAssembly.start(wc, wc.name, engine, store, tq, payload, nsEff, widEff)
+              resolved <- resolveWconfs(store, engine, saved.xid.toSeq, Some(RESOLVE_RID))
+              _        <- markStarting(store, resolved)
+              fresh    <- store.getWConf(saved.id)
+            } yield fresh
           }
         }
         f.andThen(logFail).onComplete(replyTo ! _)
@@ -693,26 +679,17 @@ object WorkflowRegistry {
 
       case StopWorkflowConfig(id, reason, replyTo) =>
         log.info(s"StopWorkflowConfig: id=${id} reason='${reason.getOrElse("")}'")
-        engine match {
-          case None    => replyTo ! Failure(new Exception("no Engine configured (start with --engine=temporal://...)"))
-          case Some(e) => store.getWConf(id).flatMap(wconf => WorkflowAssembly.stop(wconf, e, store, reason)).andThen(logFail).onComplete(replyTo ! _)
-        }
+        store.getWConf(id).flatMap(wconf => WorkflowAssembly.stop(wconf, engine, store, reason)).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case CancelWorkflowConfig(id, reason, replyTo) =>
         log.info(s"CancelWorkflowConfig: id=${id} reason='${reason.getOrElse("")}'")
-        engine match {
-          case None    => replyTo ! Failure(new Exception("no Engine configured (start with --engine=temporal://...)"))
-          case Some(e) => store.getWConf(id).flatMap(wconf => WorkflowAssembly.cancel(wconf, e, store, reason)).andThen(logFail).onComplete(replyTo ! _)
-        }
+        store.getWConf(id).flatMap(wconf => WorkflowAssembly.cancel(wconf, engine, store, reason)).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case SignalWorkflowConfig(id, name, payload, replyTo) =>
         log.info(s"SignalWorkflowConfig: id=${id} signal='${name}' payload=${payload.getOrElse("")}")
-        engine match {
-          case None    => replyTo ! Failure(new Exception("no Engine configured (start with --engine=temporal://...)"))
-          case Some(e) => store.getWConf(id).flatMap(wconf => WorkflowAssembly.signal(wconf, e, store, name, payload)).andThen(logFail).onComplete(replyTo ! _)
-        }
+        store.getWConf(id).flatMap(wconf => WorkflowAssembly.signal(wconf, engine, store, name, payload)).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case CreateWorkflowConfig(req, replyTo) =>

@@ -39,7 +39,7 @@ class RunningFailureSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
   import io.hacken.ext.wf.WorkflowConfigJson._
 
   val store = new WorkflowStoreMem()
-  val engine = Some(new FailureEngine)
+  val engine = new FailureEngine
   val typedSystem = ActorSystem(Behaviors.empty, "RunningFailureSystem")
   val registry = typedSystem.systemActorOf(WorkflowRegistry(store, engine), "WorkflowRegistry")
 

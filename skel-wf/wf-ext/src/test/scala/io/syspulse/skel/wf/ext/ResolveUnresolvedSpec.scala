@@ -32,7 +32,7 @@ class ResolveUnresolvedSpec extends AnyWordSpec with Matchers with ScalatestRout
   import WorkflowJson._
 
   val store = new WorkflowStoreMem()
-  val engine = Some(new ObsoleteEngine)
+  val engine = new ObsoleteEngine
   val typedSystem = ActorSystem(Behaviors.empty, "ResolveUnresolvedSystem")
   val registry = typedSystem.systemActorOf(WorkflowRegistry(store, engine), "WorkflowRegistry")
 

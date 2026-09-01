@@ -224,6 +224,8 @@ object App extends skel.Server {
     def engineUri(default: String = "temporal://"): String = config.engine.getOrElse(default)
     def newEngine(): Engine = Engine(engineUri(), config.engineUrl)
 
+    val engine = newEngine()
+
     // Render an EngineWorkflow tree for CLI output.
     def renderWorkflow(w: EngineWorkflow, indent: String = ""): String = {
       val times = (w.startedAt.map(t => s" start=${t}").getOrElse("")) + (w.closedAt.map(t => s" close=${t}").getOrElse(""))
@@ -253,10 +255,8 @@ object App extends skel.Server {
     val r = config.cmd match {
       case "server" =>
         Console.err.println(s"Store: ${store}")
-        // Engine is created only when --engine is provided; engine REST routes are enabled then.
-        // --engine.url (optional) is the HTTPS panel base; when absent, panel links fall back to the gRPC URI host.
-        val engine: Option[Engine] = config.engine.map(u => Engine(u, config.engineUrl))
-        Console.err.println(s"Engine: ${engine.map(_ => engineUri()).getOrElse("(none, set --engine to enable /engine API)")}${config.engineUrl.map(u => s" url=${u}").getOrElse("")}")
+        Console.err.println(s"Engine: ${engineUri()}${config.engineUrl.map(u => s" url=${u}").getOrElse("")}")
+        // --engine URI (default temporal://); --engine.url is the optional HTTPS panel base.
         // skel Server.parseUriPath only uses 3 path segments (api/v1/wf) for the prefix and drops
         // the 4th ("ext"), so re-add it via Routeable.withSuffix -> /api/v1/wf/ext/{schema,config,graf,engine}
         run(config.host, config.port, config.uri, c,
@@ -296,7 +296,7 @@ object App extends skel.Server {
         }
 
       case "runtime-get" =>
-        val engine = newEngine()
+        
         try {
           val out = config.params.headOption match {
             case Some(runtimeId) =>
@@ -318,7 +318,7 @@ object App extends skel.Server {
       case "link" =>
         config.params.toList match {
           case id :: rest if rest.nonEmpty =>
-            val engine = newEngine()
+            //val engine = newEngine()
             try {
               // link references EXISTING DetectorConfigs by name (latest version) - creates no Detector*
               val f = WorkflowAssembly.linkFromTemporal(id, rest.mkString(" "), engine, store, config.ns, config.wid, config.wn)
@@ -337,7 +337,7 @@ object App extends skel.Server {
       case "assembly-track" =>
         config.params.toList match {
           case id :: rest if rest.nonEmpty =>
-            val engine = newEngine()
+            // val engine = newEngine()
             // modular resolution: UUID -> track a fixed run (RunId); else -> track latest run of a WorkflowId
             val mapper = TrackMapper.of(id)
             try {
@@ -377,7 +377,7 @@ object App extends skel.Server {
       case "start-schema" =>
         config.params.toList match {
           case idStr :: rest =>
-            val engine = newEngine()
+            //val engine = newEngine()
             try {
               // create a WorkflowConfig FROM the schema, then start it (WorkflowType == schema.name,
               // WorkflowId == <wid>|config.title|name); payload = schema.meta.input else WorkflowConfig JSON
@@ -402,7 +402,7 @@ object App extends skel.Server {
       case "stop" | "cancel" =>
         config.params.headOption match {
           case Some(idStr) =>
-            val engine = newEngine()
+            //val engine = newEngine()
             try {
               val f = store.getWConf(idStr.toInt).flatMap { wconf =>
                 if (config.cmd == "stop") WorkflowAssembly.stop(wconf, engine, store, config.reason, config.ns)
@@ -422,7 +422,7 @@ object App extends skel.Server {
           case idStr :: rest =>
             val sigName = rest.headOption.map(_.trim).filter(_.nonEmpty).getOrElse("CONTINUE")
             val payload = rest.drop(1) match { case Nil => None; case ps => Some(ps.mkString(" ")) }
-            val engine = newEngine()
+            //val engine = newEngine()
             try {
               val f = store.getWConf(idStr.toInt).flatMap(wconf => WorkflowAssembly.signal(wconf, engine, store, sigName, payload, config.ns))
               Try(Await.result(f, config.timeout.millis)) match {

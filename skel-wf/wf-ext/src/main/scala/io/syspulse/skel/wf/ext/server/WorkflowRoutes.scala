@@ -49,10 +49,10 @@ import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineWorkflows, 
  *   /api/v1/wf/ext/schema  - WorkflowSchema CRUD (+ ?entity={graf,detector,schema|all}, + /dsl, /{id}/start)
  *   /api/v1/wf/ext/config  - WorkflowConfig CRUD (+ ?entity={graf,detector,schema|all}, + /dsl, /xid, /oid, /{id}/stop, /{id}/cancel)
  *   /api/v1/wf/ext/graf    - WorkflowGraf CRUD (visual configuration)
- *   /api/v1/wf/ext/engine  - Engine runtime state (Temporal), enabled when an Engine is configured
+ *   /api/v1/wf/ext/engine  - Engine runtime state (Temporal)
  */
 @Path("/")
-class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)(implicit context: ActorContext[_], config: Config) extends CommonRoutes with Routeable with RouteAuthorizers {
+class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit context: ActorContext[_], config: Config) extends CommonRoutes with Routeable with RouteAuthorizers {
 
   implicit val system: ActorSystem[_] = context.system
   implicit val ec: scala.concurrent.ExecutionContext = context.executionContext
@@ -200,11 +200,9 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
 
   // ---- engine (runtime) handlers ----
   /** Resolve the Engine for a path `{engine}` segment; only the configured engine is served. */
-  private def forEngine(engineName: String)(f: Engine => Route): Route = engine match {
-    case Some(e) if e.name.equalsIgnoreCase(engineName) => f(e)
-    case Some(e) => complete(StatusCodes.NotFound -> s"engine not supported: '${engineName}' (configured: '${e.name}')")
-    case None    => complete(StatusCodes.NotImplemented -> "no Engine configured (start with --engine=temporal://...)")
-  }
+  private def forEngine(engineName: String)(f: Engine => Route): Route =
+    if (engine.name.equalsIgnoreCase(engineName)) f(engine)
+    else complete(StatusCodes.NotFound -> s"engine not supported: '${engineName}' (configured: '${engine.name}')")
 
   def getEngineRuntimesRoute(engineName: String, namespace: Option[String]) = get {
     authUser { forEngine(engineName) { e =>
@@ -537,14 +535,10 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     authAdminService {
       entity(as[WorkflowConfigDslReq]) { req =>
         parameter("ns".?) { ns =>
-          engine match {
-            case Some(e) =>
-              // resolve the Temporal id (runtimeId or workflowId) on the engine, then assembly + bind
-              onComplete(TrackMapper.of(id).resolve(e, ns)) {
-                case Success(runtime) => complete(assemblyWorkflowConfigLinked(req, runtime, id))
-                case Failure(ex)      => complete(StatusCodes.InternalServerError -> s"engine error: ${ex.getMessage}")
-              }
-            case None => complete(StatusCodes.NotImplemented -> "no Engine configured (start with --engine=temporal://...)")
+          // resolve the Temporal id (runtimeId or workflowId) on the engine, then assembly + bind
+          onComplete(TrackMapper.of(id).resolve(engine, ns)) {
+            case Success(runtime) => complete(assemblyWorkflowConfigLinked(req, runtime, id))
+            case Failure(ex)      => complete(StatusCodes.InternalServerError -> s"engine error: ${ex.getMessage}")
           }
         }
       }
@@ -572,14 +566,10 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     authAdminService {
       entity(as[WorkflowConfigDslReq]) { req =>
         parameter("ns".?) { ns =>
-          engine match {
-            case Some(e) =>
-              // resolve the Temporal id (runtimeId or workflowId) on the engine, then link-by-name + bind
-              onComplete(TrackMapper.of(id).resolve(e, ns)) {
-                case Success(runtime) => complete(linkWorkflowConfigLinked(req, runtime, id))
-                case Failure(ex)      => complete(StatusCodes.InternalServerError -> s"engine error: ${ex.getMessage}")
-              }
-            case None => complete(StatusCodes.NotImplemented -> "no Engine configured (start with --engine=temporal://...)")
+          // resolve the Temporal id (runtimeId or workflowId) on the engine, then link-by-name + bind
+          onComplete(TrackMapper.of(id).resolve(engine, ns)) {
+            case Success(runtime) => complete(linkWorkflowConfigLinked(req, runtime, id))
+            case Failure(ex)      => complete(StatusCodes.InternalServerError -> s"engine error: ${ex.getMessage}")
           }
         }
       }

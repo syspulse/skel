@@ -25,12 +25,13 @@ class DetectorRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
   import io.hacken.ext.detector.DetectorConfigJson._
 
   val store = new WorkflowStoreMem()
+  val engine = new StubEngine
   val typedSystem = ActorSystem(Behaviors.empty, "DetTestSystem")
-  val registry = typedSystem.systemActorOf(WorkflowRegistry(store), "WorkflowRegistry")
+  val registry = typedSystem.systemActorOf(WorkflowRegistry(store, engine), "WorkflowRegistry")
 
   val routesPromise = Promise[WorkflowRoutes]()
   typedSystem.systemActorOf(Behaviors.setup[Any] { context =>
-    routesPromise.success(new WorkflowRoutes(registry)(context, config)); Behaviors.empty
+    routesPromise.success(new WorkflowRoutes(registry, engine)(context, config)); Behaviors.empty
   }, "test-actor")
   val routes = Await.result(routesPromise.future, 5.seconds)
 

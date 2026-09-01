@@ -73,7 +73,7 @@ class ResolvePersistDBSpec extends AnyWordSpec with Matchers with ScalatestRoute
     cfgMap + ("postgres.numThreads", "2")
     store = new WorkflowStoreDB(new Configuration(Seq(cfgMap)), "postgres://postgres")
 
-    val engine = Some(new StubEngine)
+    val engine = new StubEngine
     val registry = typedSystem.systemActorOf(WorkflowRegistry(store, engine), "WorkflowRegistry")
     val p = Promise[WorkflowRoutes]()
     typedSystem.systemActorOf(Behaviors.setup[Any] { context => p.success(new WorkflowRoutes(registry, engine)(context, config)); Behaviors.empty }, "test-actor")

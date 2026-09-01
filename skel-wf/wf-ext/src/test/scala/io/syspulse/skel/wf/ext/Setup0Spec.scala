@@ -76,9 +76,10 @@ class Setup0Spec extends AnyWordSpec with Matchers with ScalatestRouteTest with 
     cfgMap + ("postgres.username", "postgres"); cfgMap + ("postgres.password", "postgres"); cfgMap + ("postgres.numThreads", "2")
     store = new WorkflowStoreDB(new Configuration(Seq(cfgMap)), "postgres://postgres")
 
-    val registry = typedSystem.systemActorOf(WorkflowRegistry(store, None), "WorkflowRegistry")
+    val engine = new StubEngine
+    val registry = typedSystem.systemActorOf(WorkflowRegistry(store, engine), "WorkflowRegistry")
     val p = Promise[WorkflowRoutes]()
-    typedSystem.systemActorOf(Behaviors.setup[Any] { context => p.success(new WorkflowRoutes(registry, None)(context, config)); Behaviors.empty }, "test-actor")
+    typedSystem.systemActorOf(Behaviors.setup[Any] { context => p.success(new WorkflowRoutes(registry, engine)(context, config)); Behaviors.empty }, "test-actor")
     routes = Await.result(p.future, 5.seconds)
   }
 
