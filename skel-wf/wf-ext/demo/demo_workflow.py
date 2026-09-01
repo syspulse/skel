@@ -2,7 +2,8 @@
 Demo workflow, available in TWO registration modes (the worker picks one):
 
   - DYNAMIC  (DemoWorkflowDynamic, @workflow.defn(dynamic=True))  - runs for ANY WorkflowType.
-  - STATIC   (DemoWorkflow, @workflow.defn(name=WORKFLOW_NAME))   - runs ONLY WorkflowType==WORKFLOW_NAME.
+  - STATIC   DemoWorkflow ("Demo") + DemoHumanWorkflow ("Demo-Human") - the two demo WorkflowTypes.
+             Extra names from WORKFLOW_NAME (CSV) are also registered.
 
 Both modes: wf-ext passes top-level Temporal Memo fields "cid" (WorkflowConfig.id) and "sid"
 (WorkflowSchema.id). The workflow reads its topology from the WorkflowConfig (?entity=detector) and
@@ -14,6 +15,9 @@ If a "DemoHuman" DetectorConfig is part of the workflow, the workflow WAITS for 
 (human input; send it with wf-config-signal.sh or POST /config/{cid}/signal). On CONTINUE, the
 DemoHuman activity RE-READS that DetectorConfig fresh (it may have been edited while waiting) and prints
 it. If "DemoHuman" is absent, the workflow runs straight through as before.
+
+The "Demo-Human" WorkflowType is the schema that wires DemoHuman in; "Demo" is the 3-activity path.
+Both types share this orchestration (the human step is still gated on the detector being present).
 """
 from collections.abc import Sequence  # temporalio requires the dynamic arg typed as collections.abc.Sequence
 from datetime import timedelta
@@ -26,12 +30,26 @@ with workflow.unsafe.imports_passed_through():
     import os
     from activities import demo_start, demo_work, demo_report, demo_human
 
-# Static (dedicated) workers register under this name == the WorkflowSchema.name they serve.
-WORKFLOW_NAME = os.environ.get("WORKFLOW_NAME", "Demo")
+# Built-in static WorkflowTypes (== WorkflowSchema.name). Both are always registered.
+WORKFLOW_NAME_DEMO = "Demo"
+WORKFLOW_NAME_HUMAN = "Demo-Human"
+# Extra static names (CSV). "Demo" / "Demo-Human" are always included even if omitted here.
+WORKFLOW_NAME = os.environ.get("WORKFLOW_NAME", f"{WORKFLOW_NAME_DEMO},{WORKFLOW_NAME_HUMAN}")
 # A detector with this name turns the workflow into a human-gated flow (waits for the CONTINUE signal).
 HUMAN_DETECTOR = "DemoHuman"
 # The signal name the human/external caller sends to release the DemoHuman step.
 CONTINUE_SIGNAL = "CONTINUE"
+
+
+def _static_names() -> list:
+    names = [WORKFLOW_NAME_DEMO, WORKFLOW_NAME_HUMAN]
+    for n in (s.strip() for s in WORKFLOW_NAME.split(",")):
+        if n and n not in names:
+            names.append(n)
+    return names
+
+
+WORKFLOW_NAMES = _static_names()
 
 
 class DemoBase:
@@ -106,12 +124,46 @@ class DemoWorkflowDynamic(DemoBase):
         return await self.run_demo(cid, sid, wf_type, wf_input)
 
 
-@workflow.defn(name=WORKFLOW_NAME)
-class DemoWorkflow(DemoBase):
-    @workflow.run
-    async def run(self, wf_input=None) -> dict:
+class _DemoStatic(DemoBase):
+    """Shared @workflow.run body for every statically registered demo WorkflowType."""
+
+    async def run_static(self, wf_input=None) -> dict:
         cid = workflow.memo_value("cid", 0, type_hint=int)
         sid = workflow.memo_value("sid", 0, type_hint=int)
         wf_type = workflow.info().workflow_type
         workflow.logger.info("Demo(static) type='%s' cid=%s sid=%s input=%s", wf_type, cid, sid, wf_input)
         return await self.run_demo(cid, sid, wf_type, wf_input)
+
+
+@workflow.defn(name=WORKFLOW_NAME_DEMO)
+class DemoWorkflow(_DemoStatic):
+    @workflow.run
+    async def run(self, wf_input=None) -> dict:
+        return await self.run_static(wf_input)
+
+
+@workflow.defn(name=WORKFLOW_NAME_HUMAN)
+class DemoHumanWorkflow(_DemoStatic):
+    """Static registration for WorkflowType 'Demo-Human' (schema that wires the DemoHuman activity)."""
+
+    @workflow.run
+    async def run(self, wf_input=None) -> dict:
+        return await self.run_static(wf_input)
+
+
+def _extra_static_workflow(name: str):
+    @workflow.defn(name=name)
+    class Extra(_DemoStatic):
+        @workflow.run
+        async def run(self, wf_input=None) -> dict:
+            return await self.run_static(wf_input)
+    Extra.__name__ = "DemoWorkflow_" + "".join(c if c.isalnum() else "_" for c in name)
+    Extra.__qualname__ = Extra.__name__
+    return Extra
+
+
+_BUILTINS = {
+    WORKFLOW_NAME_DEMO: DemoWorkflow,
+    WORKFLOW_NAME_HUMAN: DemoHumanWorkflow,
+}
+STATIC_WORKFLOWS = [_BUILTINS.get(n) or _extra_static_workflow(n) for n in WORKFLOW_NAMES]

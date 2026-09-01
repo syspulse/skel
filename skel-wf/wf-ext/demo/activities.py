@@ -70,15 +70,32 @@ def _input_of(cfg: dict) -> dict:
 @activity.defn(name="DemoStart")
 async def demo_start(cid: int) -> dict:
     _start("DemoStart", cid)
-    # read the config WITH its detectors (?entity=detector) so the workflow learns its topology here
-    view = await fetch_config_view(cid, entity="detector")
+    # entity=all: detectors (by cid) AND the graph (node titles). A human step may exist as a
+    # graph node without cid (stale/missing DetectorSchema sid) — the worker still has to see it.
+    view = await fetch_config_view(cid, entity="all")
     cfg = view.get("config", {})
-    # detectors map is keyed by DetectorConfig id -> DetectorConfig
-    detectors = [{"id": d.get("id"), "name": d.get("name"), "status": d.get("status")}
-                 for d in (view.get("detectors") or {}).values()]
+    detectors = []
+    for d in (view.get("detectors") or {}).values():
+        sch = d.get("schema") if isinstance(d.get("schema"), dict) else {}
+        detectors.append({
+            "id": d.get("id"),
+            "name": d.get("name"),
+            "status": d.get("status"),
+            "schema": sch.get("name"),
+        })
+    nodes = []
+    for n in ((cfg.get("graph") or {}).get("nodes") or {}).values():
+        nodes.append({
+            "id": n.get("id"),
+            "title": n.get("title"),
+            "cid": n.get("cid"),
+            "sid": n.get("sid"),
+        })
+    schemas = [{"id": s.get("id"), "name": s.get("name"), "title": s.get("title")}
+               for s in (view.get("schemas") or {}).values()]
     activity.logger.info(
-        "DemoStart cid=%s name=%s title=%s status=%s detectors=%s", cid,
-        cfg.get("name"), cfg.get("title"), cfg.get("status"), detectors,
+        "DemoStart cid=%s name=%s title=%s status=%s detectors=%s nodes=%s", cid,
+        cfg.get("name"), cfg.get("title"), cfg.get("status"), detectors, nodes,
     )
     result = {
         "activity": "DemoStart",
@@ -87,6 +104,8 @@ async def demo_start(cid: int) -> dict:
         "title": cfg.get("title"),
         "status": cfg.get("status"),
         "detectors": detectors,
+        "nodes": nodes,
+        "schemas": schemas,
     }
     _end("DemoStart", cid)
     return result
@@ -134,11 +153,12 @@ async def demo_report(cid: int, work: dict) -> dict:
 
 
 @activity.defn(name="DemoHuman")
-async def demo_human(cid: int, detector_id: int, poll_sec: int = 3) -> dict:
+async def demo_human(cid: int, detector_id: int = 0, poll_sec: int = 3) -> dict:
     """Human-gated step, LONG-RUNNING so it is visible in the engine (mapped to the DemoHuman
     DetectorConfig) while it waits. The wait loop ONLY heartbeats - it does NOT read the config. The
     workflow RELEASES it (cancels it) when the CONTINUE signal arrives; ONLY THEN does it re-read the
-    DetectorConfig fresh (it may have been edited while waiting) and print it."""
+    DetectorConfig fresh (it may have been edited while waiting) and print it.
+    `detector_id` may be 0 when the graph node has no cid (unresolved DetectorSchema)."""
     _start("DemoHuman", cid)
     poll = 0
     # WAIT (visible + heartbeating) until released by the CONTINUE signal - no config read in here.
@@ -152,10 +172,15 @@ async def demo_human(cid: int, detector_id: int, poll_sec: int = 3) -> dict:
         pass
     # released by the CONTINUE signal -> NOW (once, after the signal) re-read the DetectorConfig fresh
     # and print it. shield the read so the in-flight cancellation doesn't abort it.
-    dc = await asyncio.shield(fetch_detector_config(detector_id))
+    dc = {}
+    if detector_id:
+        try:
+            dc = await asyncio.shield(fetch_detector_config(detector_id))
+        except Exception as e:  # noqa: BLE001 - node may have no cid / detector may be gone
+            activity.logger.warning("DemoHuman could not re-read detector id=%s: %s", detector_id, e)
     activity.logger.info(
         "DemoHuman RELEASED cid=%s (CONTINUE) detector id=%s name=%s status=%s config=%s",
-        cid, dc.get("id"), dc.get("name"), dc.get("status"), dc.get("config"),
+        cid, dc.get("id") or detector_id, dc.get("name"), dc.get("status"), dc.get("config"),
     )
     _end("DemoHuman", cid, "(released by CONTINUE)")
     return {
@@ -163,5 +188,5 @@ async def demo_human(cid: int, detector_id: int, poll_sec: int = 3) -> dict:
         "cid": cid,
         "released": True,
         "polls": poll,
-        "detector": {"id": dc.get("id"), "name": dc.get("name"), "status": dc.get("status"), "config": dc.get("config")},
+        "detector": {"id": dc.get("id") or detector_id, "name": dc.get("name"), "status": dc.get("status"), "config": dc.get("config")},
     }

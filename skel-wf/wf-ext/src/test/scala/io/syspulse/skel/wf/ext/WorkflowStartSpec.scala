@@ -123,3 +123,78 @@ class WorkflowStartSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
     }
   }
 }
+
+/** Engine whose start() fails: the created/saved WorkflowConfig stays UNKNOWN until the registry marks FAILED. */
+class FailingStartEngine extends Engine {
+  val name = Engine.ENGINE_TEMPORAL
+  def namespaces(): Future[Seq[String]] = Future.successful(Seq("default"))
+  def getRuntimes(ns: Option[String], pageSize: Int): Future[Seq[EngineWorkflow]] = Future.successful(Seq())
+  def getRuntime(ns: Option[String], runtimeId: String): Future[Option[EngineWorkflow]] = Future.successful(None)
+  def getRuntimeByWorkflowId(ns: Option[String], workflowId: String): Future[Option[EngineWorkflow]] = Future.successful(None)
+  override def start(ns: Option[String], workflowType: String, workflowId: String, taskQueue: String, input: Option[String], memo: Map[String, String] = Map.empty): Future[EngineStart] =
+    Future.failed(new Exception("engine start boom"))
+  def close(): Unit = ()
+}
+
+class WorkflowStartFailSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll with WfRouteTest {
+
+  import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+  import WorkflowJson._
+  import io.hacken.ext.wf.WorkflowConfigJson._
+  import io.hacken.ext.wf.WorkflowSchemaJson._
+
+  val store = new WorkflowStoreMem()
+  val engine = new FailingStartEngine
+  val typedSystem = ActorSystem(Behaviors.empty, "StartFailTestSystem")
+  val registry = typedSystem.systemActorOf(WorkflowRegistry(store, engine), "WorkflowRegistry")
+
+  val routesPromise = Promise[WorkflowRoutes]()
+  typedSystem.systemActorOf(Behaviors.setup[Any] { context =>
+    routesPromise.success(new WorkflowRoutes(registry, engine)(context, config)); Behaviors.empty
+  }, "test-actor")
+  val routes = Await.result(routesPromise.future, 5.seconds)
+
+  override def afterAll(): Unit = {
+    typedSystem.terminate()
+    Await.result(typedSystem.whenTerminated, 10.seconds)
+    super.afterAll()
+  }
+
+  "POST /schema/{id}/start when Engine.start fails" should {
+    "persist the created WorkflowConfig as FAILED with meta.err" in {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.A -> Detector.B", name = Some("FailStart"))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+
+      Post(s"/schema/${sc.id}/start") ~~> routes.routes ~> check {
+        status should not be StatusCodes.OK
+      }
+
+      val created = Await.result(store.allWConfs, 5.seconds).find(_.sid == sc.id).get
+      created.status shouldBe WorkflowStatus.FAILED
+      created.xid shouldBe None
+      created.meta.flatMap(_.get("err")).map(_.toString) shouldBe Some("engine start boom")
+    }
+  }
+
+  "POST /config/{id}/start when Engine.start fails" should {
+    "persist an UNKNOWN WorkflowConfig as FAILED with meta.err" in {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.A -> Detector.B", name = Some("FailStartSaved"))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      val saved = Post("/config", WorkflowConfigCreateReq(sid = sc.id, name = Some("saved-fail"), status = Some(WorkflowStatus.UNKNOWN))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
+      }
+      saved.status shouldBe WorkflowStatus.UNKNOWN
+
+      Post(s"/config/${saved.id}/start") ~~> routes.routes ~> check {
+        status should not be StatusCodes.OK
+      }
+
+      val failed = Await.result(store.getWConf(saved.id), 5.seconds)
+      failed.status shouldBe WorkflowStatus.FAILED
+      failed.xid shouldBe None
+      failed.meta.flatMap(_.get("err")).map(_.toString) shouldBe Some("engine start boom")
+    }
+  }
+}

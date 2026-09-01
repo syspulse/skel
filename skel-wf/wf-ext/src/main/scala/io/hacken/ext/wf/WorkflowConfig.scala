@@ -92,7 +92,7 @@ object WorkflowConfig {
       sid = schema.id,
       createdAt = now,
       updatedAt = now,
-      status = WorkflowStatus.ACTIVE, // freshly created, not yet resolved against the Engine
+      status = WorkflowStatus.UNKNOWN, // freshly created, not yet resolved against the Engine
       name = substitute(name.getOrElse(schema.name), id, now, ctx),
       version = schema.version,
       title = wid.filter(_.nonEmpty).getOrElse(substitute(schema.title, id, now, ctx)),

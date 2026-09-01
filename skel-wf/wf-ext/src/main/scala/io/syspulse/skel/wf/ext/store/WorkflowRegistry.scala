@@ -202,6 +202,29 @@ object WorkflowRegistry {
     Future.sequence(wconfUp ++ dconfUp).map(_ => wcs.copy(configs = wconfs2, detectors = dconfs2))
   }
 
+  /**
+   * Engine start failed after a WorkflowConfig was already persisted as UNKNOWN: record FAILED +
+   * meta.err (the exception message) so the config is not left hanging as UNKNOWN. No-op if the
+   * config is gone or already left UNKNOWN (e.g. a concurrent Resolve). The original failure is
+   * still propagated to the caller.
+   */
+  private def markStartFailed(store: WorkflowStore, id: Int, e: Throwable)(implicit ec: ExecutionContext): Future[Unit] = {
+    store.getWConfOpt(id).flatMap {
+      case Some(wconf) if wconf.status.equalsIgnoreCase(WorkflowStatus.UNKNOWN) =>
+        val err = Option(e.getMessage).filter(_.nonEmpty).getOrElse(e.toString)
+        log.warn(s"Start failed: WorkflowConfig(${id}) UNKNOWN -> FAILED: ${err}")
+        val meta = Some(wconf.meta.getOrElse(Map.empty[String, Any]) + ("err" -> err))
+        store.addWConf(wconf.copy(status = WorkflowStatus.FAILED, meta = meta, updatedAt = System.currentTimeMillis())).map(_ => ())
+      case _ => Future.successful(())
+    }
+  }
+
+  /** Run Engine start; if it fails, mark the persisted UNKNOWN config FAILED then rethrow. */
+  private def startOrFail(store: WorkflowStore, id: Int, startF: Future[WorkflowConfig])(implicit ec: ExecutionContext): Future[WorkflowConfig] =
+    startF.recoverWith { case e =>
+      markStartFailed(store, id, e).recover { case _ => () }.flatMap(_ => Future.failed(e))
+    }
+
   /** WorkflowConfig.meta("wid") as String, if present. */
   private def wconfWid(wconf: WorkflowConfig): Option[String] =
     wconf.meta.flatMap(_.get("wid")).map(_.toString)
@@ -631,20 +654,22 @@ object WorkflowRegistry {
         // to a JSON string). Caller input overwrites; omitted body keeps schema.meta.input (already
         // copied onto the config). Folded in BEFORE start(), which preserves meta.* on its single write.
         // Then Resolve pulls the live statuses (STARTING while the run is not yet visible on the Engine).
-        val f = for {
-          wconf0   <- store.createWConfFromWSchema(id, oid = oid.filter(_.nonEmpty), pid = pid.filter(_.nonEmpty), wid = wid, author = author.filter(_.nonEmpty))
-          wconf1    = config.map(c => wconf0.copy(config = Some(c))).getOrElse(wconf0)
-          wconf     = input.filter(_.nonEmpty)
-                        .map(in => wconf1.copy(meta = Some(wconf1.meta.getOrElse(Map.empty[String, Any]) + ("input" -> in))))
-                        .getOrElse(wconf1)
-          tq        = taskQueue.filter(_.nonEmpty)
-                        .orElse(wconf.meta.flatMap(_.get("tq")).map(_.toString).filter(_.nonEmpty))
-                        .getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
-          payload   = input.filter(_.nonEmpty).orElse(WorkflowSchema.inputOf(wconf.meta)).orElse(Some(wconf.toJson.compactPrint))
-          saved    <- WorkflowAssembly.start(wconf, wconf.name, engine, store, tq, payload, ns, wid)
-          resolved <- resolveWconfs(store, engine, saved.xid.toSeq, Some(RESOLVE_RID))
-          started  <- markStarting(store, resolved)
-        } yield started
+        val f = store.createWConfFromWSchema(id, oid = oid.filter(_.nonEmpty), pid = pid.filter(_.nonEmpty), wid = wid, author = author.filter(_.nonEmpty)).flatMap { wconf0 =>
+          val wconf1    = config.map(c => wconf0.copy(config = Some(c))).getOrElse(wconf0)
+          val wconf     = input.filter(_.nonEmpty)
+                            .map(in => wconf1.copy(meta = Some(wconf1.meta.getOrElse(Map.empty[String, Any]) + ("input" -> in))))
+                            .getOrElse(wconf1)
+          val tq        = taskQueue.filter(_.nonEmpty)
+                            .orElse(wconf.meta.flatMap(_.get("tq")).map(_.toString).filter(_.nonEmpty))
+                            .getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
+          val payload   = input.filter(_.nonEmpty).orElse(WorkflowSchema.inputOf(wconf.meta)).orElse(Some(wconf.toJson.compactPrint))
+          startOrFail(store, wconf0.id, WorkflowAssembly.start(wconf, wconf.name, engine, store, tq, payload, ns, wid)).flatMap { saved =>
+            for {
+              resolved <- resolveWconfs(store, engine, saved.xid.toSeq, Some(RESOLVE_RID))
+              started  <- markStarting(store, resolved)
+            } yield started
+          }
+        }
         f.andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
@@ -666,12 +691,13 @@ object WorkflowRegistry {
             val payload = input.filter(_.nonEmpty).orElse(WorkflowSchema.inputOf(wc.meta)).orElse(Some(wc.toJson.compactPrint))
             val nsEff  = ns.filter(_.nonEmpty).orElse(wc.meta.flatMap(_.get("ns")).map(_.toString).filter(_.nonEmpty))
             val widEff = wid.filter(_.nonEmpty).orElse(wc.meta.flatMap(_.get("wid")).map(_.toString).filter(_.nonEmpty))
-            for {
-              saved    <- WorkflowAssembly.start(wc, wc.name, engine, store, tq, payload, nsEff, widEff)
-              resolved <- resolveWconfs(store, engine, saved.xid.toSeq, Some(RESOLVE_RID))
-              _        <- markStarting(store, resolved)
-              fresh    <- store.getWConf(saved.id)
-            } yield fresh
+            startOrFail(store, wconf.id, WorkflowAssembly.start(wc, wc.name, engine, store, tq, payload, nsEff, widEff)).flatMap { saved =>
+              for {
+                resolved <- resolveWconfs(store, engine, saved.xid.toSeq, Some(RESOLVE_RID))
+                _        <- markStarting(store, resolved)
+                fresh    <- store.getWConf(saved.id)
+              } yield fresh
+            }
           }
         }
         f.andThen(logFail).onComplete(replyTo ! _)

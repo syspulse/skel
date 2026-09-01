@@ -1,6 +1,7 @@
 # wf-ext Python demo (3 activities, config-by-cid)
 
-A minimal Python Temporal worker that runs `DemoWorkflow` → `DemoStart` → `DemoWork` → `DemoReport`.
+A minimal Python Temporal worker that runs `Demo` or `Demo-Human` → `DemoStart` → `DemoWork` →
+(`[DemoHuman]` when that detector is wired in) → `DemoReport`.
 Each activity reads its own configuration from the **wf-ext WorkflowConfig API** using the
 `WorkflowConfig.id` (`cid`) that wf-ext passes on start.
 
@@ -53,19 +54,25 @@ Send the signal (generic — any WorkflowConfig, any signal name, optional JSON 
 # CLI:   wf-ext signal <configId> [signalName=CONTINUE] [payloadJson]   (requires --engine.uri)
 ```
 
-> To try it: add a detector named `DemoHuman` to the `Demo` schema (UI/DSL), start it, watch the worker
-> log "waiting for the 'CONTINUE' signal", optionally edit the DemoHuman DetectorConfig, then send the
-> signal and see `DemoHuman` print the (re-read) config.
+> To try it: create a `Demo-Human` schema (detectors include `DemoHuman`) and start it, or add a
+> detector named `DemoHuman` to a `Demo` schema (UI/DSL). Watch the worker log "waiting for the
+> 'CONTINUE' signal", optionally edit the DemoHuman DetectorConfig, then send the signal and see
+> `DemoHuman` print the (re-read) config.
+>
+> ```bash
+> ./create-and-start.sh human    # WorkflowType Demo-Human, DemoHuman in the graph
+> ../wf-config-signal.sh <configId>
+> ```
 
 ## Files
 
 | file               | purpose                                                          |
 |--------------------|------------------------------------------------------------------|
 | `activities.py`    | `DemoStart` (returns topology)/`DemoWork`/`DemoHuman`/`DemoReport` + the WorkflowConfig/DetectorConfig client |
-| `demo_workflow.py` | `DemoWorkflowDynamic` (any type) + `DemoWorkflow` (static, name `WORKFLOW_NAME`); reads Memo `cid`/`sid`, topology-aware, `CONTINUE` signal handler for the DemoHuman gate |
+| `demo_workflow.py` | `DemoWorkflowDynamic` (any type) + static `Demo` and `Demo-Human`; reads Memo `cid`/`sid`, topology-aware, `CONTINUE` signal handler for the DemoHuman gate |
 | `worker.py`        | connects to Temporal, polls `DEMO_WORKFLOW_QUEUE`; registers dynamic or static per mode |
 | `run-worker.sh`    | venv + deps + run the worker (`[dynamic|static]`)               |
-| `create-and-start.sh` | create the `Demo` schema and start it via the wf-ext API |
+| `create-and-start.sh` | create `Demo` or `Demo-Human` (`./create-and-start.sh human`) and start it via the wf-ext API |
 
 ## Run it
 
@@ -82,14 +89,16 @@ Send the signal (generic — any WorkflowConfig, any signal name, optional JSON 
 
 3. **The worker** (task queue `DEMO_WORKFLOW_QUEUE`):
    ```bash
-   ./run-worker.sh                    # dynamic (default): serves any schema/WorkflowType
-   ./run-worker.sh static             # dedicated: serves ONLY WorkflowType == WORKFLOW_NAME (default Demo)
+   ./run-worker.sh                    # Demo + Demo-Human + dynamic catch-all (default)
+   ./run-worker.sh static             # Demo + Demo-Human only
+   ./run-worker.sh --check            # print registered WorkflowTypes and exit
    ./run-worker.sh dynamic my-ns      # connect to a specific Temporal namespace (2nd arg)
    ```
 
 4. **Create + start** a run:
    ```bash
-   ./create-and-start.sh
+   ./create-and-start.sh              # WorkflowType Demo
+   ./create-and-start.sh human        # WorkflowType Demo-Human (includes DemoHuman)
    ```
 
 Each activity prints a START line (after a blank line) and an END line; `DemoWork` sleeps for the
@@ -117,8 +126,8 @@ Worker (`worker.py`):
 
 | env | default | meaning |
 |-----|---------|---------|
-| `MODE` | `dynamic` | `dynamic` (any type) or `static` (only `WORKFLOW_NAME`); 1st CLI arg overrides |
-| `WORKFLOW_NAME` | `Demo` | static-mode registration name == served `WorkflowSchema.name` |
+| `MODE` | `dynamic` | `dynamic` (any type) or `static` (`Demo` + `Demo-Human`); 1st CLI arg overrides |
+| `WORKFLOW_NAME` | `Demo,Demo-Human` | extra static type names (CSV); `Demo` and `Demo-Human` are always registered |
 | `TEMPORAL_TARGET` | `localhost:7233` | Temporal gRPC host:port |
 | `TEMPORAL_NAMESPACE` | `default` | namespace (`NAMESPACE` alias; 2nd CLI arg `worker.py [mode] [namespace]` wins) |
 | `TASK_QUEUE` | `DEMO_WORKFLOW_QUEUE` | task queue to poll |
@@ -137,24 +146,35 @@ Activities (`activities.py`) and `create-and-start.sh`:
 The Temporal Workflow *Type* equals `WorkflowConfig.name` (defaults to `WorkflowSchema.name`). The
 worker chooses how it matches types:
 
-- **dynamic** (`@workflow.defn(dynamic=True)`) — serves *any* WorkflowType. One worker runs every
-  schema. Convenient, no name coupling.
-- **static** (`@workflow.defn(name=WORKFLOW_NAME)`) — serves *only* `WorkflowType == WORKFLOW_NAME`.
-  This is how you dedicate a worker to a specific `WorkflowSchema`.
+- **dynamic** (`Demo` + `Demo-Human` named types, plus `@workflow.defn(dynamic=True)` catch-all) —
+  named types take precedence; any other WorkflowType hits the catch-all.
+- **static** (`@workflow.defn(name=...)`) — serves **`Demo` and `Demo-Human`** only (plus extra
+  names from `WORKFLOW_NAME`). No catch-all.
 
-**For static mode, which name?** The registered name must equal the `WorkflowSchema.name` you want to
-serve (that's what becomes the WorkflowType). Default `WORKFLOW_NAME=Demo`, so create the schema
-with `name = "Demo"`. To dedicate a worker to another schema, set `WORKFLOW_NAME=<that schema's
-name>`.
+**For static mode, which names?** The registered names must equal the `WorkflowSchema.name` values
+you want to serve (that's what becomes the WorkflowType). Defaults:
+
+| WorkflowType | Schema | Activities |
+|--------------|--------|------------|
+| `Demo` | 3-step demo | `DemoStart` → `DemoWork` → `DemoReport` |
+| `Demo-Human` | same + human gate | `DemoStart` → `DemoWork` → **`DemoHuman`** (CONTINUE) → `DemoReport` |
+
+`DemoHuman` still only *runs* when a detector named `DemoHuman` is wired into that run's graph
+(topology-aware). `Demo-Human` is the schema name whose graph includes that detector.
+
+To also serve another schema from the same static worker:
+```bash
+WORKFLOW_NAME=OtherSchema ./run-worker.sh static   # still also registers Demo and Demo-Human
+```
 
 **Isolate it fully** by also giving each dedicated worker its own task queue and starting those schemas
 onto it, e.g.:
 ```bash
-# dedicated worker for schema "Demo" on its own queue
-WORKFLOW_NAME=Demo TASK_QUEUE=DEMO_WORKFLOW_QUEUE ./run-worker.sh static
+# dedicated worker for the demo types on their queue
+TASK_QUEUE=DEMO_WORKFLOW_QUEUE ./run-worker.sh static
 # start onto that queue (WorkflowType is the schema name)
 ./wf-schema-start.sh <schemaId>   # from skel-wf/wf-ext, with TASK_QUEUE=DEMO_WORKFLOW_QUEUE
 ```
-A run whose type isn't `WORKFLOW_NAME` that lands on a static worker's queue fails fast with
-`Workflow class <Type> is not registered` — the intended guardrail. The task queue must always match
-between start (`?tq=`) and worker (`TASK_QUEUE`).
+A run whose type isn't among the registered static names that lands on this worker's queue fails fast
+with `Workflow class <Type> is not registered` — the intended guardrail. The task queue must always
+match between start (`?tq=`) and worker (`TASK_QUEUE`).
