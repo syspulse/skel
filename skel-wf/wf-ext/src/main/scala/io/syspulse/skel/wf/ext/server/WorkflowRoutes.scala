@@ -324,7 +324,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
       new Parameter(name = "ns", in = ParameterIn.QUERY, description = "namespace override (else meta.ns)"),
       new Parameter(name = "oid", in = ParameterIn.QUERY, description = "owner id (required for users, must match JWT)"),
       new Parameter(name = "pid", in = ParameterIn.QUERY, description = "optional project id filter")),
-    responses = Array(new ApiResponse(responseCode = "200", description = "started + updated config",
+    responses = Array(new ApiResponse(responseCode = "200", description = "started + updated config; if Engine start fails, still 200 with status=FAILED and meta.err",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
   def startWorkflowConfigRoute(id: Int) = post {
     parameters("tq".?, "wid".?, "ns".?, "oid".?, "pid".?) { (tq, wid, ns, oidQ, pid) =>
@@ -438,7 +438,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
       new Parameter(name = "author", in = ParameterIn.QUERY, description = "WorkflowConfig.author; if omitted, JWT `upn` claim; else WorkflowSchema.author")),
     requestBody = new RequestBody(description = "WorkflowSchemaStartReq: optional input (Temporal payload; omitted uses WorkflowSchema.meta.input) and optional config (replaces WorkflowConfig.config; omitted keeps the schema default)",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchemaStartReq])))),
-    responses = Array(new ApiResponse(responseCode = "200", description = "created + started + resolved config(s)",
+    responses = Array(new ApiResponse(responseCode = "200", description = "created + started + resolved config(s); if Engine start fails after persist, still 200 with status=FAILED and meta.err",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
   def startWorkflowSchemaRoute(id: Int) = post {
     parameters("tq".?, "wid".?, "ns".?, "oid".?, "pid".?, "author".?) { (tq, wid, ns, oidQ, pidQ, authorQ) =>

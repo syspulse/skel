@@ -124,7 +124,7 @@ class WorkflowStartSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
   }
 }
 
-/** Engine whose start() fails: the created/saved WorkflowConfig stays UNKNOWN until the registry marks FAILED. */
+/** Engine whose start() fails: the created/saved WorkflowConfig is returned as FAILED (HTTP 200). */
 class FailingStartEngine extends Engine {
   val name = Engine.ENGINE_TEMPORAL
   def namespaces(): Future[Seq[String]] = Future.successful(Seq("default"))
@@ -161,24 +161,30 @@ class WorkflowStartFailSpec extends AnyWordSpec with Matchers with ScalatestRout
   }
 
   "POST /schema/{id}/start when Engine.start fails" should {
-    "persist the created WorkflowConfig as FAILED with meta.err" in {
+    "return 200 with the created WorkflowConfig as FAILED and meta.err" in {
       val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.A -> Detector.B", name = Some("FailStart"))) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
       }
 
-      Post(s"/schema/${sc.id}/start") ~~> routes.routes ~> check {
-        status should not be StatusCodes.OK
+      val created = Post(s"/schema/${sc.id}/start") ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val r = responseAs[WorkflowConfigs]
+        val c = r.configs.head
+        c.sid shouldBe sc.id
+        c.status shouldBe WorkflowStatus.FAILED
+        c.xid shouldBe None
+        c.meta.flatMap(_.get("err")).map(_.toString) shouldBe Some("engine start boom")
+        c
       }
 
-      val created = Await.result(store.allWConfs, 5.seconds).find(_.sid == sc.id).get
-      created.status shouldBe WorkflowStatus.FAILED
-      created.xid shouldBe None
-      created.meta.flatMap(_.get("err")).map(_.toString) shouldBe Some("engine start boom")
+      val stored = Await.result(store.getWConf(created.id), 5.seconds)
+      stored.status shouldBe WorkflowStatus.FAILED
+      stored.meta.flatMap(_.get("err")).map(_.toString) shouldBe Some("engine start boom")
     }
   }
 
   "POST /config/{id}/start when Engine.start fails" should {
-    "persist an UNKNOWN WorkflowConfig as FAILED with meta.err" in {
+    "return 200 with the WorkflowConfig as FAILED and meta.err" in {
       val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.A -> Detector.B", name = Some("FailStartSaved"))) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
       }
@@ -188,12 +194,16 @@ class WorkflowStartFailSpec extends AnyWordSpec with Matchers with ScalatestRout
       saved.status shouldBe WorkflowStatus.UNKNOWN
 
       Post(s"/config/${saved.id}/start") ~~> routes.routes ~> check {
-        status should not be StatusCodes.OK
+        status shouldBe StatusCodes.OK
+        val c = responseAs[WorkflowConfig]
+        c.id shouldBe saved.id
+        c.status shouldBe WorkflowStatus.FAILED
+        c.xid shouldBe None
+        c.meta.flatMap(_.get("err")).map(_.toString) shouldBe Some("engine start boom")
       }
 
       val failed = Await.result(store.getWConf(saved.id), 5.seconds)
       failed.status shouldBe WorkflowStatus.FAILED
-      failed.xid shouldBe None
       failed.meta.flatMap(_.get("err")).map(_.toString) shouldBe Some("engine start boom")
     }
   }
