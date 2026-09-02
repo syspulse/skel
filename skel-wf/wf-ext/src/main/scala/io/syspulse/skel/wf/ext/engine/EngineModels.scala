@@ -28,7 +28,8 @@ object EngineStatus {
   val NEW               = WorkflowStatus.NEW
   val SCHEDULED         = WorkflowStatus.SCHEDULED
   val RUNNING           = WorkflowStatus.RUNNING
-  val RUNNING_FAILED   = WorkflowStatus.RUNNING_FAILED
+  val RUNNING_RETRY     = WorkflowStatus.RUNNING_RETRY
+  val RUNNING_FAILED    = WorkflowStatus.RUNNING_FAILED
   val WAITING           = WorkflowStatus.WAITING
   val PAUSED            = WorkflowStatus.PAUSED
   val COMPLETED         = WorkflowStatus.COMPLETED

@@ -47,8 +47,9 @@ class EngineStatusSpec extends AnyWordSpec with Matchers {
       EngineStatus.isTerminal(EngineStatus.FAILED)     shouldBe true
       EngineStatus.isTerminal(EngineStatus.TERMINATED) shouldBe true
       EngineStatus.isTerminal(EngineStatus.CANCELED)   shouldBe true
-      EngineStatus.isTerminal(EngineStatus.RUNNING)    shouldBe false
-      EngineStatus.isTerminal(EngineStatus.WAITING)    shouldBe false
+      EngineStatus.isTerminal(EngineStatus.RUNNING)       shouldBe false
+      EngineStatus.isTerminal(EngineStatus.RUNNING_RETRY) shouldBe false
+      EngineStatus.isTerminal(EngineStatus.WAITING)       shouldBe false
     }
   }
 }

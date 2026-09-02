@@ -16,7 +16,8 @@ object WorkflowStatus {
   val NEW              = "NEW"               // known but not yet started
   val SCHEDULED        = "SCHEDULED"         // scheduled, not yet started
   val RUNNING          = "RUNNING"
-  val RUNNING_FAILED  = "RUNNING_FAILED"   // still RUNNING, but a task/activity is failing (retrying); see meta.err
+  val RUNNING_RETRY    = "RUNNING_RETRY"     // still RUNNING; a task/activity is retrying (not a failure); see meta.err
+  val RUNNING_FAILED   = "RUNNING_FAILED"    // still RUNNING, but a task/activity has failed (not retrying) or no workers; see meta.err
   val WAITING          = "WAITING"           // running but blocked on a signal / human step
   val PAUSED           = "PAUSED"
   val COMPLETED        = "COMPLETED"
@@ -37,7 +38,7 @@ object WorkflowStatus {
 
   /** The engine runtime statuses (the Temporal baseline). */
   val all: Set[String] = Set(
-    NEW, SCHEDULED, RUNNING, RUNNING_FAILED, WAITING, PAUSED, COMPLETED, FAILED,
+    NEW, SCHEDULED, RUNNING, RUNNING_RETRY, RUNNING_FAILED, WAITING, PAUSED, COMPLETED, FAILED,
     TERMINATED, CANCELED, TIMED_OUT, CONTINUED_AS_NEW, UNKNOWN, UNRESOLVED
   )
 

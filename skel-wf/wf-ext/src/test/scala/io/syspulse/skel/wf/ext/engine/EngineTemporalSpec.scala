@@ -137,6 +137,18 @@ class EngineTemporalSpec extends AnyWordSpec with Matchers with BeforeAndAfterAl
       r2.map(_.id) shouldBe Some(target.id)
     }
 
+    "map a RUNNING workflow with a retrying pending activity to RUNNING_RETRY" in {
+      up()
+      val rid = "01a06249-8051-7adb-8484-24523fd5226b"
+      val got = Await.result(engine.getRuntime(Some(ns), rid), timeout)
+      assume(got.isDefined, s"run ${rid} not present")
+      val w = got.get
+      w.status shouldBe EngineStatus.RUNNING_RETRY
+      w.meta.get("err") should not be empty
+      w.activities.exists(_.status == EngineStatus.RUNNING_RETRY) shouldBe true
+      info(s"rid=${rid} status=${w.status} err=${w.meta.get("err")} acts=${w.activities.map(a => s"${a.name}/${a.status}").mkString(",")}")
+    }
+
     "poll runtimes across all namespaces" in {
       up()
       val all = Await.result(engine.getRuntimes(None), timeout)

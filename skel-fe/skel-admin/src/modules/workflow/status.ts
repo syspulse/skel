@@ -15,8 +15,9 @@ export function statusStyle(status?: string): StatusStyle {
   switch ((status ?? '').toUpperCase()) {
     case 'COMPLETED':          return { bg: '#86efac', fg: DARK };  // green
     case 'RUNNING':
-    case 'SCHEDULED':          return { bg: '#93c5fd', fg: DARK };  // blue (SCHEDULED same as RUNNING)
-    case 'RUNNING_FAILED':    return { bg: '#fb923c', fg: DARK };  // orange (running, but a task is failing/retrying)
+    case 'RUNNING_RETRY':
+    case 'SCHEDULED':          return { bg: '#93c5fd', fg: DARK };  // blue (retry is still RUNNING, not a failure)
+    case 'RUNNING_FAILED':    return { bg: '#fb923c', fg: DARK };  // orange (running, but a task has failed / no workers)
     case 'STARTING':           return { bg: '#67e8f9', fg: DARK };  // cyan (start initiated, not yet visible on the Engine)
     case 'WAITING':            return { bg: '#bae6fd', fg: DARK };  // light blue
     case 'FAILED':             return { bg: '#f8a488', fg: DARK };  // salmon/orange

@@ -512,10 +512,15 @@ class EngineTemporal(uri: String, override val url: Option[String] = None, maxCh
         }
       }
 
-      // attach a pending activity's lastFailure onto its ActAcc (matched by activityId)
-      pending.foreach {
-        case (aid, _, Some(msg)) => acts.values.find(_.id == aid).foreach(_.detail = Some(msg))
-        case _                   => ()
+      // attach a pending activity's lastFailure onto its ActAcc (matched by activityId).
+      // A still-pending activity with lastFailure / attempt>1 is RETRYING, not FAILED.
+      pending.foreach { case (aid, attempt, msg) =>
+        val retrying = msg.isDefined || attempt > 1
+        acts.values.find(_.id == aid).foreach { acc =>
+          msg.foreach(m => acc.detail = Some(m))
+          if (retrying && (acc.status == EngineStatus.RUNNING || acc.status == EngineStatus.SCHEDULED))
+            acc.status = EngineStatus.RUNNING_RETRY
+        }
       }
 
       val activities = acts.values.map { a =>
@@ -545,11 +550,13 @@ class EngineTemporal(uri: String, override val url: Option[String] = None, maxCh
       }
 
       Future.sequence(childFutures).map { children =>
-        // a task failure while the workflow is still RUNNING -> RUNNING_FAILED + meta.err ("name: message").
-        // Sources: a failing/retrying WORKFLOW task (worker throwing / bad input), a pending activity's
-        // lastFailure (retrying activity), or a history activity left in FAILED state.
+        // While RUNNING:
+        //   - a pending activity with lastFailure / attempt>1, or a retrying workflow task -> RUNNING_RETRY
+        //     (retries are not a failure; Temporal UI shows them as Retrying)
+        //   - a history activity left FAILED, or no workers on the task queue -> RUNNING_FAILED
         val wftErrs: Seq[String] = wftFailure.map(m => s"WorkflowTask: ${m}").toSeq
-        val pendingErrs: Seq[String] = pending.collect { case (aid, _, Some(msg)) =>
+        val pendingRetrying = pending.filter { case (_, attempt, msg) => msg.isDefined || attempt > 1 }
+        val pendingErrs: Seq[String] = pendingRetrying.collect { case (aid, _, Some(msg)) =>
           val nm = acts.values.find(_.id == aid).map(_.name).getOrElse(aid)
           s"${nm}: ${msg}"
         }
@@ -560,9 +567,15 @@ class EngineTemporal(uri: String, override val url: Option[String] = None, maxCh
           case Some(0) => Seq(s"No Workers Running: there are no Workers polling the ${summary.taskQueue.getOrElse("")} Task Queue")
           case _       => Seq.empty
         }
-        val failures = pendingErrs ++ historyErrs ++ wftErrs ++ noWorkersErr
+        val retrying = pendingRetrying.nonEmpty || wftFailure.isDefined
+        val retryErrs = pendingErrs ++ wftErrs
+        val hardErrs  = historyErrs ++ noWorkersErr
+        val errAll    = retryErrs ++ hardErrs
         val (wfStatus, errMeta) =
-          if (summary.status == EngineStatus.RUNNING && failures.nonEmpty) (EngineStatus.RUNNING_FAILED, Map("err" -> failures.mkString(" | ")))
+          if (summary.status == EngineStatus.RUNNING && retrying)
+            (EngineStatus.RUNNING_RETRY, if (errAll.nonEmpty) Map("err" -> errAll.mkString(" | ")) else Map.empty[String, String])
+          else if (summary.status == EngineStatus.RUNNING && hardErrs.nonEmpty)
+            (EngineStatus.RUNNING_FAILED, Map("err" -> hardErrs.mkString(" | ")))
           else (summary.status, Map.empty[String, String])
         // carry the completed run's return value into meta.result (raw JSON string), when present
         val meta = wfResult.map(r => errMeta + ("result" -> r)).getOrElse(errMeta)

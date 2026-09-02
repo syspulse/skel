@@ -100,7 +100,8 @@ object App extends skel.Server {
     //                         fg;bg
     WorkflowStatus.STARTING       -> "97;46",            // white on cyan (start initiated, not yet visible)
     EngineStatus.RUNNING          -> "97;44",            // white on blue
-    WorkflowStatus.RUNNING_FAILED -> "97;48;5;208",     // white on orange (running, but a task is failing)
+    WorkflowStatus.RUNNING_RETRY  -> "97;44",            // white on blue (retrying; not a failure)
+    WorkflowStatus.RUNNING_FAILED -> "97;48;5;208",     // white on orange (running, a task has failed / no workers)
     EngineStatus.COMPLETED  -> s"${DARK_GREY};42", // dark grey on green
     EngineStatus.FAILED     -> "97;41",            // white on red
     EngineStatus.TERMINATED -> s"${DARK_GREY};43", // dark grey on yellow

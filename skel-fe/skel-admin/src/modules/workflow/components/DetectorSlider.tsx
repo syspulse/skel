@@ -13,7 +13,7 @@ import type { JsonSchema, UiSchema } from './SchemaConfigEditor';
 
 // lifecycle statuses (DetectorSchema) + engine runtime statuses (DetectorConfig, e.g. RUNNING) - see WorkflowStatus.scala
 const LIFECYCLE_STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
-const RUNTIME_STATUSES = ['NEW', 'SCHEDULED', 'STARTING', 'RUNNING', 'RUNNING_FAILED', 'WAITING', 'PAUSED', 'COMPLETED', 'FAILED', 'TERMINATED', 'CANCELED', 'TIMED_OUT', 'CONTINUED_AS_NEW', 'UNRESOLVED', 'UNKNOWN'];
+const RUNTIME_STATUSES = ['NEW', 'SCHEDULED', 'STARTING', 'RUNNING', 'RUNNING_RETRY', 'RUNNING_FAILED', 'WAITING', 'PAUSED', 'COMPLETED', 'FAILED', 'TERMINATED', 'CANCELED', 'TIMED_OUT', 'CONTINUED_AS_NEW', 'UNRESOLVED', 'UNKNOWN'];
 
 interface DetectorSliderProps {
   open: boolean;
