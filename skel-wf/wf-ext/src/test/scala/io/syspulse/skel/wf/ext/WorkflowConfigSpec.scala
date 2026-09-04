@@ -45,6 +45,14 @@ class WorkflowConfigSpec extends AnyWordSpec with Matchers {
       c.xid shouldBe Some("run-xyz")
     }
 
+    "override title when provided (placeholders still substituted); name stays the schema type" in {
+      val s = schema(2).copy(title = "schema-title")
+      val c = WorkflowConfig.from(5, s, title = Some("custom-{id}"))
+      c.title shouldBe "custom-5"
+      c.name shouldBe s.name
+      WorkflowConfig.from(5, s).title shouldBe "schema-title"
+    }
+
     "override author when provided, else copy WorkflowSchema.author" in {
       val s = schema(2).copy(author = "schema-author")
       WorkflowConfig.from(1, s).author shouldBe "schema-author"

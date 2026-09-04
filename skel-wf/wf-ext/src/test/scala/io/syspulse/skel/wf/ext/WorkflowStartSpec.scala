@@ -82,7 +82,7 @@ class WorkflowStartSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
   }
 
   "POST /config/{id}/start (start an existing WorkflowConfig)" should {
-    "start an UNKNOWN + no-xid config, and reject one already started or in another state" in {
+    "start an UNKNOWN or FAILED + no-xid config, and reject one already started or in another state" in {
       val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.A -> Detector.B", name = Some("SaveThenStart"))) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
       }
@@ -107,13 +107,26 @@ class WorkflowStartSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
       }
       Await.result(store.getWConf(started.id), 5.seconds).xid shouldBe Some("run-new-1")
 
-      // rejected: already started (xid present, status != UNKNOWN)
+      // rejected: already started (xid present)
       Post(s"/config/${started.id}/start") ~~> routes.routes ~> check {
         status should not be StatusCodes.OK
       }
 
+      // [Start]: FAILED + no xid (previous Engine start failed) is startable
+      val failed = Post("/config", WorkflowConfigCreateReq(sid = sc.id, name = Some("failed-1"), status = Some(WorkflowStatus.FAILED))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val c = responseAs[WorkflowConfig]
+        c.status shouldBe WorkflowStatus.FAILED
+        c.xid shouldBe None
+        c
+      }
+      Post(s"/config/${failed.id}/start") ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[WorkflowConfig].xid shouldBe Some("run-new-1")
+      }
+
       // rejected: a config in another state (ACTIVE, no xid) is not startable
-      val active = Post("/config", WorkflowConfigCreateReq(sid = sc.id, name = Some("active-1"))) ~~> routes.routes ~> check {
+      val active = Post("/config", WorkflowConfigCreateReq(sid = sc.id, name = Some("active-1"), status = Some(WorkflowStatus.ACTIVE))) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
       }
       active.status shouldBe WorkflowStatus.ACTIVE
@@ -125,14 +138,14 @@ class WorkflowStartSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
 }
 
 /** Engine whose start() fails: the created/saved WorkflowConfig is returned as FAILED (HTTP 200). */
-class FailingStartEngine extends Engine {
+class FailingStartEngine(var failMsg: String = "engine start boom") extends Engine {
   val name = Engine.ENGINE_TEMPORAL
   def namespaces(): Future[Seq[String]] = Future.successful(Seq("default"))
   def getRuntimes(ns: Option[String], pageSize: Int): Future[Seq[EngineWorkflow]] = Future.successful(Seq())
   def getRuntime(ns: Option[String], runtimeId: String): Future[Option[EngineWorkflow]] = Future.successful(None)
   def getRuntimeByWorkflowId(ns: Option[String], workflowId: String): Future[Option[EngineWorkflow]] = Future.successful(None)
   override def start(ns: Option[String], workflowType: String, workflowId: String, taskQueue: String, input: Option[String], memo: Map[String, String] = Map.empty): Future[EngineStart] =
-    Future.failed(new Exception("engine start boom"))
+    Future.failed(new Exception(failMsg))
   def close(): Unit = ()
 }
 
@@ -205,6 +218,155 @@ class WorkflowStartFailSpec extends AnyWordSpec with Matchers with ScalatestRout
       val failed = Await.result(store.getWConf(saved.id), 5.seconds)
       failed.status shouldBe WorkflowStatus.FAILED
       failed.meta.flatMap(_.get("err")).map(_.toString) shouldBe Some("engine start boom")
+    }
+
+    "update meta.err when the same FAILED config is started again and Engine.start fails again" in {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.A -> Detector.B", name = Some("FailStartRetry"))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      val saved = Post("/config", WorkflowConfigCreateReq(sid = sc.id, name = Some("saved-fail-retry"), status = Some(WorkflowStatus.UNKNOWN))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
+      }
+
+      Post(s"/config/${saved.id}/start") ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val c = responseAs[WorkflowConfig]
+        c.status shouldBe WorkflowStatus.FAILED
+        c.xid shouldBe None
+        c.meta.flatMap(_.get("err")).map(_.toString) shouldBe Some("engine start boom")
+      }
+
+      engine.failMsg = "engine start boom 2"
+      Post(s"/config/${saved.id}/start") ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val c = responseAs[WorkflowConfig]
+        c.id shouldBe saved.id
+        c.status shouldBe WorkflowStatus.FAILED
+        c.xid shouldBe None
+        c.meta.flatMap(_.get("err")).map(_.toString) shouldBe Some("engine start boom 2")
+        c.meta.get.keySet should contain ("err")
+      }
+
+      val stored = Await.result(store.getWConf(saved.id), 5.seconds)
+      stored.status shouldBe WorkflowStatus.FAILED
+      stored.meta.flatMap(_.get("err")).map(_.toString) shouldBe Some("engine start boom 2")
+    }
+  }
+}
+
+/** Engine whose start SUCCEEDS but the new run is already FAILED. `errMeta` is whatever the
+ *  caller injects — empty simulates EngineTemporal not copying WORKFLOW_EXECUTION_FAILED. */
+class ImmediateFailedEngine(errMeta: Map[String, String] = Map.empty) extends Engine {
+  val name = Engine.ENGINE_TEMPORAL
+  def namespaces(): Future[Seq[String]] = Future.successful(Seq("default"))
+  def getRuntimes(ns: Option[String], pageSize: Int): Future[Seq[EngineWorkflow]] = Future.successful(Seq())
+  def getRuntime(ns: Option[String], runtimeId: String): Future[Option[EngineWorkflow]] =
+    Future.successful(Some(EngineWorkflow(
+      id = "Demo-Fail", runtimeId = runtimeId, name = "Demo", status = WorkflowStatus.FAILED,
+      namespace = "default", meta = errMeta)))
+  def getRuntimeByWorkflowId(ns: Option[String], workflowId: String): Future[Option[EngineWorkflow]] = Future.successful(None)
+  override def start(ns: Option[String], workflowType: String, workflowId: String, taskQueue: String, input: Option[String], memo: Map[String, String] = Map.empty): Future[EngineStart] =
+    Future.successful(EngineStart(workflowId, "run-failed-1", ns.getOrElse("default")))
+  def close(): Unit = ()
+}
+
+class WorkflowStartImmediateFailSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll with WfRouteTest {
+
+  import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+  import WorkflowJson._
+  import io.hacken.ext.wf.WorkflowConfigJson._
+  import io.hacken.ext.wf.WorkflowSchemaJson._
+
+  val store = new WorkflowStoreMem()
+  val engine = new ImmediateFailedEngine(Map("err" -> "activity timed out"))
+  val typedSystem = ActorSystem(Behaviors.empty, "StartImmediateFailSystem")
+  val registry = typedSystem.systemActorOf(WorkflowRegistry(store, engine), "WorkflowRegistry")
+
+  val routesPromise = Promise[WorkflowRoutes]()
+  typedSystem.systemActorOf(Behaviors.setup[Any] { context =>
+    routesPromise.success(new WorkflowRoutes(registry, engine)(context, config)); Behaviors.empty
+  }, "test-actor")
+  val routes = Await.result(routesPromise.future, 5.seconds)
+
+  override def afterAll(): Unit = {
+    typedSystem.terminate()
+    Await.result(typedSystem.whenTerminated, 10.seconds)
+    super.afterAll()
+  }
+
+  "POST /config/{id}/start when the new run is already FAILED" should {
+    "write meta.err from the Engine even if status stays FAILED" in {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.A -> Detector.B", name = Some("ImmediateFail"))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      val saved = Post("/config", WorkflowConfigCreateReq(sid = sc.id, name = Some("failed-again"), status = Some(WorkflowStatus.FAILED))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
+      }
+      saved.status shouldBe WorkflowStatus.FAILED
+      saved.meta.flatMap(_.get("err")) shouldBe None
+
+      Post(s"/config/${saved.id}/start") ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val c = responseAs[WorkflowConfig]
+        c.status shouldBe WorkflowStatus.FAILED
+        c.xid shouldBe Some("run-failed-1")
+        c.meta.flatMap(_.get("err")).map(_.toString) shouldBe Some("activity timed out")
+      }
+
+      val stored = Await.result(store.getWConf(saved.id), 5.seconds)
+      stored.status shouldBe WorkflowStatus.FAILED
+      stored.meta.flatMap(_.get("err")).map(_.toString) shouldBe Some("activity timed out")
+    }
+  }
+}
+
+class WorkflowStartKeepErrSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll with WfRouteTest {
+
+  import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+  import WorkflowJson._
+  import io.hacken.ext.wf.WorkflowConfigJson._
+  import io.hacken.ext.wf.WorkflowSchemaJson._
+
+  val store = new WorkflowStoreMem()
+  // Engine reports FAILED with no err (the pre-fix EngineTemporal behavior)
+  val engine = new ImmediateFailedEngine(Map.empty)
+  val typedSystem = ActorSystem(Behaviors.empty, "StartKeepErrSystem")
+  val registry = typedSystem.systemActorOf(WorkflowRegistry(store, engine), "WorkflowRegistry")
+
+  val routesPromise = Promise[WorkflowRoutes]()
+  typedSystem.systemActorOf(Behaviors.setup[Any] { context =>
+    routesPromise.success(new WorkflowRoutes(registry, engine)(context, config)); Behaviors.empty
+  }, "test-actor")
+  val routes = Await.result(routesPromise.future, 5.seconds)
+
+  override def afterAll(): Unit = {
+    typedSystem.terminate()
+    Await.result(typedSystem.whenTerminated, 10.seconds)
+    super.afterAll()
+  }
+
+  "POST /config/{id}/start when Engine reports FAILED with no err" should {
+    "keep the previously stored meta.err (status stays FAILED)" in {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.A -> Detector.B", name = Some("KeepErr"))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      val saved = Post("/config", WorkflowConfigCreateReq(
+        sid = sc.id, name = Some("failed-keep-err"), status = Some(WorkflowStatus.FAILED),
+        meta = Some(Map("err" -> "old start boom")))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
+      }
+      saved.meta.flatMap(_.get("err")).map(_.toString) shouldBe Some("old start boom")
+
+      Post(s"/config/${saved.id}/start") ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val c = responseAs[WorkflowConfig]
+        c.status shouldBe WorkflowStatus.FAILED
+        c.meta.flatMap(_.get("err")).map(_.toString) shouldBe Some("old start boom")
+        c.meta.get.keySet should contain ("err")
+      }
+
+      val stored = Await.result(store.getWConf(saved.id), 5.seconds)
+      stored.meta.flatMap(_.get("err")).map(_.toString) shouldBe Some("old start boom")
     }
   }
 }

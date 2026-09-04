@@ -67,6 +67,11 @@ object WorkflowSchema {
 
   object Version {
     val DEF_VERSION = "1.0.0"
+    val NEW_VERSION = DEF_VERSION
+  }
+
+  object Author {
+    val DEF_AUTHOR = ""
   }
 
   /** Convenience builder with sensible defaults (avoid overloading `apply` to keep jsonFormat happy). */

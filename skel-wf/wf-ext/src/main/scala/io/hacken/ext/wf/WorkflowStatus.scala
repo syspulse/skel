@@ -47,4 +47,10 @@ object WorkflowStatus {
     case COMPLETED | FAILED | TERMINATED | CANCELED | TIMED_OUT | CONTINUED_AS_NEW => true
     case _ => false
   }
+
+  /** Statuses from which POST /config/{id}/start is allowed (must also have no xid). */
+  val STARTABLE: Set[String] = Set(UNKNOWN, FAILED)
+
+  def isStartable(status: String, xid: Option[String] = None): Boolean =
+    !xid.exists(_.trim.nonEmpty) && STARTABLE.exists(_.equalsIgnoreCase(status))
 }

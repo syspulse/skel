@@ -75,7 +75,7 @@ object WorkflowRegistry {
   // xid = RunId (+ meta.wid), persists, then Resolves live statuses (STARTING while not yet visible).
   // Engine start failure after the config is persisted is NOT a 500: the config is returned as FAILED
   // with meta.err. 500 only if the WorkflowConfig could not be created.
-  final case class StartWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], config: Option[JsObject], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String], author: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
+  final case class StartWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], config: Option[JsObject], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String], author: Option[String], title: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
 
   // ---- WorkflowConfig ----
   // oid=None skips owner match (admin); pid=None skips project filter. Both are applied in the Store.
@@ -108,8 +108,8 @@ object WorkflowRegistry {
   final case class LinkWorkflowConfigLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   final case class UpdateWorkflowConfig(id: Int, req: WorkflowConfigUpdateReq, oid: Option[String], pid: Option[String], replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   final case class DeleteWorkflowConfig(id: Int, oid: Option[String], pid: Option[String], replyTo: ActorRef[WorkflowActionRes]) extends Command
-  // Start an EXISTING WorkflowConfig on the Engine. Only a config in UNKNOWN state and without an
-  // xid can be started (never started / not on the Engine); already started/finished -> rejected.
+  // Start an EXISTING WorkflowConfig on the Engine. Only UNKNOWN/FAILED without an xid can start
+  // (never launched, or a previous Engine start failed); already started/finished -> rejected.
   final case class StartWorkflowConfig(id: Int, taskQueue: Option[String], input: Option[String], ns: Option[String], wid: Option[String], replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   // Stop (Temporal terminate) a WorkflowConfig's running Engine workflow -> status TERMINATED (+ persist).
   final case class StopWorkflowConfig(id: Int, reason: Option[String], replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
@@ -192,7 +192,14 @@ object WorkflowRegistry {
    * runtime status (RUNNING/...) once visible, or back to UNRESOLVED if the run truly is gone.
    */
   private def markStarting(store: WorkflowStore, wcs: WorkflowConfigs)(implicit ec: ExecutionContext): Future[WorkflowConfigs] = {
-    def fix(s: String): String = if (s == WorkflowStatus.UNRESOLVED) WorkflowStatus.STARTING else s
+    // After a successful Engine start the run may not be visible yet. UNKNOWN is the pre-start
+    // status of a freshly created config; UNRESOLVED is the engine-not-found sentinel. Neither
+    // is a live run — promote both to STARTING. A real FAILED/COMPLETED from Resolve is left
+    // alone (the new run already closed).
+    def fix(s: String): String = s match {
+      case WorkflowStatus.UNRESOLVED | WorkflowStatus.UNKNOWN => WorkflowStatus.STARTING
+      case other => other
+    }
     val wconfs2 = wcs.configs.map(wconf => wconf.copy(status = fix(wconf.status)))
     val dconfs2 = wcs.detectors.map(_.map { case (k, dconf) => k -> dconf.copy(status = fix(dconf.status)) })
     val wconfUp: Seq[Future[_]] = wconfs2.zip(wcs.configs).collect {
@@ -205,21 +212,23 @@ object WorkflowRegistry {
   }
 
   /**
-   * Engine start failed after a WorkflowConfig was already persisted as UNKNOWN: record FAILED +
-   * meta.err (the exception message) and return that config. The HTTP caller still gets 200 — status
-   * and meta.err are how the pipeline-start failure is reported. If the config is gone, the original
-   * exception is rethrown (nothing persisted → 500). If it already left UNKNOWN, the stored config
-   * is returned as-is.
+   * Engine start failed after a WorkflowConfig was already persisted as UNKNOWN/FAILED (no xid):
+   * record FAILED + meta.err (the exception message) and return that config. Always rewrite
+   * meta.err even when status is already FAILED (a retry that fails again must not leave a
+   * stale or missing err). The HTTP caller still gets 200 — status and meta.err are how the
+   * pipeline-start failure is reported. If the config is gone, the original exception is
+   * rethrown (nothing persisted → 500). If it already left a startable state, the stored
+   * config is returned as-is.
    */
   private def markStartFailed(store: WorkflowStore, id: Int, e: Throwable)(implicit ec: ExecutionContext): Future[WorkflowConfig] = {
     val err = Option(e.getMessage).filter(_.nonEmpty).getOrElse(e.toString)
     store.getWConfOpt(id).flatMap {
-      case Some(wconf) if wconf.status.equalsIgnoreCase(WorkflowStatus.UNKNOWN) =>
-        log.warn(s"Start failed: WorkflowConfig(${id}) UNKNOWN -> FAILED: ${err}")
+      case Some(wconf) if WorkflowStatus.isStartable(wconf.status, wconf.xid) =>
+        log.warn(s"Start failed: WorkflowConfig(${id}) ${wconf.status} -> FAILED: ${err}")
         val meta = Some(wconf.meta.getOrElse(Map.empty[String, Any]) + ("err" -> err))
         store.addWConf(wconf.copy(status = WorkflowStatus.FAILED, meta = meta, updatedAt = System.currentTimeMillis()))
       case Some(wconf) =>
-        log.warn(s"Start failed: WorkflowConfig(${id}) status=${wconf.status} (not UNKNOWN): ${err}")
+        log.warn(s"Start failed: WorkflowConfig(${id}) status=${wconf.status} (not startable): ${err}")
         Future.successful(wconf)
       case None =>
         Future.failed(e)
@@ -337,8 +346,19 @@ object WorkflowRegistry {
           // cid -> (live status, matched engine activity id)
           val stepInfo = view.steps.flatMap(s => s.cid.map(_ -> (s.status, s.activityId))).toMap
           val base0 = wconf.meta.getOrElse(Map.empty[String, Any])
-          // err: carry a failing task's message into meta.err (dropped when the engine reports none)
-          val base1 = w.meta.get("err").map(err => base0 + ("err" -> err)).getOrElse(base0 - "err")
+          // err: engine message wins. For FAILED / TIMED_OUT / RUNNING_* keep a previously stored
+          // err when the engine reports none (a second start that fails again with status unchanged
+          // must not wipe meta.err). Drop err only when the live status is a non-error state.
+          val keepStoredErr = view.status match {
+            case WorkflowStatus.FAILED | WorkflowStatus.TIMED_OUT | WorkflowStatus.TERMINATED |
+                 WorkflowStatus.RUNNING_FAILED | WorkflowStatus.RUNNING_RETRY => true
+            case _ => false
+          }
+          val base1 = w.meta.get("err") match {
+            case Some(err)             => base0 + ("err" -> err)
+            case None if keepStoredErr => base0
+            case None                  => base0 - "err"
+          }
           // result: carry the completed run's return value into meta.result (raw JSON string, stored
           // as a String like meta.input). Keep any previously stored result while the run has none yet.
           val base2 = w.meta.get("result").map(r => base1 + ("result" -> r)).getOrElse(base1)
@@ -568,12 +588,12 @@ object WorkflowRegistry {
             id = id, 
             createdAt = now, 
             updatedAt = now, 
-            status = WorkflowSchema.Status.UNKNOWN,
+            status = req.status.getOrElse(WorkflowSchema.Status.ACTIVE),
             name = req.name, 
-            version = req.version.getOrElse(WorkflowSchema.Version.DEF_VERSION),
+            version = req.version.getOrElse(WorkflowSchema.Version.NEW_VERSION),
             title = req.title.getOrElse(req.name), 
             description = req.description.getOrElse(""),
-            author = req.author.getOrElse(""), 
+            author = req.author.getOrElse(WorkflowSchema.Author.DEF_AUTHOR), 
             icon = icon,
             faq = req.faq,
             tags = req.tags.getOrElse(Seq()),
@@ -649,8 +669,8 @@ object WorkflowRegistry {
           })
         Behaviors.same
 
-      case StartWorkflowSchema(id, taskQueue, input, config, wid, ns, oid, pid, author, replyTo) =>
-        log.info(s"StartWorkflowSchema: sid=${id}, tq=${taskQueue}, wid=${wid}, ns=${ns}, oid=${oid}, pid=${pid}, author=${author}, config=${config.isDefined} => ${engine}")
+      case StartWorkflowSchema(id, taskQueue, input, config, wid, ns, oid, pid, author, title, replyTo) =>
+        log.info(s"StartWorkflowSchema: sid=${id}, tq=${taskQueue}, wid=${wid}, ns=${ns}, oid=${oid}, pid=${pid}, author=${author}, title=${title}, config=${config.isDefined} => ${engine}")
         // Create a WorkflowConfig FROM the schema, then start it on the Engine:
         //   WorkflowType = WorkflowSchema.name (== the created config.name, which defaults to the schema name)
         //   WorkflowId   = `wid` (if non-empty) else new WorkflowConfig.title (or .name if title is empty)
@@ -665,7 +685,7 @@ object WorkflowRegistry {
         // Then Resolve pulls the live statuses (STARTING while the run is not yet visible on the Engine).
         // If the Engine start fails AFTER the WorkflowConfig is persisted, return 200 with status=FAILED
         // and meta.err (do not 500). 500 only if the config itself could not be created.
-        val f = store.createWConfFromWSchema(id, oid = oid.filter(_.nonEmpty), pid = pid.filter(_.nonEmpty), wid = wid, author = author.filter(_.nonEmpty)).flatMap { wconf0 =>
+        val f = store.createWConfFromWSchema(id, oid = oid.filter(_.nonEmpty), pid = pid.filter(_.nonEmpty), wid = wid, author = author.filter(_.nonEmpty), title = title.filter(_.nonEmpty)).flatMap { wconf0 =>
           val wconf1    = config.map(c => wconf0.copy(config = Some(c))).getOrElse(wconf0)
           val wconf     = input.filter(_.nonEmpty)
                             .map(in => wconf1.copy(meta = Some(wconf1.meta.getOrElse(Map.empty[String, Any]) + ("input" -> in))))
@@ -691,11 +711,11 @@ object WorkflowRegistry {
 
       case StartWorkflowConfig(id, taskQueue, input, ns, wid, replyTo) =>
         log.info(s"StartWorkflowConfig: id=${id} tq=${taskQueue} ns=${ns} wid=${wid}")
-        // Only UNKNOWN configs without xid may start; already-started/finished configs are rejected.
+        // Only UNKNOWN/FAILED configs without xid may start; already-started/finished configs are rejected.
         val f = store.getWConf(id).flatMap { wconf =>
-          if (wconf.xid.exists(_.trim.nonEmpty) || !wconf.status.equalsIgnoreCase(WorkflowStatus.UNKNOWN))
+          if (!WorkflowStatus.isStartable(wconf.status, wconf.xid))
             Future.failed(new Exception(
-              s"WorkflowConfig ${id} cannot be started (status=${wconf.status}, xid=${wconf.xid.getOrElse("")}): only UNKNOWN configs without xid can be started"))
+              s"WorkflowConfig ${id} cannot be started (status=${wconf.status}, xid=${wconf.xid.getOrElse("")}): only UNKNOWN/FAILED configs without xid can be started"))
           else {
             // fold the input override into meta.input; resolve tq/ns/wid from request else saved meta
             val wc  = input.filter(_.nonEmpty)
@@ -742,7 +762,7 @@ object WorkflowRegistry {
       case CreateWorkflowConfig(req, replyTo) =>
         log.info(s"CreateWorkflowConfig: ${req}")
         // compose from the schema (with DetectorConfigs); ids are generated by the store; contract 0 (default)
-        val fCreate = store.createWConfFromWSchema(req.sid, name = req.name, oid = req.oid, pid = req.pid, xid = req.xid).flatMap { wc0 =>
+        val fCreate = store.createWConfFromWSchema(req.sid, name = req.name, oid = req.oid, pid = req.pid, xid = req.xid, title = req.title).flatMap { wc0 =>
           // optional overlay ([Save]): persist the edited config / engine meta / initial status
           if (req.config.isEmpty && req.meta.isEmpty && req.status.isEmpty) Future.successful(wc0)
           else store.addWConf(wc0.copy(

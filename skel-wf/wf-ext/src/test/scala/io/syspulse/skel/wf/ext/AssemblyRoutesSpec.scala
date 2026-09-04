@@ -273,6 +273,20 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       started.config.flatMap(_.fields.get("severity")) shouldBe Some(spray.json.JsNumber(0.5))
     }
 
+    "POST /schema/{id}/start body.title overrides WorkflowSchema.title without changing name" in {
+      val sc = Post("/schema", WorkflowSchemaCreateReq(name = "StartTitle", title = Some("schema-title"))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      val started = Post(s"/schema/${sc.id}/start", WorkflowSchemaStartReq(title = Some("custom-run"))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val c = responseAs[WorkflowConfigs].configs.head
+        c.title shouldBe "custom-run"
+        c.name shouldBe "StartTitle"
+        c
+      }
+      Await.result(store.getWConf(started.id), 5.seconds).title shouldBe "custom-run"
+    }
+
     "WorkflowConfig.from substitutes {id}/{ts}/{meta} placeholders in name and title" in {
       val sc = WorkflowSchema.of(0, "Type-{id}", WorkflowGraf(id = 0))
         .copy(title = "run-{pid}-{id}", meta = Some(Map("pid" -> "P7")))

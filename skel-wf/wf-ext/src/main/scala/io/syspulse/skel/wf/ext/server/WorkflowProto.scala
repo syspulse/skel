@@ -37,6 +37,7 @@ final case class WorkflowSchemaCreateReq(
   version: Option[String] = None,
   title: Option[String] = None,
   description: Option[String] = None,
+  status: Option[String] = None,
   author: Option[String] = None,
   icon: Option[String] = None,
   faq: Option[Seq[WorkflowSchemaFaq]] = None,
@@ -71,6 +72,7 @@ final case class WorkflowSchemaDslReq(
 final case class WorkflowSchemaStartReq(
   input: Option[JsValue] = None,
   config: Option[JsObject] = None,
+  title: Option[String] = None, // override WorkflowConfig.title (else schema.title / wid)
 )
 
 // ---------------------------------------------------------------- WorkflowConfig
@@ -97,6 +99,7 @@ final case class WorkflowConfigCreateReq(
   config: Option[JsObject] = None,
   meta: Option[Map[String, Any]] = None,
   status: Option[String] = None,
+  title: Option[String] = None, // override WorkflowConfig.title (else schema.title)
 )
 final case class WorkflowConfigUpdateReq(
   name: Option[String] = None,

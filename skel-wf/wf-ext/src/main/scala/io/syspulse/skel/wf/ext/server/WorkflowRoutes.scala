@@ -136,7 +136,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
   def createWorkflowSchemaDsl(req: WorkflowSchemaDslReq): Future[Try[WorkflowSchema]] = registry.ask(CreateWorkflowSchemaDsl(req, _))
   def updateWorkflowSchema(id: Int, req: WorkflowSchemaUpdateReq): Future[Try[WorkflowSchema]] = registry.ask(UpdateWorkflowSchema(id, req, _))
   def deleteWorkflowSchema(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteWorkflowSchema(id, _))
-  def startWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], config: Option[JsObject], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String], author: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(StartWorkflowSchema(id, taskQueue, input, config, wid, ns, oid, pid, author, _))
+  def startWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], config: Option[JsObject], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String], author: Option[String], title: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(StartWorkflowSchema(id, taskQueue, input, config, wid, ns, oid, pid, author, title, _))
 
   // ---- WorkflowConfig asks ----
   def getWorkflowConfigs(from: Option[Long], size: Option[Long], entity: String, oid: Option[String], pid: Option[String], filter: WorkflowStore.WConfFilter): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigs(from, size, entity, oid, pid, filter, _))
@@ -316,7 +316,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
   }
 
   @POST @Path("/config/{id}/start") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("config"), summary = "Start an existing WorkflowConfig on the Engine (only UNKNOWN + no-xid; already started/finished is rejected)",
+  @Operation(tags = Array("config"), summary = "Start an existing WorkflowConfig on the Engine (only UNKNOWN/FAILED + no-xid; already started/finished is rejected)",
     parameters = Array(
       new Parameter(name = "id", in = ParameterIn.PATH, description = "config id"),
       new Parameter(name = "tq", in = ParameterIn.QUERY, description = "task queue override (else meta.tq / default)"),
@@ -436,7 +436,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
       new Parameter(name = "tq", in = ParameterIn.QUERY, description = "Task Queue an independent worker polls; else config.meta(tq), else default"),
       new Parameter(name = "wid", in = ParameterIn.QUERY, description = "override the Temporal WorkflowId (else derived from the created config.title|name)"),
       new Parameter(name = "author", in = ParameterIn.QUERY, description = "WorkflowConfig.author; if omitted, JWT `upn` claim; else WorkflowSchema.author")),
-    requestBody = new RequestBody(description = "WorkflowSchemaStartReq: optional input (Temporal payload; omitted uses WorkflowSchema.meta.input) and optional config (replaces WorkflowConfig.config; omitted keeps the schema default)",
+    requestBody = new RequestBody(description = "WorkflowSchemaStartReq: optional input (Temporal payload; omitted uses WorkflowSchema.meta.input), optional config (replaces WorkflowConfig.config; omitted keeps the schema default), optional title (overrides WorkflowConfig.title / WorkflowSchema.title)",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchemaStartReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "created + started + resolved config(s); if Engine start fails after persist, still 200 with status=FAILED and meta.err",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
@@ -451,9 +451,9 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
         val author = oidOpt(authorQ).orElse(ExtAuth.getOwner(authn, "upn").filter(_.nonEmpty))
         entity(as[WorkflowSchemaStartReq]) { req =>
           val input = req.input.filterNot(_ == spray.json.JsNull).map(_.compactPrint)
-          complete(startWorkflowSchema(id, tq, input, req.config, wid, ns, oid, pid, author))
+          complete(startWorkflowSchema(id, tq, input, req.config, wid, ns, oid, pid, author, req.title))
         } ~
-        complete(startWorkflowSchema(id, tq, None, None, wid, ns, oid, pid, author))
+        complete(startWorkflowSchema(id, tq, None, None, wid, ns, oid, pid, author, None))
       })
     }
   }

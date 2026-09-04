@@ -426,6 +426,8 @@ class EngineTemporal(uri: String, override val url: Option[String] = None, maxCh
       var wftFailure: Option[String] = None
       // the workflow's return value (WorkflowExecutionCompleted result payload), when the run has finished
       var wfResult: Option[String] = None
+      // terminal close reason (WorkflowExecutionFailed / TimedOut / Terminated), when the run has failed
+      var wfFailure: Option[String] = None
 
       events.foreach { e =>
         val et = millis(e.getEventTime)
@@ -452,7 +454,10 @@ class EngineTemporal(uri: String, override val url: Option[String] = None, maxCh
 
           case EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT =>
             val a = e.getActivityTaskTimedOutEventAttributes
-            acts.get(a.getScheduledEventId).foreach { acc => acc.status = EngineStatus.TIMED_OUT; acc.closedAt = Some(et) }
+            acts.get(a.getScheduledEventId).foreach { acc =>
+              acc.status = EngineStatus.TIMED_OUT; acc.closedAt = Some(et)
+              acc.detail = Try(a.getFailure.getMessage).toOption.filter(_.nonEmpty).orElse(Some("timed out"))
+            }
 
           case EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED =>
             val a = e.getActivityTaskCanceledEventAttributes
@@ -508,6 +513,21 @@ class EngineTemporal(uri: String, override val url: Option[String] = None, maxCh
           case EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED =>
             wfResult = payloadResult(e.getWorkflowExecutionCompletedEventAttributes.getResult)
 
+          // ---- workflow execution failure (terminal FAILED / TIMED_OUT / TERMINATED) ----
+          // These are the events that close the run; without them meta.err is empty for a FAILED
+          // workflow and Resolve would drop any previously stored start-failure message.
+          case EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED =>
+            val a = e.getWorkflowExecutionFailedEventAttributes
+            wfFailure = Try(a.getFailure.getMessage).toOption.filter(_.nonEmpty)
+              .orElse(Some("workflow execution failed"))
+
+          case EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT =>
+            wfFailure = Some("workflow execution timed out")
+
+          case EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED =>
+            val reason = Option(e.getWorkflowExecutionTerminatedEventAttributes.getReason).map(_.trim).filter(_.nonEmpty)
+            wfFailure = reason.orElse(Some("workflow execution terminated"))
+
           case _ => // ignore other event types
         }
       }
@@ -562,6 +582,8 @@ class EngineTemporal(uri: String, override val url: Option[String] = None, maxCh
         }
         val historyErrs: Seq[String] = activities.filter(_.status == EngineStatus.FAILED)
           .map(a => s"${a.name}: ${a.detail.getOrElse("failed")}")
+        val timeoutErrs: Seq[String] = activities.filter(_.status == EngineStatus.TIMED_OUT)
+          .map(a => s"${a.name}: ${a.detail.getOrElse("timed out")}")
         // "No Workers Running": RUNNING workflow whose task queue has zero pollers (stuck - no worker)
         val noWorkersErr: Seq[String] = pollers match {
           case Some(0) => Seq(s"No Workers Running: there are no Workers polling the ${summary.taskQueue.getOrElse("")} Task Queue")
@@ -571,11 +593,15 @@ class EngineTemporal(uri: String, override val url: Option[String] = None, maxCh
         val retryErrs = pendingErrs ++ wftErrs
         val hardErrs  = historyErrs ++ noWorkersErr
         val errAll    = retryErrs ++ hardErrs
+        val closedErrs = wfFailure.toSeq ++ historyErrs ++ timeoutErrs
         val (wfStatus, errMeta) =
           if (summary.status == EngineStatus.RUNNING && retrying)
             (EngineStatus.RUNNING_RETRY, if (errAll.nonEmpty) Map("err" -> errAll.mkString(" | ")) else Map.empty[String, String])
           else if (summary.status == EngineStatus.RUNNING && hardErrs.nonEmpty)
             (EngineStatus.RUNNING_FAILED, Map("err" -> hardErrs.mkString(" | ")))
+          else if (closedErrs.nonEmpty && (summary.status == EngineStatus.FAILED ||
+                   summary.status == EngineStatus.TIMED_OUT || summary.status == EngineStatus.TERMINATED))
+            (summary.status, Map("err" -> closedErrs.mkString(" | ")))
           else (summary.status, Map.empty[String, String])
         // carry the completed run's return value into meta.result (raw JSON string), when present
         val meta = wfResult.map(r => errMeta + ("result" -> r)).getOrElse(errMeta)

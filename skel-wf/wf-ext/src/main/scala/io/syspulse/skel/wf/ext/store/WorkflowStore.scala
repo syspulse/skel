@@ -251,8 +251,9 @@ trait WorkflowStore {
    */
   def createWConfFromWSchema(wschemaId: Int, contractId: Int = 0, name: Option[String] = None,
                              oid: Option[String] = None, pid: Option[String] = None, xid: Option[String] = None,
-                             wid: Option[String] = None, // wid (if set) becomes the config title
-                             author: Option[String] = None)
+                             wid: Option[String] = None, // wid (if set) becomes the config title when title is omitted
+                             author: Option[String] = None,
+                             title: Option[String] = None) // Name-field override of WorkflowSchema.title
                             (implicit ec: ExecutionContext): Future[WorkflowConfig] =
     getWSchema(wschemaId).flatMap { wschema =>
       val nodes = wschema.graph.nodes.values.toSeq.sortBy(_.id)
@@ -275,7 +276,7 @@ trait WorkflowStore {
           grafId    <- nextGrafId
           cfgNodes   = wschema.graph.nodes.map { case (k, n) => k -> n.copy(cid = cidByNode.get(n.id)) }
           cfgGraf    = WorkflowGraf.sync(wschema.graph.copy(id = grafId, sid = Some(wschema.id), cid = Some(wcId), nodes = cfgNodes))
-          wconf      = WorkflowConfig.from(wcId, wschema, name, oid, pid, xid, wid, author).copy(graph = cfgGraf)
+          wconf      = WorkflowConfig.from(wcId, wschema, name, oid, pid, xid, wid, author, title).copy(graph = cfgGraf)
           saved     <- addWConf(wconf)
           _         <- addGraf(cfgGraf)
         } yield saved
