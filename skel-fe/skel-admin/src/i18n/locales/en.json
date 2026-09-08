@@ -278,6 +278,7 @@
       "chainUid": "chain_uid",
       "meta": "meta",
       "inputJson": "input (JSON)",
+      "inputData": "input_data",
       "taskQueue": "task queue",
       "workflowId": "workflowId"
     },

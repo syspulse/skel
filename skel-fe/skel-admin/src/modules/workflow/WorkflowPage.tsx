@@ -17,7 +17,7 @@ import type { TimeRange } from '../../types';
 import { DEFAULT_SCHEMA_ICON, DEFAULT_CONFIG_ICON, DEFAULT_WF_SCHEMA_ICON, DEFAULT_WF_CONFIG_ICON } from '../../components/IconPicker';
 import { WorkflowSlider } from './components/WorkflowSlider';
 import { DetectorSlider } from './components/DetectorSlider';
-import { SchemaStartDialog, metaInputText } from './components/SchemaStartDialog';
+import { SchemaStartDialog, metaInputText, metaInputDataText } from './components/SchemaStartDialog';
 import { WorkflowEditor } from './editor/WorkflowEditor';
 import { dispatcher } from '../dispatcher/Dispatcher';
 
@@ -212,11 +212,19 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   }, []);
 
   // Start a workflow from a WorkflowSchema (Start dialog). Notifies the Dispatcher on success/error.
-  const startFromSchema = useCallback(async (input: unknown | undefined, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string, config?: Record<string, unknown>) => {
+  // Non-empty input_data is written to schema.meta.input_data before start so the Engine uses it.
+  const startFromSchema = useCallback(async (input: unknown | undefined, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string, config?: Record<string, unknown>, inputData?: string) => {
     if (startSchemaId === null) return;
     const sid = startSchemaId;
     setSaving(true);
     try {
+      const latest = (await api.getSchema(token, sid)).schema;
+      const meta = { ...(latest.meta ?? {}) };
+      const data = inputData?.trim();
+      const prev = meta.input_data == null ? '' : String(meta.input_data).trim();
+      if (data) meta.input_data = data;
+      else delete meta.input_data;
+      if ((data ?? '') !== prev) await api.updateSchema(token, sid, { meta });
       const res = await api.startSchema(token, sid, input, taskQueue, wid, ns, oid, pid, config);
       const c = res.configs?.[0];
       if (c) notifyDispatcher(0.1, t('workflow.startOk'),
@@ -594,6 +602,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
               defaultTaskQueue={startSchema?.meta?.tq != null ? String(startSchema.meta.tq) : undefined}
               defaultNs={startSchema?.meta?.ns != null ? String(startSchema.meta.ns) : undefined}
               defaultInput={metaInputText(startSchema?.meta)}
+              defaultInputData={metaInputDataText(startSchema?.meta)}
               defaultOid={defaultOid}
               saving={saving}
               onClose={() => setStartOpen(false)}

@@ -53,7 +53,7 @@ export interface WorkflowSchema {
   tags: string[];
   schema?: Record<string, unknown>;    // JsonSchema of the config (like DetectorSchema.schema)
   uiSchema?: Record<string, unknown>;  // UI hints (like DetectorSchema.uiSchema)
-  meta?: Meta;                         // arbitrary workflow metadata; meta.input is start JSON stored as a string
+  meta?: Meta;                         // arbitrary workflow metadata; meta.input is start JSON; meta.input_data is optional ?entity= CSV
   graph: WorkflowGraf;
 }
 

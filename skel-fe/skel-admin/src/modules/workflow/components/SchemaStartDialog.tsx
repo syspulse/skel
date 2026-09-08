@@ -1,17 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { IconClose, IconPlay } from '../../../components/Icons';
+import { IconClose, IconPlay, IconPlus } from '../../../components/Icons';
 import { SliderFieldRow } from '../../../components/SliderFieldRow';
 import { SchemaConfigEditor, JsonCodeEditor, defaultConfig } from './SchemaConfigEditor';
 import type { JsonSchema, UiSchema } from './SchemaConfigEditor';
 import type { Meta } from '../types';
 
-/** Deserialize WorkflowSchema.meta.input (a JSON string) for the start input editor. */
+/** Deserialize WorkflowSchema.meta.input (a JSON string) for the start input editor. Empty when unset (not `{}`). */
 export function metaInputText(meta?: Meta): string {
   const v = meta?.input;
-  if (typeof v !== 'string' || !v.trim()) return '{\n}';
+  if (typeof v !== 'string' || !v.trim()) return '';
   try { return JSON.stringify(JSON.parse(v), null, 2); }
   catch { return v; }
+}
+
+/** WorkflowSchema.meta.input_data (`?entity=` CSV). Empty when unset. */
+export function metaInputDataText(meta?: Meta): string {
+  const v = meta?.input_data;
+  if (v == null) return '';
+  const s = String(v).trim();
+  return s;
 }
 
 interface SchemaStartDialogProps {
@@ -24,18 +32,23 @@ interface SchemaStartDialogProps {
   defaultNs?: string;        // pre-fill from WorkflowSchema.meta.ns
   defaultOid?: string;       // pre-fill owner id from the user profile (see useDefaultOid)
   defaultInput?: string;     // pre-fill from WorkflowSchema.meta.input (deserialized JSON string)
+  defaultInputData?: string; // pre-fill from WorkflowSchema.meta.input_data
   saving: boolean;
   onClose: () => void;
-  // input: Temporal payload JSON (undefined when empty -> server default WorkflowConfig payload)
+  // input: Temporal payload JSON (undefined when empty -> schema.meta.input / input_data)
   // config: copied onto the created WorkflowConfig.config (undefined -> schema JsonSchema default)
-  onStart: (input: unknown | undefined, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string, config?: Record<string, unknown>) => void;
+  // inputData: non-empty -> written to meta.input_data for this start
+  onStart: (input: unknown | undefined, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string, config?: Record<string, unknown>, inputData?: string) => void;
+  // Create WorkflowConfig from schema without Engine start (wired later)
+  onCreate?: () => void;
 }
 
-/** Modal to start a workflow from a WorkflowSchema: raw input JSON + schema-driven config + tq / ns / oid / wid. */
+/** Modal to start a workflow from a WorkflowSchema: raw input JSON + input_data + schema-driven config + tq / ns / oid / wid. */
 export function SchemaStartDialog(props: SchemaStartDialogProps) {
-  const { open, schemaId, schemaName, schema, uiSchema, defaultTaskQueue, defaultNs, defaultOid, defaultInput, saving, onClose, onStart } = props;
+  const { open, schemaId, schemaName, schema, uiSchema, defaultTaskQueue, defaultNs, defaultOid, defaultInput, defaultInputData, saving, onClose, onStart, onCreate } = props;
   const { t } = useTranslation();
-  const [inputText, setInputText] = useState('{\n}');
+  const [inputText, setInputText] = useState('');
+  const [inputData, setInputData] = useState('');
   const [configData, setConfigData] = useState<unknown>({});
   const [taskQueue, setTaskQueue] = useState('');
   const [ns, setNs] = useState('');
@@ -46,7 +59,8 @@ export function SchemaStartDialog(props: SchemaStartDialogProps) {
 
   useEffect(() => {
     if (open) {
-      setInputText(defaultInput && defaultInput.trim() ? defaultInput : '{\n}');
+      setInputText(defaultInput && defaultInput.trim() ? defaultInput : '');
+      setInputData(defaultInputData ?? '');
       setConfigData(defaultConfig(schema));
       setTaskQueue(defaultTaskQueue ?? '');
       setNs(defaultNs ?? '');
@@ -55,7 +69,7 @@ export function SchemaStartDialog(props: SchemaStartDialogProps) {
       setWid('');
       setError(null);
     }
-  }, [open, defaultTaskQueue, defaultNs, defaultOid, defaultInput, schema]);
+  }, [open, defaultTaskQueue, defaultNs, defaultOid, defaultInput, defaultInputData, schema]);
 
   if (!open) return null;
 
@@ -70,7 +84,7 @@ export function SchemaStartDialog(props: SchemaStartDialogProps) {
     const empty = parsed == null
       || (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) && Object.keys(parsed as object).length === 0);
     const cfg = schema ? (configData as Record<string, unknown>) : undefined;
-    onStart(empty ? undefined : parsed, taskQueue.trim() || undefined, wid.trim() || undefined, ns.trim() || undefined, oid.trim() || undefined, pid.trim() || undefined, cfg);
+    onStart(empty ? undefined : parsed, taskQueue.trim() || undefined, wid.trim() || undefined, ns.trim() || undefined, oid.trim() || undefined, pid.trim() || undefined, cfg, inputData.trim() || undefined);
   };
 
   return (
@@ -94,6 +108,15 @@ export function SchemaStartDialog(props: SchemaStartDialogProps) {
               <label className="field-stack-label">{t('workflow.fields.inputJson')}</label>
               <JsonCodeEditor value={inputText} onChange={setInputText} height={140} />
             </div>
+
+            <SliderFieldRow label={t('workflow.fields.inputData')}>
+              <input
+                className="field-inline"
+                value={inputData}
+                onChange={(e) => setInputData(e.target.value)}
+                placeholder="graf,detector,schema"
+              />
+            </SliderFieldRow>
 
             <div className="field-stack">
               <label className="field-stack-label">{t('workflow.fields.config')}</label>
@@ -126,6 +149,9 @@ export function SchemaStartDialog(props: SchemaStartDialogProps) {
           <div className="slide-footer">
             <button onClick={handleStart} disabled={saving} className="btn-add">
               <IconPlay size={13} /> {saving ? t('workflow.starting') : t('workflow.start')}
+            </button>
+            <button type="button" disabled={saving} className="btn-add" onClick={() => onCreate?.()}>
+              <IconPlus size={13} /> {t('common.create')}
             </button>
             <button onClick={onClose} disabled={saving} className="btn-cancel">
               <IconClose size={13} /> {t('common.cancel')}
