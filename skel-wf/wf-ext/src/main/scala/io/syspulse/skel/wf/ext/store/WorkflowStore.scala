@@ -5,6 +5,7 @@ import scala.util.{Try, Success, Failure}
 
 import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf, WorkflowNode, WorkflowStatus}
 import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigContract, DetectorConfigSchema, JsonSchemaDefault}
+import io.syspulse.skel.store.StoreFts
 import io.syspulse.skel.util.UriUtil
 
 object WorkflowStore {
@@ -25,7 +26,8 @@ object WorkflowStore {
 
   /**
    * Optional server-side filter/sort for WorkflowConfig listing (used by GET /config):
-   *   - search: case-insensitive substring over name | title | xid
+   *   - search: free-text over name | title (min 3 chars; Mem/Dir: case-insensitive substring;
+   *             DB: Postgres FTS prefix + optional pg_trgm substring)
    *   - status: OR set-membership (empty = any)
    *   - tags:   AND / contains-all (empty = any)
    *   - tsStart/tsEnd: updatedAt range (epoch ms); API params ts0 (>=) / ts1 (<=)
@@ -59,28 +61,38 @@ object WorkflowStore {
 
   /**
    * Optional server-side search for WorkflowSchema listing (used by GET /schema):
-   *   - search: case-insensitive substring over name | title | description | tags
+   *   - search: free-text over name | title (min [[StoreFts.SEARCH_MIN_LEN]] chars).
+   *     Mem/Dir: case-insensitive substring. DB: Postgres FTS prefix + optional pg_trgm substring.
    */
-  def filterWSchemas(xs: Seq[WorkflowSchema], search: Option[String]): Seq[WorkflowSchema] = {
-    search.map(_.trim.toLowerCase).filter(_.nonEmpty) match {
-      case Some(q) =>
-        xs.filter(s =>
-          s.name.toLowerCase.contains(q) ||
-          s.title.toLowerCase.contains(q) ||
-          s.description.toLowerCase.contains(q) ||
-          s.tags.exists(_.toLowerCase.contains(q)))
-      case None => xs
+  def filterWSchemas(xs: Seq[WorkflowSchema], search: Option[String]): Seq[WorkflowSchema] =
+    matchNameTitle(search) match {
+      case None         => xs
+      case Some(None)   => Seq.empty
+      case Some(Some(q)) =>
+        xs.filter(s => s.name.toLowerCase.contains(q) || s.title.toLowerCase.contains(q))
     }
-  }
+
+  /**
+   * Normalize a listing `search` query.
+   *   - None  -> no search filter (keep all)
+   *   - Some(None) -> query present but too short / empty after normalize (match nothing)
+   *   - Some(Some(q)) -> lowercase needle
+   */
+  def matchNameTitle(search: Option[String]): Option[Option[String]] =
+    search.map(_.trim).filter(_.nonEmpty) match {
+      case None => None
+      case Some(raw) =>
+        val q = StoreFts.normalizeSearchQuery(raw)
+        if (q.length < StoreFts.SEARCH_MIN_LEN) Some(None)
+        else Some(Some(q.toLowerCase))
+    }
 
   def filterSortWConfs(xs: Seq[WorkflowConfig], f: WConfFilter): Seq[WorkflowConfig] = {
-    val searched = f.search.map(_.trim.toLowerCase).filter(_.nonEmpty) match {
-      case Some(q) =>
-        xs.filter(w =>
-          w.name.toLowerCase.contains(q) ||
-          w.title.toLowerCase.contains(q) ||
-          w.xid.exists(_.toLowerCase.contains(q)))
-      case None => xs
+    val searched = matchNameTitle(f.search) match {
+      case None          => xs
+      case Some(None)    => Seq.empty
+      case Some(Some(q)) =>
+        xs.filter(w => w.name.toLowerCase.contains(q) || w.title.toLowerCase.contains(q))
     }
     val statusSet = f.status.map(_.toUpperCase).filter(_.nonEmpty).toSet
     val byStatus =

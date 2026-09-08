@@ -223,7 +223,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
       new Parameter(name = "from", in = ParameterIn.QUERY, description = "Page offset"),
       new Parameter(name = "size", in = ParameterIn.QUERY, description = "Page size"),
       new Parameter(name = "entity", in = ParameterIn.QUERY, description = "CSV of graf,detector,schema (or all); default graf"),
-      new Parameter(name = "search", in = ParameterIn.QUERY, description = "case-insensitive substring over name|title|description|tags")),
+      new Parameter(name = "search", in = ParameterIn.QUERY, description = "free-text over name|title (min 3 chars; FTS prefix + substring)")),
     responses = Array(new ApiResponse(responseCode = "200", description = "schemas",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchemas]))))))
   def getWorkflowSchemasRoute() = get {
@@ -273,7 +273,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
       new Parameter(name = "entity", in = ParameterIn.QUERY, description = "CSV of graf,detector,schema (or all); default graf"),
       new Parameter(name = "oid", in = ParameterIn.QUERY, description = "owner id (required for users, must match JWT; admin may omit or set any)"),
       new Parameter(name = "pid", in = ParameterIn.QUERY, description = "optional project id filter"),
-      new Parameter(name = "search", in = ParameterIn.QUERY, description = "case-insensitive substring over name|title|xid"),
+      new Parameter(name = "search", in = ParameterIn.QUERY, description = "free-text over name|title (min 3 chars; FTS prefix + substring)"),
       new Parameter(name = "status", in = ParameterIn.QUERY, description = "CSV of statuses (OR)"),
       new Parameter(name = "tags", in = ParameterIn.QUERY, description = "CSV of tags (AND / contains-all)"),
       new Parameter(name = "ts0", in = ParameterIn.QUERY, description = "updatedAt >= ts0 (epoch ms)"),

@@ -92,7 +92,18 @@ class WorkflowStoreDBSpec extends AnyWordSpec with Matchers with BeforeAndAfterA
     super.afterAll()
   }
 
-  // ---- fixtures ----
+  private def addSchema(name: String, title: String, description: String = "", tags: Seq[String] = Seq()): WorkflowSchema =
+    Await.result(store.addWSchema(schema(0).copy(name = name, title = title, description = description, tags = tags)), timeout)
+
+  private def addConf(name: String, title: String, oid: Option[String] = None, xid: Option[String] = None,
+                      description: String = "", updatedAt: Long = System.currentTimeMillis(),
+                      status: String = "ACTIVE", tags: Seq[String] = Seq()): WorkflowConfig =
+    Await.result(store.addWConf(WorkflowConfig.from(0, schema(0)).copy(
+      name = name, title = title, oid = oid, xid = xid, description = description,
+      updatedAt = updatedAt, status = status, tags = tags)), timeout)
+
+  private def indexExists(table: String, index: String): Long =
+    jdbcCount(s"SELECT count(*) FROM pg_indexes WHERE tablename='$table' AND indexname='$index'")
   private def graf(id: Int): WorkflowGraf =
     WorkflowGraf(id = id, sid = Some(id))
       .withNode(WorkflowNode(id = 0, title = "a", sid = 100))
@@ -339,6 +350,129 @@ class WorkflowStoreDBSpec extends AnyWordSpec with Matchers with BeforeAndAfterA
       dc.map(_.name) shouldBe Some("Schema_70")
       dc.flatMap(_.schema).map(_.id) shouldBe Some(ds.id)
       cfg.id should be > 0
+    }
+  }
+
+  "WorkflowStoreDB (name/title FTS)" should {
+    "create generated tsv GIN indexes on workflow_schema and workflow_config" in {
+      jdbcCount("SELECT count(*) FROM information_schema.columns WHERE table_name='workflow_schema' AND column_name='tsv'") shouldBe 1L
+      jdbcCount("SELECT count(*) FROM information_schema.columns WHERE table_name='workflow_config' AND column_name='tsv'") shouldBe 1L
+      indexExists("workflow_schema", "workflow_schema_fts") shouldBe 1L
+      indexExists("workflow_config", "workflow_config_fts") shouldBe 1L
+      indexExists("workflow_schema", "workflow_schema_name_trgm") shouldBe 1L
+      indexExists("workflow_schema", "workflow_schema_title_trgm") shouldBe 1L
+      indexExists("workflow_config", "workflow_config_name_trgm") shouldBe 1L
+      indexExists("workflow_config", "workflow_config_title_trgm") shouldBe 1L
+    }
+
+    "search schemas by name and title (case-insensitive, prefix) without matching description/tags" in {
+      jdbcExec("DELETE FROM workflow_schema")
+      val por = addSchema("PoR-Flow", "Proof of Reserve")
+      val daily = addSchema("PoR-Flow", "PoR Daily")
+      val audit = addSchema("Audit", "Workflow Audit")
+      addSchema("zzz", "zzz", description = "SecretFlow hidden in description", tags = Seq("por-tag"))
+
+      val byPor = Await.result(store.listWSchemas(None, None, Some("por")), timeout)
+      byPor.total shouldBe 2L
+      byPor.wschemas.map(_.id).toSet shouldBe Set(por.id, daily.id)
+
+      val byPorFlow = Await.result(store.listWSchemas(None, None, Some("por-flow")), timeout)
+      byPorFlow.total shouldBe 2L
+      byPorFlow.wschemas.map(_.id).toSet shouldBe Set(por.id, daily.id)
+
+      val byProof = Await.result(store.listWSchemas(None, None, Some("proof")), timeout)
+      byProof.total shouldBe 1L
+      byProof.wschemas.head.id shouldBe por.id
+
+      val byAudit = Await.result(store.listWSchemas(None, None, Some("AUDIT")), timeout)
+      byAudit.total shouldBe 1L
+      byAudit.wschemas.head.id shouldBe audit.id
+
+      val byPrefix = Await.result(store.listWSchemas(None, None, Some("aud")), timeout)
+      byPrefix.total shouldBe 1L
+      byPrefix.wschemas.head.id shouldBe audit.id
+
+      Await.result(store.listWSchemas(None, None, Some("secretflow")), timeout).total shouldBe 0L
+      Await.result(store.listWSchemas(None, None, Some("por-tag")), timeout).total shouldBe 0L
+      Await.result(store.listWSchemas(None, None, Some("ab")), timeout).total shouldBe 0L
+      Await.result(store.listWSchemas(None, None, Some("")), timeout).total shouldBe 4L
+    }
+
+    "page schema search results across page sizes and offsets" in {
+      jdbcExec("DELETE FROM workflow_schema")
+      val ids = (0 until 10).map(i => addSchema(s"PagerFlow-$i", s"Pager title $i").id).sorted
+      addSchema("UnrelatedAudit", "Other")
+      val q = Some("pager")
+      Seq(1, 2, 3, 4, 5, 7, 10, 11, 100).foreach { size =>
+        val p = Await.result(store.listWSchemas(Some(0), Some(size.toLong), q), timeout)
+        p.total shouldBe 10L
+        p.wschemas.map(_.id) shouldBe ids.take(size)
+      }
+      val mid = Await.result(store.listWSchemas(Some(3), Some(4), q), timeout)
+      mid.total shouldBe 10L
+      mid.wschemas.map(_.id) shouldBe ids.slice(3, 7)
+      val tail = Await.result(store.listWSchemas(Some(8), Some(5), q), timeout)
+      tail.total shouldBe 10L
+      tail.wschemas.map(_.id) shouldBe ids.slice(8, 10)
+      Await.result(store.listWSchemas(Some(10), Some(3), q), timeout).wschemas shouldBe empty
+      val unpaged = Await.result(store.listWSchemas(None, None, q), timeout)
+      unpaged.total shouldBe 10L
+      unpaged.wschemas.map(_.id) shouldBe ids
+    }
+
+    "search configs by name and title (not xid/description), with oid/time filters" in {
+      jdbcExec("DELETE FROM workflow_config")
+      val a = addConf("PoR-Flow", "Proof of Reserve", oid = Some("owner-a"), xid = Some("flow-runtime"), updatedAt = 1000L)
+      val b = addConf("Audit", "Workflow Audit", oid = Some("owner-a"), updatedAt = 2000L)
+      addConf("zzz", "zzz", oid = Some("owner-b"), xid = Some("por-xid"), description = "PoR hidden", updatedAt = 3000L)
+
+      val por = Await.result(store.listWConfs(None, None, None, None, WorkflowStore.WConfFilter(search = Some("por"))), timeout)
+      por.total shouldBe 1L
+      por.wconfs.map(_.id) shouldBe Seq(a.id)
+
+      Await.result(store.listWConfs(None, None, None, None, WorkflowStore.WConfFilter(search = Some("por-flow"))), timeout)
+        .wconfs.map(_.id) shouldBe Seq(a.id)
+
+      Await.result(store.listWConfs(None, None, None, None, WorkflowStore.WConfFilter(search = Some("proof"))), timeout)
+        .wconfs.map(_.id) shouldBe Seq(a.id)
+      Await.result(store.listWConfs(None, None, None, None, WorkflowStore.WConfFilter(search = Some("aud"))), timeout)
+        .wconfs.map(_.id) shouldBe Seq(b.id)
+
+      Await.result(store.listWConfs(None, None, None, None, WorkflowStore.WConfFilter(search = Some("por-xid"))), timeout).total shouldBe 0L
+      Await.result(store.listWConfs(None, None, None, None, WorkflowStore.WConfFilter(search = Some("ab"))), timeout).total shouldBe 0L
+
+      val owned = Await.result(store.listWConfs(None, None, Some("owner-a"), None, WorkflowStore.WConfFilter(search = Some("reserve"))), timeout)
+      owned.total shouldBe 1L
+      owned.wconfs.map(_.id) shouldBe Seq(a.id)
+
+      val ranged = Await.result(store.listWConfs(None, None, None, None,
+        WorkflowStore.WConfFilter(search = Some("audit"), tsStart = Some(1500L), tsEnd = Some(2500L))), timeout)
+      ranged.total shouldBe 1L
+      ranged.wconfs.map(_.id) shouldBe Seq(b.id)
+
+      Await.result(store.listWConfs(None, None, None, None,
+        WorkflowStore.WConfFilter(search = Some("audit"), tsEnd = Some(1500L))), timeout).total shouldBe 0L
+    }
+
+    "page config search results across page sizes and offsets" in {
+      jdbcExec("DELETE FROM workflow_config")
+      val ids = (0 until 10).map { i =>
+        addConf(s"PagerFlow-$i", s"Pager title $i", updatedAt = 10000L + i).id
+      }
+      addConf("UnrelatedAudit", "Other", updatedAt = 1L)
+      val q = WorkflowStore.WConfFilter(search = Some("pager"), sort = Some("updatedAt:asc"))
+      Seq(1, 2, 3, 4, 5, 7, 10, 11, 100).foreach { size =>
+        val p = Await.result(store.listWConfs(Some(0), Some(size.toLong), None, None, q), timeout)
+        p.total shouldBe 10L
+        p.wconfs.map(_.id) shouldBe ids.take(size)
+      }
+      val mid = Await.result(store.listWConfs(Some(3), Some(4), None, None, q), timeout)
+      mid.total shouldBe 10L
+      mid.wconfs.map(_.id) shouldBe ids.slice(3, 7)
+      val tail = Await.result(store.listWConfs(Some(8), Some(5), None, None, q), timeout)
+      tail.total shouldBe 10L
+      tail.wconfs.map(_.id) shouldBe ids.slice(8, 10)
+      Await.result(store.listWConfs(Some(10), Some(3), None, None, q), timeout).wconfs shouldBe empty
     }
   }
 }

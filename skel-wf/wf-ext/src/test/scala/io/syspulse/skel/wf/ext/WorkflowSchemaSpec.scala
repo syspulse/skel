@@ -115,5 +115,17 @@ class WorkflowSchemaSpec extends AnyWordSpec with Matchers {
       audit.total shouldBe 1L
       audit.wschemas.head.id shouldBe 2
     }
+
+    "search schemas on name/title only (not description or tags) and reject short queries" in {
+      val store = new WorkflowStoreMem()
+      Await.result(store.addWSchema(WorkflowSchema.of(0, "zzz", graf(0)).copy(
+        title = "zzz", description = "SecretFlow hidden", tags = Seq("por-tag"))), timeout)
+      Await.result(store.addWSchema(WorkflowSchema.of(1, "VisibleFlow", graf(1)).copy(title = "Shown")), timeout)
+
+      Await.result(store.listWSchemas(None, None, Some("secretflow")), timeout).total shouldBe 0L
+      Await.result(store.listWSchemas(None, None, Some("por-tag")), timeout).total shouldBe 0L
+      Await.result(store.listWSchemas(None, None, Some("visibleflow")), timeout).wschemas.map(_.id) shouldBe Seq(1)
+      Await.result(store.listWSchemas(None, None, Some("ab")), timeout).total shouldBe 0L
+    }
   }
 }

@@ -16,7 +16,7 @@ import io.getquill.context._
 
 import io.syspulse.skel.ErrNotFound
 import io.syspulse.skel.config.Configuration
-import io.syspulse.skel.store.StoreDBAsync
+import io.syspulse.skel.store.{StoreDBAsync, StoreFts, StoreSearch}
 
 import io.hacken.ext.wf._
 import io.hacken.ext.detector._
@@ -31,7 +31,9 @@ import io.hacken.ext.detector._
 //   "[{\"name\":\"...\",\"value\":\"...\"}]"  (jsonb string on detector_schema; same text on workflow_schema).
 //
 //   workflow_schema / workflow_config / workflow_graf   -> CREATED by this store (BIGINT ids, TEXT
-//                                                          json/csv, `data` is the only jsonb).
+//                                                          json/csv, `data` is the only jsonb;
+//                                                          name+title FTS via generated `tsv` GIN
+//                                                          + optional pg_trgm GIN, same as ExplainStoreDB).
 //   detector (DetectorConfig) / detector_schema (DetectorSchema)
 //                                                       -> OWNED by another product: NEVER created.
 //     These use the upstream schema: `timestamp` created_at/updated_at (mapped to/from epoch-ms),
@@ -63,8 +65,9 @@ SELECT setval('workflow_config_id_seq', COALESCE((SELECT MAX(id) FROM workflow_c
 
 */
 
-class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
-    extends StoreDBAsync[WorkflowConfig, Int](dbConfigRef, WorkflowStoreDB.TABLE_WORKFLOW_CONFIG, Some(configuration), None)
+class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String,
+                      searchIndexesOpt: Option[Set[String]] = Some(Set(StoreSearch.Fts, StoreSearch.Tgram)))
+    extends StoreDBAsync[WorkflowConfig, Int](dbConfigRef, WorkflowStoreDB.TABLE_WORKFLOW_CONFIG, Some(configuration), searchIndexesOpt)
     with WorkflowStore {
 
   lazy private val log = Logger(getClass)
@@ -72,6 +75,13 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   import ctx._
 
   def id: String = "db"
+
+  // free-text search (Postgres FTS tsv GIN + optional pg_trgm) on name + title for schema and config
+  // defs (not vals): StoreDBAsync.<init> calls create() before subclass fields are initialized
+  private def searchFields = Seq("name", "title")
+  private def colTsv = "tsv"
+  private def indexSchemaFts = s"${TABLE_WORKFLOW_SCHEMA}_fts"
+  private def indexConfigFts = s"${TABLE_WORKFLOW_CONFIG}_fts"
 
   // ---- JSON formats (referenced explicitly to avoid implicit clashes) ----
   private val fmtGraf   = WorkflowGrafJson.jf_wf_graf
@@ -204,17 +214,20 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
 
   // ========================================================= create (workflow_* only)
   def create: Try[Long] = {
-    val ddl = Map(
+    val tsvExpr = StoreFts.pgTsvExpr(searchFields)
+    val tsvColSql = postgresTsvColumnDef(colTsv, tsvExpr).stripSuffix(",").trim
+    val tsvSuffix = if (tsvColSql.nonEmpty) s", $tsvColSql" else ""
+    val ddl = Seq(
       TABLE_WORKFLOW_SCHEMA ->
         s"""CREATE TABLE IF NOT EXISTS ${TABLE_WORKFLOW_SCHEMA} (
          | id BIGSERIAL PRIMARY KEY, created_at BIGINT, updated_at BIGINT, status VARCHAR(64),
          | name VARCHAR(255), version VARCHAR(64), title VARCHAR(255), description TEXT, author VARCHAR(255),
-         | icon TEXT, faq TEXT, tags TEXT, meta TEXT, graph TEXT, schema JSONB, ui_schema JSONB)""".stripMargin,
+         | icon TEXT, faq TEXT, tags TEXT, meta TEXT, graph TEXT, schema JSONB, ui_schema JSONB$tsvSuffix)""".stripMargin,
       TABLE_WORKFLOW_CONFIG ->
         s"""CREATE TABLE IF NOT EXISTS ${TABLE_WORKFLOW_CONFIG} (
          | id BIGSERIAL PRIMARY KEY, sid BIGINT, created_at BIGINT, updated_at BIGINT, status VARCHAR(64),
          | name VARCHAR(255), version VARCHAR(64), title VARCHAR(255), description TEXT, author VARCHAR(255),
-         | icon TEXT, tags TEXT, graph TEXT, oid VARCHAR(128), pid VARCHAR(128), xid VARCHAR(128), meta TEXT, config JSONB)""".stripMargin,
+         | icon TEXT, tags TEXT, graph TEXT, oid VARCHAR(128), pid VARCHAR(128), xid VARCHAR(128), meta TEXT, config JSONB$tsvSuffix)""".stripMargin,
       TABLE_WORKFLOW_GRAF ->
         s"""CREATE TABLE IF NOT EXISTS ${TABLE_WORKFLOW_GRAF} (
          | id BIGSERIAL PRIMARY KEY, sid BIGINT, cid BIGINT, nodes TEXT, links TEXT, meta TEXT, data JSONB)""".stripMargin,
@@ -245,6 +258,19 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
         }
         
       }
+
+      // FULLTEXT (generated tsv GIN) on name,title — same pattern as ExplainStoreDB.
+      // pg_trgm GIN on the same columns when `search=tgram` (or fts+tgram) is enabled.
+      if (StoreSearch.hasTgram(searchIndexes)) {
+        try {
+          val ext = Await.result(exec("CREATE EXTENSION IF NOT EXISTS pg_trgm"), FiniteDuration(timeout, TimeUnit.MILLISECONDS))
+          log.info(s"extension: pg_trgm: ${ext}")
+        } catch {
+          case e: Exception => log.warn(s"pg_trgm extension skipped: ${e.getMessage}")
+        }
+      }
+      setupPostgresSearchIndexes(TABLE_WORKFLOW_SCHEMA, colTsv, indexSchemaFts, tsvExpr, TABLE_WORKFLOW_SCHEMA, searchFields)
+      setupPostgresSearchIndexes(TABLE_WORKFLOW_CONFIG, colTsv, indexConfigFts, tsvExpr, TABLE_WORKFLOW_CONFIG, searchFields)
       
       Success(last)
     }
@@ -279,23 +305,61 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   def delWSchema(id: Int): Future[Int] = delById(TABLE_WORKFLOW_SCHEMA, id, "WorkflowSchema")
   def allWSchemas: Future[Seq[WorkflowSchema]] = query(s"SELECT $SCHEMA_SEL FROM $TABLE_WORKFLOW_SCHEMA ORDER BY id", rowSchema)
   def sizeWSchemas: Future[Long] = countOf(TABLE_WORKFLOW_SCHEMA)
-  override def listWSchemas(from: Option[Long], size: Option[Long], search: Option[String] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageWSchema] = {
-    val q = search.map(_.trim).filter(_.nonEmpty)
-    q match {
-      case None =>
-        for {
-          total <- sizeWSchemas
-          items <- query(s"SELECT $SCHEMA_SEL FROM $TABLE_WORKFLOW_SCHEMA ORDER BY id ${limitClause(from,size)}", rowSchema)
-        } yield WorkflowStore.PageWSchema(items, total)
-      case Some(_) =>
-        allWSchemas.map { xs =>
-          val filtered = WorkflowStore.filterWSchemas(xs, search)
-          val items = (from, size) match {
-            case (Some(f), Some(s)) => WorkflowStore.page(filtered, f, s)
-            case _                  => filtered
+
+  // ---- free-text search (SQL; never load the full table) ----
+  // SearchEmpty: query too short / no search indexes -> empty page
+  // SearchNone: no search filter
+  // SearchPred: SQL predicate on the table's tsv / name / title
+  private sealed trait SearchClause
+  private case object SearchNone extends SearchClause
+  private case object SearchEmpty extends SearchClause
+  private case class SearchPred(sql: String) extends SearchClause
+
+  private def searchClause(search: Option[String]): SearchClause =
+    search.map(_.trim).filter(_.nonEmpty) match {
+      case None => SearchNone
+      case Some(raw) =>
+        val nq = StoreFts.normalizeSearchQuery(raw)
+        if (nq.length < StoreFts.SEARCH_MIN_LEN) SearchEmpty
+        else {
+          val tsvCol = if (StoreSearch.hasFts(searchIndexes)) Some(colTsv) else None
+          StoreFts.postgresSearchWhere(searchIndexes, tsvCol, searchFields, nq, sqlLit) match {
+            case None    => SearchEmpty
+            case Some(w) => SearchPred(w)
           }
-          WorkflowStore.PageWSchema(items, filtered.size.toLong)
         }
+    }
+
+  private def sqlOrderWConf(sort: Option[String]): String = {
+    val (field, asc) = sort.map(_.split(":").toList match {
+      case f :: dir :: _ => (f, dir.equalsIgnoreCase("asc"))
+      case f :: Nil      => (f, false)
+      case _             => ("updatedAt", false)
+    }).getOrElse(("updatedAt", false))
+    val col = field match {
+      case "name"      => "lower(name)"
+      case "title"     => "lower(title)"
+      case "status"    => "lower(status)"
+      case "createdAt" => "created_at"
+      case _           => "updated_at"
+    }
+    val dir = if (asc) "ASC" else "DESC"
+    s"ORDER BY $col $dir, id $dir"
+  }
+
+  override def listWSchemas(from: Option[Long], size: Option[Long], search: Option[String] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageWSchema] = {
+    searchClause(search) match {
+      case SearchEmpty =>
+        Future.successful(WorkflowStore.PageWSchema(Seq.empty, 0))
+      case clause =>
+        val where = clause match {
+          case SearchPred(w) => s"WHERE $w"
+          case _             => ""
+        }
+        for {
+          total <- countOf(TABLE_WORKFLOW_SCHEMA, where)
+          items <- query(s"SELECT $SCHEMA_SEL FROM $TABLE_WORKFLOW_SCHEMA $where ORDER BY id ${limitClause(from,size)}", rowSchema)
+        } yield WorkflowStore.PageWSchema(items, total)
     }
   }
 
@@ -341,30 +405,47 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   }
 
   /**
-   * Filtered list (server-side). The indexed, high-selectivity dimensions — owner (oid/pid)
-   * and the updatedAt time range (ts0..ts1) — are pushed into SQL so the updated_at index
-   * serves fast time-range queries. The fuzzy dimensions (search/status/tags) + sort + paging
-   * are then applied by the shared WorkflowStore.filterSortWConfs over the reduced set, so the
-   * semantics stay identical to the in-memory stores.
+   * Filtered list (server-side). High-selectivity dimensions — owner (oid/pid), updatedAt
+   * range (ts0..ts1), free-text search (name/title FTS + optional pg_trgm), and status — are
+   * pushed into SQL (GIN on tsv / name / title, btree on updated_at). Tags + paging over a
+   * tag-reduced set stay in memory because tags are a CSV TEXT column.
    */
   override def listWConfs(from: Option[Long], size: Option[Long], oid: Option[String], pid: Option[String],
                           filter: WorkflowStore.WConfFilter)(implicit ec: ExecutionContext): Future[WorkflowStore.PageWConf] = {
-    val where = Seq(
-      oid.map(o => s"oid = ${q(o)}"),
-      pid.map(p => s"pid = ${q(p)}"),
-      filter.tsStart.map(ts => s"updated_at >= ${lLit(ts)}"),
-      filter.tsEnd.map(ts => s"updated_at <= ${lLit(ts)}"),
-    ).flatten match {
-      case Nil => ""
-      case xs  => "WHERE " + xs.mkString(" AND ")
-    }
-    query(s"SELECT $CONFIG_SEL FROM $TABLE_WORKFLOW_CONFIG $where ORDER BY updated_at DESC", rowConfig).map { rows =>
-      val filtered = WorkflowStore.filterSortWConfs(rows, filter)
-      val items = (from, size) match {
-        case (Some(f), Some(s)) => WorkflowStore.page(filtered, f, s)
-        case _                  => filtered
-      }
-      WorkflowStore.PageWConf(items, filtered.size.toLong)
+    searchClause(filter.search) match {
+      case SearchEmpty =>
+        Future.successful(WorkflowStore.PageWConf(Seq.empty, 0))
+      case clause =>
+        val statusSet = filter.status.map(_.toUpperCase).filter(_.nonEmpty)
+        val whereParts = Seq(
+          oid.map(o => s"oid = ${q(o)}"),
+          pid.map(p => s"pid = ${q(p)}"),
+          filter.tsStart.map(ts => s"updated_at >= ${lLit(ts)}"),
+          filter.tsEnd.map(ts => s"updated_at <= ${lLit(ts)}"),
+          clause match {
+            case SearchPred(w) => Some(s"($w)")
+            case _             => None
+          },
+          if (statusSet.nonEmpty) Some(s"UPPER(status) IN (${statusSet.map(st => q(st)).mkString(",")})") else None,
+        ).flatten
+        val where = if (whereParts.isEmpty) "" else "WHERE " + whereParts.mkString(" AND ")
+        val order = sqlOrderWConf(filter.sort)
+        if (filter.tags.isEmpty) {
+          for {
+            total <- countOf(TABLE_WORKFLOW_CONFIG, where)
+            items <- query(s"SELECT $CONFIG_SEL FROM $TABLE_WORKFLOW_CONFIG $where $order ${limitClause(from,size)}", rowConfig)
+          } yield WorkflowStore.PageWConf(items, total)
+        } else {
+          query(s"SELECT $CONFIG_SEL FROM $TABLE_WORKFLOW_CONFIG $where $order", rowConfig).map { rows =>
+            val filtered = WorkflowStore.filterSortWConfs(rows, filter.copy(
+              search = None, status = Seq(), tsStart = None, tsEnd = None))
+            val items = (from, size) match {
+              case (Some(f), Some(s)) => WorkflowStore.page(filtered, f, s)
+              case _                  => filtered
+            }
+            WorkflowStore.PageWConf(items, filtered.size.toLong)
+          }
+        }
     }
   }
 

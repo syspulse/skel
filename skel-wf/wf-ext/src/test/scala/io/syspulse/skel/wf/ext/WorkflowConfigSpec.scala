@@ -138,5 +138,26 @@ class WorkflowConfigSpec extends AnyWordSpec with Matchers {
         .filterSortWConfs(xs, WorkflowStore.WConfFilter(tsStart = Some(2000L), tsEnd = Some(3000L)))
         .map(_.updatedAt) shouldBe Seq(3000L, 2000L)
     }
+
+    "search configs by name/title (not xid/description), page, and reject short queries" in {
+      val store = new WorkflowStoreMem()
+      Await.result(store.addWConf(WorkflowConfig.from(0, schema(0)).copy(
+        name = "PoR-Flow", title = "Proof of Reserve", xid = Some("flow-runtime"))), timeout)
+      Await.result(store.addWConf(WorkflowConfig.from(1, schema(0)).copy(
+        name = "Audit", title = "Workflow Audit", description = "PoR hidden")), timeout)
+      Await.result(store.addWConf(WorkflowConfig.from(2, schema(0)).copy(
+        name = "zzz", title = "zzz", xid = Some("por-xid"))), timeout)
+
+      val por = Await.result(store.listWConfs(None, None, None, None, WorkflowStore.WConfFilter(search = Some("por"))), timeout)
+      por.total shouldBe 1L
+      por.wconfs.map(_.id) shouldBe Seq(0)
+
+      val page = Await.result(store.listWConfs(Some(0), Some(1), None, None, WorkflowStore.WConfFilter(search = Some("audit"))), timeout)
+      page.total shouldBe 1L
+      page.wconfs should have size 1
+
+      Await.result(store.listWConfs(None, None, None, None, WorkflowStore.WConfFilter(search = Some("por-xid"))), timeout).total shouldBe 0L
+      Await.result(store.listWConfs(None, None, None, None, WorkflowStore.WConfFilter(search = Some("ab"))), timeout).total shouldBe 0L
+    }
   }
 }
