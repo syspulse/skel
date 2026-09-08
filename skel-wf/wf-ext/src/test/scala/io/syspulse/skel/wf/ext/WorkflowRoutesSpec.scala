@@ -236,18 +236,23 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       }
     }
 
-    "POST /config/schema/{sid} creates a WorkflowConfig composed of DetectorConfig (store-assigned ids)" in {
+    "POST /schema/{id}/spawn creates a WorkflowConfig composed of DetectorConfig (store-assigned ids, not started)" in {
       // a WorkflowSchema whose 2 nodes each reference a DetectorSchema (sid set, no cid)
       val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.x -> Detector.y", name = Some("WFromSchema"))) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
       }
       sc.graph.nodes.values.foreach { n => n.cid shouldBe None }         // schema nodes have NO DetectorConfig
 
-      val cfg = Post(s"/config/schema/${sc.id}") ~~> routes.routes ~> check {
-        status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
+      val cfg = Post(s"/schema/${sc.id}/spawn") ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val r = responseAs[WorkflowConfigs]
+        r.total shouldBe 1L
+        r.configs.head
       }
       cfg.id should be >= 0                                              // id assigned by the store
       cfg.sid shouldBe sc.id
+      cfg.xid shouldBe None
+      cfg.status shouldBe WorkflowStatus.UNKNOWN
       val nodes = cfg.graph.nodes.values.toSeq
       nodes should have size 2
       // composed of DetectorConfig: every node now has a cid (and keeps its DetectorSchema sid)
@@ -269,8 +274,9 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.p -> Detector.q", name = Some("WCascade"))) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
       }
-      val cfg = Post(s"/config/schema/${sc.id}") ~~> routes.routes ~> check {
-        status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
+      val cfg = Post(s"/schema/${sc.id}/spawn") ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[WorkflowConfigs].configs.head
       }
       val cids = cfg.graph.nodes.values.flatMap(_.cid).toSeq
       cids should have size 2

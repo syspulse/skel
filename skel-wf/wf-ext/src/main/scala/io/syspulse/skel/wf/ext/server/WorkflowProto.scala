@@ -66,11 +66,11 @@ final case class WorkflowSchemaDslReq(
   wid: Option[Int] = None,
   name: Option[String] = None,
 )
-/** POST /schema/{id}/start body. Both fields optional: `input` is forwarded as-is to the
- *  Engine (a JSON object/array is compact-printed; a JSON string is the raw payload).
+/** POST /schema/{id}/start and /schema/{id}/spawn body. Both fields optional: `input` is forwarded as-is
+ *  (a JSON object/array is compact-printed; a JSON string is the raw payload).
  *  Omitted / empty `input` uses WorkflowSchema.meta.input_data (`?entity=` query of the created
  *  WorkflowConfig) when set, else WorkflowSchema.meta.input.
- *  Omitted `config` keeps the schema JsonSchema default. */
+ *  Omitted `config` keeps the schema JsonSchema default. `/spawn` persists the config without Engine start. */
 final case class WorkflowSchemaStartReq(
   input: Option[JsValue] = None,
   config: Option[JsObject] = None,

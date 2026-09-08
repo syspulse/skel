@@ -46,7 +46,7 @@ import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineWorkflows, 
 
 /**
  * Workflow `ext` REST API:
- *   /api/v1/wf/ext/schema  - WorkflowSchema CRUD (+ ?entity={graf,detector,schema|all}, + /dsl, /{id}/start)
+ *   /api/v1/wf/ext/schema  - WorkflowSchema CRUD (+ ?entity={graf,detector,schema|all}, + /dsl, /{id}/start, /{id}/spawn)
  *   /api/v1/wf/ext/config  - WorkflowConfig CRUD (+ ?entity={graf,detector,schema|all}, + /dsl, /xid, /oid, /{id}/stop, /{id}/cancel)
  *   /api/v1/wf/ext/graf    - WorkflowGraf CRUD (visual configuration)
  *   /api/v1/wf/ext/engine  - Engine runtime state (Temporal)
@@ -137,6 +137,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
   def updateWorkflowSchema(id: Int, req: WorkflowSchemaUpdateReq): Future[Try[WorkflowSchema]] = registry.ask(UpdateWorkflowSchema(id, req, _))
   def deleteWorkflowSchema(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteWorkflowSchema(id, _))
   def startWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], config: Option[JsObject], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String], author: Option[String], title: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(StartWorkflowSchema(id, taskQueue, input, config, wid, ns, oid, pid, author, title, _))
+  def spawnWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], config: Option[JsObject], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String], author: Option[String], title: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(SpawnWorkflowSchema(id, taskQueue, input, config, wid, ns, oid, pid, author, title, _))
 
   // ---- WorkflowConfig asks ----
   def getWorkflowConfigs(from: Option[Long], size: Option[Long], entity: String, oid: Option[String], pid: Option[String], filter: WorkflowStore.WConfFilter): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigs(from, size, entity, oid, pid, filter, _))
@@ -146,7 +147,6 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
   def resolveWorkflowConfigs(ids: Seq[String], typ: Option[String], oid: Option[String]): Future[Try[WorkflowConfigs]] =
     registry.ask(ResolveWorkflowConfigs(ids, typ, oid, _))
   def createWorkflowConfig(req: WorkflowConfigCreateReq): Future[Try[WorkflowConfig]] = registry.ask(CreateWorkflowConfig(req, _))
-  def createWorkflowConfigFromSchema(sid: Int, contractId: Int, oid: Option[String] = None): Future[Try[WorkflowConfig]] = registry.ask(CreateWorkflowConfigFromSchema(sid, contractId, oid, _))
   def setup0(tenantId: Int, projectId: Int, contractId: Int, name: String, status: String): Future[Try[WorkflowActionRes]] =
     registry.ask(Setup0(tenantId, projectId, contractId, name, status, _))
   def createWorkflowConfigDsl(req: WorkflowConfigDslReq): Future[Try[WorkflowConfig]] = registry.ask(CreateWorkflowConfigDsl(req, _))
@@ -440,20 +440,37 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchemaStartReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "created + started + resolved config(s); if Engine start fails after persist, still 200 with status=FAILED and meta.err",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
-  def startWorkflowSchemaRoute(id: Int) = post {
+  def startWorkflowSchemaRoute(id: Int) = schemaStartOrSpawnRoute(id, spawn = false)
+
+  @POST @Path("/schema/{id}/spawn") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("schema"), summary = "Create a WorkflowConfig from a WorkflowSchema without starting the Engine (same params/body as /start); status=UNKNOWN, no xid",
+    parameters = Array(
+      new Parameter(name = "id", in = ParameterIn.PATH, description = "WorkflowSchema id"),
+      new Parameter(name = "tq", in = ParameterIn.QUERY, description = "Task Queue stored on config.meta(tq); else schema meta.tq, else default"),
+      new Parameter(name = "wid", in = ParameterIn.QUERY, description = "stored as config title / meta.wid (else derived from the created config.title|name)"),
+      new Parameter(name = "author", in = ParameterIn.QUERY, description = "WorkflowConfig.author; if omitted, JWT `upn` claim; else WorkflowSchema.author")),
+    requestBody = new RequestBody(description = "WorkflowSchemaStartReq: same as /schema/{id}/start (input, config, title). input_data on the schema is applied the same way. The Engine is not started.",
+      content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchemaStartReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "created config(s), not started; if input_data query fails, still 200 with status=FAILED and meta.err",
+      content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
+  def spawnWorkflowSchemaRoute(id: Int) = schemaStartOrSpawnRoute(id, spawn = true)
+
+  /** Shared /schema/{id}/start and /schema/{id}/spawn: same query params, body, and auth. */
+  private def schemaStartOrSpawnRoute(id: Int, spawn: Boolean) = post {
     parameters("tq".?, "wid".?, "ns".?, "oid".?, "pid".?, "author".?) { (tq, wid, ns, oidQ, pidQ, authorQ) =>
-      // any authenticated user may start a workflow for their own oid (admin/service: any oid).
-      // storeOid() forces the JWT owner for non-admins, so a user cannot start under a foreign oid.
+      // any authenticated user may spawn/start a workflow for their own oid (admin/service: any oid).
       authenticate()(authn => authorize(canAccessOid(authn, oidQ)) {
         val oid = storeOid(authn, oidQ)
         val pid = oidOpt(pidQ)
-        // author: ?author= else JWT.upn (from() falls back to WorkflowSchema.author if still None)
         val author = oidOpt(authorQ).orElse(ExtAuth.getOwner(authn, "upn").filter(_.nonEmpty))
+        def go(input: Option[String], config: Option[JsObject], title: Option[String]) =
+          if (spawn) spawnWorkflowSchema(id, tq, input, config, wid, ns, oid, pid, author, title)
+          else startWorkflowSchema(id, tq, input, config, wid, ns, oid, pid, author, title)
         entity(as[WorkflowSchemaStartReq]) { req =>
           val input = req.input.flatMap(WorkflowRoutes.startInputAsIs)
-          complete(startWorkflowSchema(id, tq, input, req.config, wid, ns, oid, pid, author, req.title))
+          complete(go(input, req.config, req.title))
         } ~
-        complete(startWorkflowSchema(id, tq, None, None, wid, ns, oid, pid, author, None))
+        complete(go(None, None, None))
       })
     }
   }
@@ -475,22 +492,6 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
           }
         })
       }
-    }
-  }
-
-  @POST @Path("/config/schema/{sid}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("config"), summary = "Create a WorkflowConfig from a WorkflowSchema id (composed of DetectorConfig; ids assigned by the store)",
-    parameters = Array(
-      new Parameter(name = "sid", in = ParameterIn.PATH, description = "WorkflowSchema id"),
-      new Parameter(name = "contractId", in = ParameterIn.QUERY, description = "contract id to place the DetectorConfigs under (default 0)")),
-    responses = Array(new ApiResponse(responseCode = "200", description = "created",
-      content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
-  def createWorkflowConfigFromSchemaRoute(sid: Int) = post {
-    parameters("contractId".as[Int].?, "oid".?) { (contractId, oidQ) =>
-      // admin/service only; honor the requested oid as the created WorkflowConfig owner (storeOid)
-      authenticate()(authn => authorize(canAccessAdmin(authn)) {
-        complete(createWorkflowConfigFromSchema(sid, contractId.getOrElse(0), storeOid(authn, oidQ)))
-      })
     }
   }
 
@@ -696,6 +697,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
           pathPrefix("dsl") { pathEndOrSingleSlash { createWorkflowSchemaDslRoute() } },
           pathPrefix(IntNumber) { id =>
             pathPrefix("start") { pathEndOrSingleSlash { startWorkflowSchemaRoute(id) } } ~
+            pathPrefix("spawn") { pathEndOrSingleSlash { spawnWorkflowSchemaRoute(id) } } ~
             pathEndOrSingleSlash {
               getWorkflowSchemaRoute(id) ~ updateWorkflowSchemaRoute(id) ~ deleteWorkflowSchemaRoute(id)
             }
@@ -706,7 +708,6 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
       pathPrefix("config") {
         concat(
           pathPrefix("dsl") { pathEndOrSingleSlash { createWorkflowConfigDslRoute() } },
-          pathPrefix("schema") { pathPrefix(IntNumber) { sid => pathEndOrSingleSlash { createWorkflowConfigFromSchemaRoute(sid) } } },
           pathPrefix("assembly") { pathEndOrSingleSlash { createWorkflowConfigAssemblyRoute() } },
           pathPrefix("link") { pathEndOrSingleSlash { createWorkflowConfigLinkRoute() } },
           pathPrefix("resolve") {

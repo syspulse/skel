@@ -82,6 +82,9 @@ object WorkflowRegistry {
   // Engine start failure after the config is persisted is NOT a 500: the config is returned as FAILED
   // with meta.err. 500 only if the WorkflowConfig could not be created.
   final case class StartWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], config: Option[JsObject], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String], author: Option[String], title: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
+  // Same as StartWorkflowSchema (same params, same input/config/input_data handling) but does NOT start
+  // the Engine: persists the WorkflowConfig as UNKNOWN with no xid.
+  final case class SpawnWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], config: Option[JsObject], wid: Option[String], ns: Option[String], oid: Option[String], pid: Option[String], author: Option[String], title: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
 
   // ---- WorkflowConfig ----
   // oid=None skips owner match (admin); pid=None skips project filter. Both are applied in the Store.
@@ -98,9 +101,6 @@ object WorkflowRegistry {
   val RESOLVE_WID = "wid"  // resolve by workflowId (WorkflowConfig.meta.wid / name)
   val RESOLVE_ID  = "id"   // resolve by WorkflowConfig.id (then query the Engine by that config's xid)
   final case class CreateWorkflowConfig(req: WorkflowConfigCreateReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
-  // create a WorkflowConfig from a WorkflowSchema id (composed of DetectorConfig); ids assigned by the store.
-  // contractId places the new DetectorConfigs under a contract (default 0 - see Setup0).
-  final case class CreateWorkflowConfigFromSchema(sid: Int, contractId: Int, oid: Option[String], replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   // bootstrap the default placement (tenant -> project -> contract); all fields parameterized
   final case class Setup0(tenantId: Int, projectId: Int, contractId: Int, name: String, status: String, replyTo: ActorRef[Try[WorkflowActionRes]]) extends Command
   final case class CreateWorkflowConfigDsl(req: WorkflowConfigDslReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
@@ -285,6 +285,48 @@ object WorkflowRegistry {
     resolveStartInput(store, wconf, input)
       .flatMap { case (wc, payload) => WorkflowAssembly.start(wc, wc.name, engine, store, taskQueue, payload, ns, wid) }
       .recoverWith { case e => markStartFailed(store, wconf.id, e) }
+
+  /** Persist after resolveStartInput without Engine.start. Records tq/ns/wid on meta; status stays UNKNOWN. */
+  def spawnWithResolvedInput(store: WorkflowStore, wconf: WorkflowConfig,
+                             input: Option[String], taskQueue: String, ns: Option[String], wid: Option[String])
+                            (implicit ec: ExecutionContext): Future[WorkflowConfig] =
+    resolveStartInput(store, wconf, input)
+      .flatMap { case (wc, _) =>
+        val meta0 = wc.meta.getOrElse(Map.empty[String, Any]) + ("tq" -> taskQueue)
+        val meta1 = ns.filter(_.nonEmpty).map(v => meta0 + ("ns" -> v)).getOrElse(meta0)
+        val meta  = wid.filter(_.nonEmpty).map(v => meta1 + ("wid" -> v)).getOrElse(meta1)
+        store.addWConf(wc.copy(meta = Some(meta), updatedAt = System.currentTimeMillis()))
+      }
+      .recoverWith { case e => markStartFailed(store, wconf.id, e) }
+
+  /**
+   * Create a WorkflowConfig from a WorkflowSchema (input/config/input_data/tq/ns/wid/oid/pid/author/title).
+   * `startEngine=true` then starts it; `false` only persists (spawn).
+   */
+  private def materializeFromSchema(store: WorkflowStore, engine: Engine, id: Int, taskQueue: Option[String],
+                                    input: Option[String], config: Option[JsObject], wid: Option[String],
+                                    ns: Option[String], oid: Option[String], pid: Option[String],
+                                    author: Option[String], title: Option[String], startEngine: Boolean)
+                                   (implicit ec: ExecutionContext): Future[WorkflowConfigs] =
+    store.createWConfFromWSchema(id, oid = oid.filter(_.nonEmpty), pid = pid.filter(_.nonEmpty), wid = wid, author = author.filter(_.nonEmpty), title = title.filter(_.nonEmpty)).flatMap { wconf0 =>
+      val wconf = config.map(c => wconf0.copy(config = Some(c))).getOrElse(wconf0)
+      val tq    = taskQueue.filter(_.nonEmpty)
+                    .orElse(wconf.meta.flatMap(_.get("tq")).map(_.toString).filter(_.nonEmpty))
+                    .getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
+      val run   = if (startEngine) startWithResolvedInput(store, engine, wconf, input, tq, ns, wid)
+                  else spawnWithResolvedInput(store, wconf, input, tq, ns, wid)
+      run.flatMap { saved =>
+        if (startEngine && saved.xid.exists(_.trim.nonEmpty)) {
+          (for {
+            resolved <- resolveWconfs(store, engine, saved.xid.toSeq, Some(RESOLVE_RID))
+            started  <- markStarting(store, resolved)
+          } yield started).recoverWith { case e =>
+            log.warn(s"StartWorkflowSchema: resolve after start failed for WorkflowConfig(${saved.id}): ${e.getMessage}", e)
+            asConfigs(store, saved)
+          }
+        } else asConfigs(store, saved)
+      }
+    }
 
   /** Wrap a single persisted WorkflowConfig as the schema-start response (includes its DetectorConfigs). */
   private def asConfigs(store: WorkflowStore, wconf: WorkflowConfig)(implicit ec: ExecutionContext): Future[WorkflowConfigs] =
@@ -723,38 +765,14 @@ object WorkflowRegistry {
 
       case StartWorkflowSchema(id, taskQueue, input, config, wid, ns, oid, pid, author, title, replyTo) =>
         log.info(s"StartWorkflowSchema: sid=${id}, tq=${taskQueue}, wid=${wid}, ns=${ns}, oid=${oid}, pid=${pid}, author=${author}, title=${title}, config=${config.isDefined} => ${engine}")
-        // Create a WorkflowConfig FROM the schema, then start it on the Engine:
-        //   WorkflowType = WorkflowSchema.name (== the created config.name, which defaults to the schema name)
-        //   WorkflowId   = `wid` (if non-empty) else new WorkflowConfig.title (or .name if title is empty)
-        // When `wid` is provided it is ALSO used as the WorkflowConfig.title (set at creation).
-        // taskQueue: request -> config.meta("tq") -> default.
-        // input: caller JSON as-is (skips input_data); else meta.input_data queries the created
-        // WorkflowConfig as ?entity={input_data} and stores that view as meta.input; else meta.input.
-        // `config` (when Some) replaces WorkflowConfig.config (the JsonSchemaDefault instance);
-        // None keeps the default instantiated from WorkflowSchema.schema.
-        // The start input JSON is recorded into meta.input as a String (JsonMap serializes String
-        // to a JSON string). Folded in BEFORE start(), which preserves meta.* on its single write.
-        // Then Resolve pulls the live statuses (STARTING while the run is not yet visible on the Engine).
-        // If input_data query or Engine start fails AFTER the WorkflowConfig is persisted, return 200
-        // with status=FAILED and meta.err (do not 500). 500 only if the config itself could not be created.
-        val f = store.createWConfFromWSchema(id, oid = oid.filter(_.nonEmpty), pid = pid.filter(_.nonEmpty), wid = wid, author = author.filter(_.nonEmpty), title = title.filter(_.nonEmpty)).flatMap { wconf0 =>
-          val wconf     = config.map(c => wconf0.copy(config = Some(c))).getOrElse(wconf0)
-          val tq        = taskQueue.filter(_.nonEmpty)
-                            .orElse(wconf.meta.flatMap(_.get("tq")).map(_.toString).filter(_.nonEmpty))
-                            .getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
-          startWithResolvedInput(store, engine, wconf, input, tq, ns, wid).flatMap { saved =>
-            if (saved.xid.exists(_.trim.nonEmpty)) {
-              (for {
-                resolved <- resolveWconfs(store, engine, saved.xid.toSeq, Some(RESOLVE_RID))
-                started  <- markStarting(store, resolved)
-              } yield started).recoverWith { case e =>
-                log.warn(s"StartWorkflowSchema: resolve after start failed for WorkflowConfig(${saved.id}): ${e.getMessage}", e)
-                asConfigs(store, saved)
-              }
-            } else asConfigs(store, saved)
-          }
-        }
-        f.andThen(logFail).onComplete(replyTo ! _)
+        materializeFromSchema(store, engine, id, taskQueue, input, config, wid, ns, oid, pid, author, title, startEngine = true)
+          .andThen(logFail).onComplete(replyTo ! _)
+        Behaviors.same
+
+      case SpawnWorkflowSchema(id, taskQueue, input, config, wid, ns, oid, pid, author, title, replyTo) =>
+        log.info(s"SpawnWorkflowSchema: sid=${id}, tq=${taskQueue}, wid=${wid}, ns=${ns}, oid=${oid}, pid=${pid}, author=${author}, title=${title}, config=${config.isDefined}")
+        materializeFromSchema(store, engine, id, taskQueue, input, config, wid, ns, oid, pid, author, title, startEngine = false)
+          .andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case StartWorkflowConfig(id, taskQueue, input, ns, wid, replyTo) =>
@@ -816,11 +834,6 @@ object WorkflowRegistry {
           ))
         }
         fCreate.andThen(logFail).onComplete(replyTo ! _)
-        Behaviors.same
-
-      case CreateWorkflowConfigFromSchema(sid, contractId, oid, replyTo) =>
-        log.info(s"CreateWorkflowConfigFromSchema: sid=${sid} contractId=${contractId} oid=${oid}")
-        store.createWConfFromWSchema(sid, contractId, oid = oid.filter(_.nonEmpty)).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case Setup0(tenantId, projectId, contractId, name, status, replyTo) =>

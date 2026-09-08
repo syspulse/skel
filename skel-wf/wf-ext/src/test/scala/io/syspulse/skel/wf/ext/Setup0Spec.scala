@@ -121,8 +121,9 @@ class Setup0Spec extends AnyWordSpec with Matchers with ScalatestRouteTest with 
       val ws = Await.result(store.addWSchema(WorkflowSchema.of(0, "WFromSchema", g)), 10.seconds)
 
       // create the WorkflowConfig from the schema -> DetectorConfig with contract_id=0 (FK satisfied by setup0)
-      val cfg = Post(s"/config/schema/${ws.id}") ~~> routes.routes ~> check {
-        status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
+      val cfg = Post(s"/schema/${ws.id}/spawn") ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[WorkflowConfigs].configs.head
       }
       val cid = cfg.graph.nodes.values.head.cid.get
       jdbcCount(s"SELECT count(*) FROM detector WHERE id=$cid AND contract_id=0") shouldBe 1L

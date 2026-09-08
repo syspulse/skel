@@ -360,6 +360,44 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       stored.meta.flatMap(_.get("err")).map(_.toString).exists(_.contains("could not query WorkflowConfig")) shouldBe true
     }
 
+    "POST /schema/{id}/spawn creates a WorkflowConfig without starting the Engine" in {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.ProofOfOwnership", name = Some("SpawnFlow"))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      val before = stubEngine.lastRunId
+      val spawned = Post(s"/schema/${sc.id}/spawn", WorkflowSchemaStartReq(input = Some(spray.json.JsObject("k" -> spray.json.JsString("v"))))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val c = responseAs[WorkflowConfigs].configs.head
+        c.sid shouldBe sc.id
+        c.xid shouldBe None
+        c.status shouldBe WorkflowStatus.UNKNOWN
+        c.meta.flatMap(_.get("input")).map(_.toString) shouldBe Some("""{"k":"v"}""")
+        c
+      }
+      stubEngine.lastRunId shouldBe before
+      Await.result(store.getWConf(spawned.id), 5.seconds).xid shouldBe None
+    }
+
+    "POST /schema/{id}/spawn uses meta.input_data without Engine start" in {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.ProofOfOwnership -> Detector.ProofOfReserve", name = Some("SpawnInputData"))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      Put(s"/schema/${sc.id}", WorkflowSchemaUpdateReq(meta = Some(Map("input_data" -> "detectors,schema")))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+      }
+      val spawned = Post(s"/schema/${sc.id}/spawn") ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val c = responseAs[WorkflowConfigs].configs.head
+        c.xid shouldBe None
+        c.status shouldBe WorkflowStatus.UNKNOWN
+        c
+      }
+      val in = spawned.meta.flatMap(_.get("input")).map(_.toString).get
+      val view = in.parseJson.convertTo[WorkflowConfigView]
+      view.detectors.get should have size 2
+      view.schemas.get should have size 2
+    }
+
     "POST /schema/{id}/start without config keeps the JsonSchema default WorkflowConfig.config" in {
       val sc = Post("/schema", WorkflowSchemaCreateReq(
         name = "StartDef",
