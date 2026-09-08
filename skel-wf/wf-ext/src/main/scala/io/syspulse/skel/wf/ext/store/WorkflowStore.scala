@@ -118,10 +118,15 @@ object WorkflowStore {
   /**
    * Owner/project access filter for DetectorConfig.
    * oid -> `contract.tenantId`, pid -> `contract.projectId` (numeric string ids).
+   * ATTENTION !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   * Currently because of the need for Contract instance to be created to hold all Workflow Detectors
+   * the Authorozation for WORKLFOW DetectroCOnfig is diabled.
+   * WORKAROUND: Every project must have a hidden Contract instance which is not shown in Contracts UI
    */
   def ownedDConf(dconf: DetectorConfig, oid: Option[String], pid: Option[String]): Boolean =
-    oid.forall(o => o.toIntOption.contains(dconf.contract.tenantId)) &&
-    pid.forall(p => p.toIntOption.contains(dconf.contract.projectId))
+    // oid.forall(o => o.toIntOption.contains(dconf.contract.tenantId)) &&
+    // pid.forall(p => p.toIntOption.contains(dconf.contract.projectId))
+    true
 
   /** Parse optional numeric oid/pid for DetectorConfigContract.tenantId / projectId. */
   def dconfTenantId(oid: Option[String]): Int = oid.flatMap(_.toIntOption).getOrElse(0)
