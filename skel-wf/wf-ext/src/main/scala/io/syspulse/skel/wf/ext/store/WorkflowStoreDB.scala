@@ -204,7 +204,7 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
 
   // ========================================================= create (workflow_* only)
   def create: Try[Long] = {
-    val ddl = scala.collection.immutable.ListMap(
+    val ddl = Map(
       TABLE_WORKFLOW_SCHEMA ->
         s"""CREATE TABLE IF NOT EXISTS ${TABLE_WORKFLOW_SCHEMA} (
          | id BIGSERIAL PRIMARY KEY, created_at BIGINT, updated_at BIGINT, status VARCHAR(64),
@@ -279,11 +279,25 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   def delWSchema(id: Int): Future[Int] = delById(TABLE_WORKFLOW_SCHEMA, id, "WorkflowSchema")
   def allWSchemas: Future[Seq[WorkflowSchema]] = query(s"SELECT $SCHEMA_SEL FROM $TABLE_WORKFLOW_SCHEMA ORDER BY id", rowSchema)
   def sizeWSchemas: Future[Long] = countOf(TABLE_WORKFLOW_SCHEMA)
-  override def listWSchemas(from: Option[Long], size: Option[Long])(implicit ec: ExecutionContext): Future[WorkflowStore.PageWSchema] =
-    for {
-      total <- sizeWSchemas
-      items <- query(s"SELECT $SCHEMA_SEL FROM $TABLE_WORKFLOW_SCHEMA ORDER BY id ${limitClause(from,size)}", rowSchema)
-    } yield WorkflowStore.PageWSchema(items, total)
+  override def listWSchemas(from: Option[Long], size: Option[Long], search: Option[String] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageWSchema] = {
+    val q = search.map(_.trim).filter(_.nonEmpty)
+    q match {
+      case None =>
+        for {
+          total <- sizeWSchemas
+          items <- query(s"SELECT $SCHEMA_SEL FROM $TABLE_WORKFLOW_SCHEMA ORDER BY id ${limitClause(from,size)}", rowSchema)
+        } yield WorkflowStore.PageWSchema(items, total)
+      case Some(_) =>
+        allWSchemas.map { xs =>
+          val filtered = WorkflowStore.filterWSchemas(xs, search)
+          val items = (from, size) match {
+            case (Some(f), Some(s)) => WorkflowStore.page(filtered, f, s)
+            case _                  => filtered
+          }
+          WorkflowStore.PageWSchema(items, filtered.size.toLong)
+        }
+    }
+  }
 
   // ========================================================= WorkflowConfig
   private val CONFIG_COLS = Seq("id","sid","created_at","updated_at","status","name","version","title","description","author","icon","tags","graph","oid","pid","xid","meta","config")

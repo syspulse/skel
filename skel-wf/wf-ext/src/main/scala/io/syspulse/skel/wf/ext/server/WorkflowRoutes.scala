@@ -130,7 +130,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
     })
 
   // ---- WorkflowSchema asks ----
-  def getWorkflowSchemas(from: Option[Long], size: Option[Long], entity: String): Future[Try[WorkflowSchemas]] = registry.ask(GetWorkflowSchemas(from, size, entity, _))
+  def getWorkflowSchemas(from: Option[Long], size: Option[Long], entity: String, search: Option[String]): Future[Try[WorkflowSchemas]] = registry.ask(GetWorkflowSchemas(from, size, entity, search, _))
   def getWorkflowSchema(id: Int, entity: String): Future[Try[WorkflowSchemaView]] = registry.ask(GetWorkflowSchema(id, entity, _))
   def createWorkflowSchema(req: WorkflowSchemaCreateReq): Future[Try[WorkflowSchema]] = registry.ask(CreateWorkflowSchema(req, _))
   def createWorkflowSchemaDsl(req: WorkflowSchemaDslReq): Future[Try[WorkflowSchema]] = registry.ask(CreateWorkflowSchemaDsl(req, _))
@@ -222,12 +222,13 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
     parameters = Array(
       new Parameter(name = "from", in = ParameterIn.QUERY, description = "Page offset"),
       new Parameter(name = "size", in = ParameterIn.QUERY, description = "Page size"),
-      new Parameter(name = "entity", in = ParameterIn.QUERY, description = "CSV of graf,detector,schema (or all); default graf")),
+      new Parameter(name = "entity", in = ParameterIn.QUERY, description = "CSV of graf,detector,schema (or all); default graf"),
+      new Parameter(name = "search", in = ParameterIn.QUERY, description = "case-insensitive substring over name|title|description|tags")),
     responses = Array(new ApiResponse(responseCode = "200", description = "schemas",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchemas]))))))
   def getWorkflowSchemasRoute() = get {
-    parameters("from".as[Long].?, "size".as[Long].?, "entity".?) { (from, size, entity) =>
-      authUser { complete(getWorkflowSchemas(pageFrom(from, size), pageSize(from, size), entityMode(entity))) }
+    parameters("from".as[Long].?, "size".as[Long].?, "entity".?, "search".?) { (from, size, entity, search) =>
+      authUser { complete(getWorkflowSchemas(pageFrom(from, size), pageSize(from, size), entityMode(entity), search)) }
     }
   }
 

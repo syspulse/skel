@@ -96,5 +96,24 @@ class WorkflowSchemaSpec extends AnyWordSpec with Matchers {
       all.wschemas should have size 10
       all.total shouldBe 10L
     }
+
+    "search schemas by name/title (case-insensitive) and page the filtered set" in {
+      val store = new WorkflowStoreMem()
+      Await.result(store.addWSchema(WorkflowSchema.of(0, "PoR-Flow", graf(0)).copy(title = "Proof of Reserve")), timeout)
+      Await.result(store.addWSchema(WorkflowSchema.of(1, "PoR-Flow", graf(1)).copy(title = "PoR Daily")), timeout)
+      Await.result(store.addWSchema(WorkflowSchema.of(2, "Audit", graf(2)).copy(title = "Workflow Audit")), timeout)
+
+      val por = Await.result(store.listWSchemas(None, None, Some("por")), timeout)
+      por.total shouldBe 2L
+      por.wschemas.map(_.id).toSet shouldBe Set(0, 1)
+
+      val page = Await.result(store.listWSchemas(Some(0), Some(1), Some("por")), timeout)
+      page.total shouldBe 2L
+      page.wschemas should have size 1
+
+      val audit = Await.result(store.listWSchemas(None, None, Some("AUDIT")), timeout)
+      audit.total shouldBe 1L
+      audit.wschemas.head.id shouldBe 2
+    }
   }
 }

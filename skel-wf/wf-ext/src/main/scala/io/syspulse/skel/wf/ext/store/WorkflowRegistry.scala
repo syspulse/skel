@@ -66,7 +66,7 @@ object WorkflowRegistry {
   private def stripGraf(g: WorkflowGraf): WorkflowGraf = g.copy(nodes = Map.empty, links = Map.empty)
 
   // ---- WorkflowSchema ----
-  final case class GetWorkflowSchemas(from: Option[Long], size: Option[Long], entity: String, replyTo: ActorRef[Try[WorkflowSchemas]]) extends Command
+  final case class GetWorkflowSchemas(from: Option[Long], size: Option[Long], entity: String, search: Option[String], replyTo: ActorRef[Try[WorkflowSchemas]]) extends Command
   final case class GetWorkflowSchema(id: Int, entity: String, replyTo: ActorRef[Try[WorkflowSchemaView]]) extends Command
   final case class CreateWorkflowSchema(req: WorkflowSchemaCreateReq, replyTo: ActorRef[Try[WorkflowSchema]]) extends Command
   final case class CreateWorkflowSchemaDsl(req: WorkflowSchemaDslReq, replyTo: ActorRef[Try[WorkflowSchema]]) extends Command
@@ -652,9 +652,9 @@ object WorkflowRegistry {
     Behaviors.receiveMessage {
 
       // -------------------------------------------------- WorkflowSchema
-      case GetWorkflowSchemas(from, size, entity, replyTo) =>
+      case GetWorkflowSchemas(from, size, entity, search, replyTo) =>
         val ents = parseEntities(entity)
-        store.listWSchemas(from, size).flatMap { p =>
+        store.listWSchemas(from, size, search).flatMap { p =>
           val wschemas = if (ents(ENTITY_GRAF)) p.wschemas else p.wschemas.map(wschema => wschema.copy(graph = stripGraf(wschema.graph)))
           if (ents(ENTITY_SCHEMA)) wschemaDschemas(store, p.wschemas).map(m => WorkflowSchemas(wschemas, p.total, Some(m)))
           else Future.successful(WorkflowSchemas(wschemas, p.total, None))

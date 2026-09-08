@@ -57,6 +57,22 @@ object WorkflowStore {
     if (asc) ordered else ordered.reverse
   }
 
+  /**
+   * Optional server-side search for WorkflowSchema listing (used by GET /schema):
+   *   - search: case-insensitive substring over name | title | description | tags
+   */
+  def filterWSchemas(xs: Seq[WorkflowSchema], search: Option[String]): Seq[WorkflowSchema] = {
+    search.map(_.trim.toLowerCase).filter(_.nonEmpty) match {
+      case Some(q) =>
+        xs.filter(s =>
+          s.name.toLowerCase.contains(q) ||
+          s.title.toLowerCase.contains(q) ||
+          s.description.toLowerCase.contains(q) ||
+          s.tags.exists(_.toLowerCase.contains(q)))
+      case None => xs
+    }
+  }
+
   def filterSortWConfs(xs: Seq[WorkflowConfig], f: WConfFilter): Seq[WorkflowConfig] = {
     val searched = f.search.map(_.trim.toLowerCase).filter(_.nonEmpty) match {
       case Some(q) =>
@@ -171,13 +187,14 @@ trait WorkflowStore {
   def delWSchema(id: Int): Future[Int]
   def allWSchemas: Future[Seq[WorkflowSchema]]
   def sizeWSchemas: Future[Long]
-  def listWSchemas(from: Option[Long] = None, size: Option[Long] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageWSchema] =
+  def listWSchemas(from: Option[Long] = None, size: Option[Long] = None, search: Option[String] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageWSchema] =
     allWSchemas.map { xs =>
+      val filtered = WorkflowStore.filterWSchemas(xs, search)
       val items = (from, size) match {
-        case (Some(f), Some(s)) => WorkflowStore.page(xs, f, s)
-        case _                  => xs
+        case (Some(f), Some(s)) => WorkflowStore.page(filtered, f, s)
+        case _                  => filtered
       }
-      WorkflowStore.PageWSchema(items, xs.size.toLong)
+      WorkflowStore.PageWSchema(items, filtered.size.toLong)
     }
 
   // ---------------------------------------------------------------- WorkflowConfig
