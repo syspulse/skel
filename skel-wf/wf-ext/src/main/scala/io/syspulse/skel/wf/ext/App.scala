@@ -13,9 +13,7 @@ import io.syspulse.skel.wf.ext.server.WorkflowRoutes
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
 import io.syspulse.skel.wf.ext.engine.{Engine, EngineMapper, EngineWorkflow, EngineStatus, WorkflowRuntimeView, TrackMapper}
 import io.hacken.ext.wf.{WorkflowConfig, WorkflowSchema, WorkflowStatus}
-import io.hacken.ext.wf.WorkflowConfigJson._
 import io.hacken.ext.detector.DetectorConfig
-import spray.json._
 
 case class Config(
   host: String = "0.0.0.0",
@@ -381,15 +379,16 @@ object App extends skel.Server {
             //val engine = newEngine()
             try {
               // create a WorkflowConfig FROM the schema, then start it (WorkflowType == schema.name,
-              // WorkflowId == <wid>|config.title|name); payload = schema.meta.input else WorkflowConfig JSON
+              // WorkflowId == <wid>|config.title|name); payload = meta.input_data view else meta.input
               val widOverride = rest.headOption.filter(_.nonEmpty)
               val f = for {
                 wconf  <- store.createWConfFromWSchema(idStr.toInt)
                 tq      = config.tq.getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
-                payload = WorkflowSchema.inputOf(wconf.meta).orElse(Some(wconf.toJson.compactPrint))
-                saved  <- WorkflowAssembly.start(wconf, wconf.name, engine, store, tq, payload, config.ns, widOverride)
+                saved  <- WorkflowRegistry.startWithResolvedInput(store, engine, wconf, None, tq, config.ns, widOverride)
               } yield saved
               Try(Await.result(f, config.timeout.millis)) match {
+                case Success(wconf) if wconf.status == WorkflowStatus.FAILED =>
+                  s"Failed start-schema: id=${wconf.id} status=FAILED err=${wconf.meta.flatMap(_.get("err")).getOrElse("")}"
                 case Success(wconf) =>
                   s"Started WorkflowConfig: id=${wconf.id}, name='${wconf.name}', schema=${wconf.sid}, " +
                     s"wid=${wconf.meta.flatMap(_.get("wid")).getOrElse("")}, xid=${wconf.xid.getOrElse("")}"

@@ -63,6 +63,15 @@ class ResolvePersistDBSpec extends AnyWordSpec with Matchers with ScalatestRoute
         | updated_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, status text DEFAULT 'ACTIVE' NOT NULL,
         | contract_id int4 NOT NULL, name text NOT NULL, source text NOT NULL, schema_id int4 DEFAULT 1 NOT NULL,
         | tags _text DEFAULT '{}' NOT NULL, config jsonb DEFAULT '{}'::jsonb NOT NULL)""".stripMargin)
+    st.execute("CREATE TABLE IF NOT EXISTS tenant (id int4 PRIMARY KEY, name text, status text)")
+    st.execute("CREATE TABLE IF NOT EXISTS project (id int4 PRIMARY KEY, tenant_id int4, name text)")
+    st.execute("""CREATE TABLE IF NOT EXISTS contract (
+      | id int4 PRIMARY KEY, project_id int4, name text DEFAULT '',
+      | chain_uid text, implementation text, address text,
+      | created_at timestamp DEFAULT CURRENT_TIMESTAMP, updated_at timestamp DEFAULT CURRENT_TIMESTAMP)""".stripMargin)
+    st.execute("INSERT INTO tenant (id, name, status) VALUES (0, 't', 'ACTIVE') ON CONFLICT DO NOTHING")
+    st.execute("INSERT INTO project (id, tenant_id, name) VALUES (0, 0, 'p') ON CONFLICT DO NOTHING")
+    st.execute("INSERT INTO contract (id, project_id, name) VALUES (0, 0, 'c') ON CONFLICT DO NOTHING")
     st.close(); conn.close()
 
     val cfgMap = new ConfigurationMap()
@@ -94,10 +103,9 @@ class ResolvePersistDBSpec extends AnyWordSpec with Matchers with ScalatestRoute
       jdbcExec("INSERT INTO detector(id, status, contract_id, name, source) VALUES (201, 'ACTIVE', 0, 'ProofOfOwnership', 'SRC')")
 
       // a WorkflowConfig bound to the runtime (xid == RID), with a node referencing DetectorConfig 201
-      val g = WorkflowGraf(id = 1, sid = Some(1)).withNode(WorkflowNode(id = 0, title = "poo", sid = 100, cid = Some(201)))
-      val sc = WorkflowSchema.of(1, "W1", g)
-      Await.result(store.addWSchema(sc), 10.seconds)
-      Await.result(store.addWConf(WorkflowConfig.from(1, sc, xid = Some(RID)).copy(status = "ACTIVE")), 10.seconds)
+      val g = WorkflowGraf(id = 0, sid = None).withNode(WorkflowNode(id = 0, title = "poo", sid = 100, cid = Some(201)))
+      val sc = Await.result(store.addWSchema(WorkflowSchema.of(0, "W1", g)), 10.seconds)
+      val wc = Await.result(store.addWConf(WorkflowConfig.from(0, sc, xid = Some(RID)).copy(status = "ACTIVE")), 10.seconds)
 
       Get(s"/config/resolve/$RID?type=rid") ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
@@ -107,7 +115,7 @@ class ResolvePersistDBSpec extends AnyWordSpec with Matchers with ScalatestRoute
       }
 
       // both statuses are persisted via the optimized status-only UPDATE (DetectorConfig via `detector`)
-      Await.result(store.getWConf(1), 10.seconds).status shouldBe EngineStatus.RUNNING
+      Await.result(store.getWConf(wc.id), 10.seconds).status shouldBe EngineStatus.RUNNING
       Await.result(store.getDConf(201), 10.seconds).get.status shouldBe EngineStatus.COMPLETED
       // the status-only UPDATE touched ONLY status (name/source untouched)
       Await.result(store.getDConf(201), 10.seconds).get.name shouldBe "ProofOfOwnership"

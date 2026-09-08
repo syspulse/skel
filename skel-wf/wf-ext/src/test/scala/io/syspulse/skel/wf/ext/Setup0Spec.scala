@@ -60,7 +60,8 @@ class Setup0Spec extends AnyWordSpec with Matchers with ScalatestRouteTest with 
     jdbcExec("""CREATE TABLE contract (
       | id int4 PRIMARY KEY, project_id int4 NOT NULL REFERENCES project(id),
       | name text DEFAULT '' NOT NULL, created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
-      | updated_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL)""".stripMargin)
+      | updated_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      | chain_uid text, implementation text, address text)""".stripMargin)
     jdbcExec("""CREATE TABLE detector_schema (
       | id serial4 PRIMARY KEY, created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
       | status text DEFAULT 'ACTIVE' NOT NULL, name text NOT NULL, version text NOT NULL, schema jsonb NOT NULL,
@@ -114,14 +115,13 @@ class Setup0Spec extends AnyWordSpec with Matchers with ScalatestRouteTest with 
     }
 
     "let a WorkflowConfig be created (DetectorConfig contract_id=0, FK ok) and deleted" in {
-      // seed a DetectorSchema + a WorkflowSchema whose node references it
-      Await.result(store.addDSchema(
-        io.hacken.ext.detector.DetectorSchema(70, 1000L, 1000L, "ACTIVE", "Schema_70", "1.0.0", "t", "", "", None, None, Seq(), Seq(), None, None)), 10.seconds)
-      val g = WorkflowGraf(id = 60, sid = Some(60)).withNode(WorkflowNode(id = 0, title = "n0", sid = 70))
-      Await.result(store.addWSchema(WorkflowSchema.of(60, "WFromSchema", g)), 10.seconds)
+      val ds = Await.result(store.addDSchema(
+        io.hacken.ext.detector.DetectorSchema(0, 1000L, 1000L, "ACTIVE", "Schema_70", "1.0.0", "t", "", "", None, None, Seq(), Seq(), None, None)), 10.seconds)
+      val g = WorkflowGraf(id = 0, sid = None).withNode(WorkflowNode(id = 0, title = "n0", sid = ds.id))
+      val ws = Await.result(store.addWSchema(WorkflowSchema.of(0, "WFromSchema", g)), 10.seconds)
 
       // create the WorkflowConfig from the schema -> DetectorConfig with contract_id=0 (FK satisfied by setup0)
-      val cfg = Post("/config/schema/60") ~~> routes.routes ~> check {
+      val cfg = Post(s"/config/schema/${ws.id}") ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
       }
       val cid = cfg.graph.nodes.values.head.cid.get

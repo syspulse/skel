@@ -67,12 +67,16 @@ class WorkflowStoreDir(dir: String = "store/") extends WorkflowStoreMem {
 
   // ---------------------------------------------------------------- persisted overrides
   override def addWSchema(wschema: WorkflowSchema): Future[WorkflowSchema] =
-    write(DIR_SCHEMA, wschema.id, wschema.toJson.compactPrint).fold(Future.failed, _ => super.addWSchema(wschema))
+    super.addWSchema(wschema).flatMap { saved =>
+      write(DIR_SCHEMA, saved.id, saved.toJson.compactPrint).fold(Future.failed, _ => Future.successful(saved))
+    }
   override def delWSchema(id: Int): Future[Int] =
     super.delWSchema(id).map { r => remove(DIR_SCHEMA, id); r }
 
   override def addWConf(wconf: WorkflowConfig): Future[WorkflowConfig] =
-    write(DIR_CONFIG, wconf.id, wconf.toJson.compactPrint).fold(Future.failed, _ => super.addWConf(wconf))
+    super.addWConf(wconf).flatMap { saved =>
+      write(DIR_CONFIG, saved.id, saved.toJson.compactPrint).fold(Future.failed, _ => Future.successful(saved))
+    }
   override def delWConf(id: Int): Future[Int] =
     super.delWConf(id).map { r => remove(DIR_CONFIG, id); r }
 
@@ -82,11 +86,15 @@ class WorkflowStoreDir(dir: String = "store/") extends WorkflowStoreMem {
     super.delGraf(id).map { r => remove(DIR_GRAF, id); r }
 
   override def addDSchema(dschema: DetectorSchema): Future[DetectorSchema] =
-    write(DIR_DSCHEMA, dschema.id, dschema.toJson.compactPrint).fold(Future.failed, _ => super.addDSchema(dschema))
+    super.addDSchema(dschema).flatMap { saved =>
+      write(DIR_DSCHEMA, saved.id, saved.toJson.compactPrint).fold(Future.failed, _ => Future.successful(saved))
+    }
   override def delDSchema(id: Int): Future[Int] =
     super.delDSchema(id).map { r => remove(DIR_DSCHEMA, id); r }
   override def addDConf(dconf: DetectorConfig): Future[DetectorConfig] =
-    write(DIR_DCONFIG, dconf.id, dconf.toJson.compactPrint).fold(Future.failed, _ => super.addDConf(dconf))
+    super.addDConf(dconf).flatMap { saved =>
+      write(DIR_DCONFIG, saved.id, saved.toJson.compactPrint).fold(Future.failed, _ => Future.successful(saved))
+    }
   override def delDConf(id: Int): Future[Int] =
     super.delDConf(id).map { r => remove(DIR_DCONFIG, id); r }
 

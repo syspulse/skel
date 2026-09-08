@@ -31,6 +31,16 @@ class WorkflowSchemaSpec extends AnyWordSpec with Matchers {
       s.graph.isTemplate shouldBe true
     }
 
+    "inputOf / inputDataOf treat blank as absent (no default input_data)" in {
+      WorkflowSchema.inputOf(None) shouldBe None
+      WorkflowSchema.inputDataOf(None) shouldBe None
+      WorkflowSchema.inputDataOf(Some(Map.empty)) shouldBe None
+      WorkflowSchema.inputDataOf(Some(Map("input_data" -> ""))) shouldBe None
+      WorkflowSchema.inputDataOf(Some(Map("input_data" -> "  "))) shouldBe None
+      WorkflowSchema.inputOf(Some(Map("input" -> """{"k":"v"}"""))) shouldBe Some("""{"k":"v"}""")
+      WorkflowSchema.inputDataOf(Some(Map("input_data" -> "detectors,schema"))) shouldBe Some("detectors,schema")
+    }
+
     "round-trip via JSON preserving the graph" in {
       val s = WorkflowSchema.of(3, "WorkflowAudit", graf(3))
       val s2 = s.toJson.convertTo[WorkflowSchema]

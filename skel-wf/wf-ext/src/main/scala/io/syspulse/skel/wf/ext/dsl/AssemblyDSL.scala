@@ -138,67 +138,48 @@ object AssemblyDSL {
     val asm = for {
       existingDS <- store.allDSchemas
       existingDC <- store.allDConfs
-      ds0        <- store.nextDSchemaId
-      dc0        <- store.nextDConfId
-      wsId       <- wid.map(i => Future.successful(i.max(0))).getOrElse(store.nextWSchemaId)
-      wcId       <- store.nextWConfId
-      grafId     <- store.nextGrafId
+      wsId       <- wid.map(i => Future.successful(i.max(0))).getOrElse(Future.successful(WorkflowStore.NEW_ID))
+      wcId       = WorkflowStore.NEW_ID
+      grafId     = WorkflowStore.NEW_ID
       result     <- {
         val dsById = existingDS.map(d => d.id -> d).toMap
         val dcById = existingDC.map(d => d.id -> d).toMap
 
-        var nextDs = ds0
-        var nextDc = dc0
-        val newDetectorSchemas = scala.collection.mutable.ListBuffer[DetectorSchema]()
-        val newDetectorConfigs = scala.collection.mutable.ListBuffer[DetectorConfig]()
-
-        // Within a single assembly, by-name nodes that share a name reuse ONE DetectorSchema
-        // (created on first use) but each still gets its OWN DetectorConfig - i.e. several
-        // DetectorConfigs of the same DetectorSchema with potentially different configurations.
-        val schemaByName = scala.collection.mutable.Map[String, DetectorSchema]()
-        def schemaForName(name: String): DetectorSchema =
-          schemaByName.getOrElseUpdate(name, {
-            val ds = newDetectorSchema(nextDs, name); nextDs += 1
-            newDetectorSchemas += ds
-            ds
-          })
-
-        // resolve each node spec -> (DetectorSchema id, optional DetectorConfig id)
-        val resolved = specs.zipWithIndex.map { case (spec, i) =>
-          if (spec.isById) {
-            if (spec.isDetector) {
-              val dc = dcById.getOrElse(spec.refId,
-                throw new ErrNotFound(s"DetectorConfig not found: id=${spec.refId}"))
-              val sid = dc.schema.map(_.id).getOrElse(-1)
-              (i, spec, sid, Some(dc.id))
-            } else {
-              val ds = dsById.getOrElse(spec.refId,
-                throw new ErrNotFound(s"DetectorSchema not found: id=${spec.refId}"))
-              (i, spec, ds.id, None)
+        // unique by-name DetectorSchemas (one per name), then one DetectorConfig per Detector node
+        val names = specs.filterNot(_.isById).map(_.ref).distinct
+        val persist =
+          names.foldLeft(Future.successful(Map.empty[String, DetectorSchema])) { (accF, name) =>
+            accF.flatMap { acc =>
+              store.addDSchema(newDetectorSchema(WorkflowStore.NEW_ID, name)).map(s => acc + (name -> s))
             }
-          } else {
-            // resolve (or create once) the DetectorSchema for this name. A new DetectorConfig is
-            // created only when assembling a WorkflowConfig (`assembly`) for a `Detector` node; the
-            // `schema` command (createConfig == false) creates DetectorSchema objects only.
-            val ds = schemaForName(spec.ref)
-            if (createConfig && spec.isDetector) {
-              val dc = newDetectorConfig(nextDc, spec.ref, ds); nextDc += 1
-              newDetectorConfigs += dc
-              (i, spec, ds.id, Some(dc.id))
-            } else (i, spec, ds.id, None)
+          }.flatMap { schemaByName =>
+            val savedSchemas = names.map(schemaByName)
+            specs.zipWithIndex.foldLeft(Future.successful((Seq.empty[DetectorConfig], Seq.empty[(Int, NodeSpec, Int, Option[Int])]))) {
+              case (accF, (spec, i)) => accF.flatMap { case (dcs, resolved) =>
+                if (spec.isById) {
+                  if (spec.isDetector) {
+                    val dc = dcById.getOrElse(spec.refId, throw new ErrNotFound(s"DetectorConfig not found: id=${spec.refId}"))
+                    Future.successful((dcs, resolved :+ (i, spec, dc.schema.map(_.id).getOrElse(-1), Some(dc.id))))
+                  } else {
+                    val ds = dsById.getOrElse(spec.refId, throw new ErrNotFound(s"DetectorSchema not found: id=${spec.refId}"))
+                    Future.successful((dcs, resolved :+ (i, spec, ds.id, None)))
+                  }
+                } else {
+                  val ds = schemaByName(spec.ref)
+                  if (createConfig && spec.isDetector)
+                    store.addDConf(newDetectorConfig(WorkflowStore.NEW_ID, spec.ref, ds)).map { dc =>
+                      (dcs :+ dc, resolved :+ (i, spec, ds.id, Some(dc.id)))
+                    }
+                  else Future.successful((dcs, resolved :+ (i, spec, ds.id, None)))
+                }
+              }
+            }.map { case (savedConfigs, resolved) => (savedSchemas, savedConfigs, resolved) }
           }
-        }
 
-        // persist new detectors, then build + persist the Workflow graph referencing them
-        val persistDetectors =
-          Future.sequence(newDetectorSchemas.toList.map(store.addDSchema)).flatMap { _ =>
-            Future.sequence(newDetectorConfigs.toList.map(store.addDConf))
-          }
-
-        persistDetectors.flatMap { _ =>
+        persist.flatMap { case (savedSchemas, savedConfigs, resolved) =>
           buildWorkflow(resolved, createConfig, wsId, wcId, grafId, wname, store).map {
             case (savedSchema, savedConfig) =>
-              AssemblyResult(savedSchema, savedConfig, newDetectorSchemas.toList, newDetectorConfigs.toList)
+              AssemblyResult(savedSchema, savedConfig, savedSchemas, savedConfigs)
           }
         }
       }
@@ -264,9 +245,9 @@ object AssemblyDSL {
     val asm = for {
       existingDC <- store.allDConfs
       existingDS <- store.allDSchemas
-      wsId       <- wid.map(i => Future.successful(i.max(0))).getOrElse(store.nextWSchemaId)
-      wcId       <- store.nextWConfId
-      grafId     <- store.nextGrafId
+      wsId       <- wid.map(i => Future.successful(i.max(0))).getOrElse(Future.successful(WorkflowStore.NEW_ID))
+      wcId       = WorkflowStore.NEW_ID
+      grafId     = WorkflowStore.NEW_ID
       result     <- {
         val dcById   = existingDC.map(d => d.id -> d).toMap
         val dsById   = existingDS.map(d => d.id -> d).toMap
@@ -350,21 +331,27 @@ object AssemblyDSL {
     )
     val schema = WorkflowSchema.of(wsId, wname.getOrElse(randomName()), WorkflowGraf.sync(schemaGraf))
 
-    store.addWSchema(schema).flatMap { savedSchema =>
-      if (!createConfig) {
-        store.addGraf(WorkflowGraf.sync(schemaGraf)).map(_ => (savedSchema, None))
-      } else {
-        val configGraf = WorkflowGraf(
-          id = grafId, sid = Some(wsId), cid = Some(wcId),
-          nodes = configNodes.map(n => n.id -> n).toMap,
-          links = linksMap,
-        )
-        val config = WorkflowConfig.from(wcId, savedSchema)
-          .copy(graph = WorkflowGraf.sync(configGraf))
-        for {
-          savedConfig <- store.addWConf(config)
-          _           <- store.addGraf(WorkflowGraf.sync(configGraf))
-        } yield (savedSchema, Some(savedConfig))
+    store.addWSchema(schema).flatMap { saved0 =>
+      val sid = saved0.id
+      val schemaGraf1 = WorkflowGraf.sync(schemaGraf.copy(sid = Some(sid)))
+      val schema1 = saved0.copy(graph = schemaGraf1)
+      store.addWSchema(schema1).flatMap { savedSchema =>
+        if (!createConfig) {
+          store.addGraf(savedSchema.graph).map(g => (savedSchema.copy(graph = g), None))
+        } else {
+          val configGraf0 = WorkflowGraf(
+            id = grafId, sid = Some(sid), cid = Some(wcId),
+            nodes = configNodes.map(n => n.id -> n).toMap,
+            links = linksMap,
+          )
+          val config0 = WorkflowConfig.from(wcId, savedSchema).copy(graph = WorkflowGraf.sync(configGraf0))
+          for {
+            savedCfg0   <- store.addWConf(config0)
+            configGraf   = WorkflowGraf.sync(configGraf0.copy(cid = Some(savedCfg0.id), sid = Some(sid)))
+            savedGraf   <- store.addGraf(configGraf)
+            savedConfig <- store.addWConf(WorkflowConfig.from(savedCfg0.id, savedSchema).copy(graph = savedGraf))
+          } yield (savedSchema, Some(savedConfig))
+        }
       }
     }
   }

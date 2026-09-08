@@ -12,6 +12,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 
+import spray.json._
 import io.hacken.ext.wf._
 import io.syspulse.skel.wf.ext.store.{WorkflowStoreMem, WorkflowRegistry}
 import io.syspulse.skel.wf.ext.server._
@@ -191,7 +192,7 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       wtype shouldBe sc.name
       wid shouldBe (if (started.title.trim.nonEmpty) started.title else started.name)
       tq shouldBe "GENERIC_WORKFLOW_QUEUE"
-      input.isDefined shouldBe true
+      input shouldBe None // empty API input must not fall back to the WorkflowConfig JSON
     }
 
     "POST /schema/{id}/start honors ?tq and a caller-supplied JSON input body" in {
@@ -204,7 +205,7 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       }
       val (_, _, tq, input) = stubEngine.lastStart.get
       tq shouldBe "MY_QUEUE"                                    // request overrides the default
-      input shouldBe Some("""{"k":"v"}""")                     // caller input overrides the config payload
+      input shouldBe Some("""{"k":"v"}""")                     // caller input used as-is
     }
 
     "POST /schema/{id}/start {input,config} replaces WorkflowConfig.config and still forwards input" in {
@@ -235,6 +236,29 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       input shouldBe Some("""{"k":"v"}""")
     }
 
+    "POST /schema/{id}/start with empty input does not start with the WorkflowConfig JSON" in {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.ProofOfOwnership", name = Some("StartEmptyIn"))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      Post(s"/schema/${sc.id}/start", WorkflowSchemaStartReq(input = Some(spray.json.JsString("")))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[WorkflowConfigs].configs.head.xid shouldBe Some(stubEngine.lastRunId)
+      }
+      val (_, _, _, input) = stubEngine.lastStart.get
+      input shouldBe None
+    }
+
+    "POST /schema/{id}/start uses a JSON-string input as-is (not re-quoted)" in {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.ProofOfOwnership", name = Some("StartStrIn"))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      Post(s"/schema/${sc.id}/start", WorkflowSchemaStartReq(input = Some(spray.json.JsString("""{"from":"api"}""")))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+      }
+      val (_, _, _, input) = stubEngine.lastStart.get
+      input shouldBe Some("""{"from":"api"}""")
+    }
+
     "POST /schema/{id}/start uses WorkflowSchema.meta.input when the body omits input" in {
       val sc = Post("/schema", WorkflowSchemaCreateReq(name = "StartMetaIn")) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
@@ -252,6 +276,88 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       val (_, _, _, input) = stubEngine.lastStart.get
       input shouldBe Some("""{"from":"schema"}""")
       Await.result(store.getWConf(started.id), 5.seconds).meta.flatMap(_.get("input")) shouldBe Some("""{"from":"schema"}""")
+    }
+
+    "POST /schema/{id}/start with empty meta.input_data uses meta.input as-is" in {
+      val sc = Post("/schema", WorkflowSchemaCreateReq(name = "StartEmptyData")) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      sc.meta.flatMap(_.get("input_data")) shouldBe None
+      Put(s"/schema/${sc.id}", WorkflowSchemaUpdateReq(meta = Some(Map(
+        "input" -> """{"from":"schema"}""",
+        "input_data" -> ""
+      )))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+      }
+      Post(s"/schema/${sc.id}/start") ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[WorkflowConfigs].configs.head.xid shouldBe Some(stubEngine.lastRunId)
+      }
+      val (_, _, _, input) = stubEngine.lastStart.get
+      input shouldBe Some("""{"from":"schema"}""")
+    }
+
+    "POST /schema/{id}/start uses meta.input_data as ?entity= to query WorkflowConfig into meta.input" in {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.ProofOfOwnership -> Detector.ProofOfReserve", name = Some("StartInputData"))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      Put(s"/schema/${sc.id}", WorkflowSchemaUpdateReq(meta = Some(Map(
+        "input" -> """{"from":"schema"}""",
+        "input_data" -> "detectors,schema"
+      )))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+      }
+      val started = Post(s"/schema/${sc.id}/start") ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val c = responseAs[WorkflowConfigs].configs.head
+        c.status shouldBe EngineStatus.RUNNING
+        c.meta.flatMap(_.get("input_data")).map(_.toString) shouldBe Some("detectors,schema")
+        c
+      }
+      val (_, _, _, input) = stubEngine.lastStart.get
+      input.isDefined shouldBe true
+      val view = input.get.parseJson.convertTo[WorkflowConfigView]
+      view.detectors.get should have size 2
+      view.schemas.get should have size 2
+      view.config.graph.nodes shouldBe empty
+      view.config.id shouldBe started.id
+      Await.result(store.getWConf(started.id), 5.seconds).meta.flatMap(_.get("input")).map(_.toString) shouldBe input
+    }
+
+    "POST /schema/{id}/start caller input wins over meta.input_data (no WorkflowConfig query)" in {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.ProofOfOwnership", name = Some("StartInputWins"))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      Put(s"/schema/${sc.id}", WorkflowSchemaUpdateReq(meta = Some(Map("input_data" -> "detectors,schema")))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+      }
+      Post(s"/schema/${sc.id}/start", WorkflowSchemaStartReq(input = Some(spray.json.JsObject("k" -> spray.json.JsString("v"))))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+      }
+      val (_, _, _, input) = stubEngine.lastStart.get
+      input shouldBe Some("""{"k":"v"}""")
+    }
+
+    "POST /schema/{id}/start with invalid meta.input_data sets FAILED and meta.err" in {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.ProofOfOwnership", name = Some("StartBadData"))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      Put(s"/schema/${sc.id}", WorkflowSchemaUpdateReq(meta = Some(Map("input_data" -> "not-an-entity")))) ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+      }
+      val before = stubEngine.lastRunId
+      val created = Post(s"/schema/${sc.id}/start") ~~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val c = responseAs[WorkflowConfigs].configs.head
+        c.status shouldBe WorkflowStatus.FAILED
+        c.xid shouldBe None
+        c.meta.flatMap(_.get("err")).map(_.toString).exists(_.contains("input_data")) shouldBe true
+        c
+      }
+      stubEngine.lastRunId shouldBe before
+      val stored = Await.result(store.getWConf(created.id), 5.seconds)
+      stored.status shouldBe WorkflowStatus.FAILED
+      stored.meta.flatMap(_.get("err")).map(_.toString).exists(_.contains("could not query WorkflowConfig")) shouldBe true
     }
 
     "POST /schema/{id}/start without config keeps the JsonSchema default WorkflowConfig.config" in {

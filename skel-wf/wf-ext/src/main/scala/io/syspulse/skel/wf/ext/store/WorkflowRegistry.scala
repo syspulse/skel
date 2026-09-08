@@ -44,16 +44,21 @@ object WorkflowRegistry {
   val ENTITY_ALL      = "all"
 
   /** Parse a CSV `entity` value into a normalized token set. Accepts singular/plural + a couple of
-   *  common typos. Unknown/empty -> the default {graf}. */
-  def parseEntities(raw: String): Set[String] = {
+   *  common typos. Does not apply the GET default — empty/unknown-only is empty. */
+  def entityTokens(raw: String): Set[String] = {
     val toks = Option(raw).getOrElse("").split(",").map(_.trim.toLowerCase).filter(_.nonEmpty)
-    val expanded: Set[String] = toks.flatMap {
+    toks.flatMap {
       case ENTITY_ALL                                        => Seq(ENTITY_GRAF, ENTITY_DETECTOR, ENTITY_SCHEMA)
       case "graf" | "graph" | "grafs" | "graphs"             => Seq(ENTITY_GRAF)
       case "detector" | "detectors" | "detectos" | "detecto" => Seq(ENTITY_DETECTOR)
       case "schema" | "schemas" | "schena" | "schemes"       => Seq(ENTITY_SCHEMA)
       case _                                                 => Seq.empty
     }.toSet
+  }
+
+  /** Parse a CSV `entity` value. Unknown/empty -> the default {graf} (GET /config?entity=). */
+  def parseEntities(raw: String): Set[String] = {
+    val expanded = entityTokens(raw)
     if (expanded.isEmpty) Set(ENTITY_GRAF) else expanded
   }
 
@@ -70,7 +75,8 @@ object WorkflowRegistry {
   // Start an Engine (Temporal) execution FROM a WorkflowSchema by id: create a WorkflowConfig from the
   // schema, then start a Workflow with WorkflowType == WorkflowSchema.name and WorkflowId = `wid` (if
   // non-empty) else the new WorkflowConfig.title (or .name if title is empty). taskQueue = request ->
-  // config.meta("tq") -> default; input = caller JSON override else WorkflowSchema.meta.input else the WorkflowConfig JSON.
+  // config.meta("tq") -> default; input = caller JSON as-is, else meta.input_data (?entity= query of the
+  // WorkflowConfig, stored as meta.input), else WorkflowSchema.meta.input. Caller input skips the query.
   // `config` (when Some) replaces the created WorkflowConfig.config; None keeps the schema default.
   // xid = RunId (+ meta.wid), persists, then Resolves live statuses (STARTING while not yet visible).
   // Engine start failure after the config is persisted is NOT a 500: the config is returned as FAILED
@@ -235,9 +241,50 @@ object WorkflowRegistry {
     }
   }
 
-  /** Run Engine start; if it fails, persist FAILED + meta.err and return that config (no exception). */
-  private def startOrRecover(store: WorkflowStore, id: Int, startF: Future[WorkflowConfig])(implicit ec: ExecutionContext): Future[WorkflowConfig] =
-    startF.recoverWith { case e => markStartFailed(store, id, e) }
+  /**
+   * Resolve Engine start payload and fold it into WorkflowConfig.meta.input:
+   *   - non-empty caller `input` is used as-is (skips meta.input_data query)
+   *   - else non-empty meta.input_data queries this config as GET ?entity={input_data} and stores the
+   *     WorkflowConfigView JSON as meta.input (CSV like "detectors,schema" is accepted)
+   *   - else WorkflowSchema.meta.input as-is
+   * A failed / unrecognized input_data query fails the Future (caller persists FAILED + err).
+   */
+  def resolveStartInput(store: WorkflowStore, wconf: WorkflowConfig, input: Option[String])
+                       (implicit ec: ExecutionContext): Future[(WorkflowConfig, Option[String])] = {
+    input.filter(_.nonEmpty) match {
+      case Some(in) =>
+        val wc = wconf.copy(meta = Some(wconf.meta.getOrElse(Map.empty[String, Any]) + ("input" -> in)))
+        Future.successful((wc, Some(in)))
+      case None =>
+        WorkflowSchema.inputDataOf(wconf.meta) match {
+          case None =>
+            Future.successful((wconf, WorkflowSchema.inputOf(wconf.meta)))
+          case Some(entity) =>
+            val ents = entityTokens(entity)
+            if (ents.isEmpty)
+              Future.failed(new Exception(
+                s"invalid input_data='${entity}': could not query WorkflowConfig (expected entity CSV: graf,detector,schema,all)"))
+            else
+              wconfView(store, wconf, ents).map { view =>
+                import WorkflowJson._
+                val js = view.toJson.compactPrint
+                val wc = wconf.copy(meta = Some(wconf.meta.getOrElse(Map.empty[String, Any]) + ("input" -> js)))
+                (wc, Some(js))
+              }.recoverWith { case e =>
+                Future.failed(new Exception(
+                  s"input_data='${entity}': could not query WorkflowConfig: ${Option(e.getMessage).filter(_.nonEmpty).getOrElse(e.toString)}"))
+              }
+        }
+    }
+  }
+
+  /** Start after resolveStartInput; Engine or input_data failure -> persisted FAILED + meta.err. */
+  def startWithResolvedInput(store: WorkflowStore, engine: Engine, wconf: WorkflowConfig,
+                             input: Option[String], taskQueue: String, ns: Option[String], wid: Option[String])
+                            (implicit ec: ExecutionContext): Future[WorkflowConfig] =
+    resolveStartInput(store, wconf, input)
+      .flatMap { case (wc, payload) => WorkflowAssembly.start(wc, wc.name, engine, store, taskQueue, payload, ns, wid) }
+      .recoverWith { case e => markStartFailed(store, wconf.id, e) }
 
   /** Wrap a single persisted WorkflowConfig as the schema-start response (includes its DetectorConfigs). */
   private def asConfigs(store: WorkflowStore, wconf: WorkflowConfig)(implicit ec: ExecutionContext): Future[WorkflowConfigs] =
@@ -582,10 +629,9 @@ object WorkflowRegistry {
         val f = for {
           icon  <- Future.fromTry(UriUtil.uriSanitize(req.icon))
           graph <- Future.fromTry(req.graph.map(WorkflowStore.uriSanitize).getOrElse(Success(WorkflowGraf(id = 0))))
-          id    <- store.nextWSchemaId
           now    = System.currentTimeMillis()
           wschema = WorkflowSchema(
-            id = id, 
+            id = WorkflowStore.NEW_ID, 
             createdAt = now, 
             updatedAt = now, 
             status = req.status.getOrElse(WorkflowSchema.Status.ACTIVE),
@@ -599,9 +645,15 @@ object WorkflowRegistry {
             tags = req.tags.getOrElse(Seq()),
             schema = req.schema,
             uiSchema = req.uiSchema,
-            graph = WorkflowGraf.sync(graph.copy(sid = graph.sid.orElse(Some(id)))),
+            graph = WorkflowGraf.sync(graph.copy(sid = graph.sid)),
           )
-          saved <- store.addWSchema(wschema)
+          saved0 <- store.addWSchema(wschema)
+          // DB insert assigns id via id_seq; keep graph.sid aligned with the persisted schema id
+          saved  <- {
+            val g = WorkflowGraf.sync(saved0.graph.copy(sid = Some(saved0.id)))
+            if (saved0.graph.sid.contains(saved0.id)) Future.successful(saved0)
+            else store.addWSchema(saved0.copy(graph = g))
+          }
         } yield saved
         f.andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
@@ -676,25 +728,21 @@ object WorkflowRegistry {
         //   WorkflowId   = `wid` (if non-empty) else new WorkflowConfig.title (or .name if title is empty)
         // When `wid` is provided it is ALSO used as the WorkflowConfig.title (set at creation).
         // taskQueue: request -> config.meta("tq") -> default.
-        // input: caller JSON override else WorkflowSchema.meta.input (JSON string) else config JSON.
+        // input: caller JSON as-is (skips input_data); else meta.input_data queries the created
+        // WorkflowConfig as ?entity={input_data} and stores that view as meta.input; else meta.input.
         // `config` (when Some) replaces WorkflowConfig.config (the JsonSchemaDefault instance);
         // None keeps the default instantiated from WorkflowSchema.schema.
         // The start input JSON is recorded into meta.input as a String (JsonMap serializes String
-        // to a JSON string). Caller input overwrites; omitted body keeps schema.meta.input (already
-        // copied onto the config). Folded in BEFORE start(), which preserves meta.* on its single write.
+        // to a JSON string). Folded in BEFORE start(), which preserves meta.* on its single write.
         // Then Resolve pulls the live statuses (STARTING while the run is not yet visible on the Engine).
-        // If the Engine start fails AFTER the WorkflowConfig is persisted, return 200 with status=FAILED
-        // and meta.err (do not 500). 500 only if the config itself could not be created.
+        // If input_data query or Engine start fails AFTER the WorkflowConfig is persisted, return 200
+        // with status=FAILED and meta.err (do not 500). 500 only if the config itself could not be created.
         val f = store.createWConfFromWSchema(id, oid = oid.filter(_.nonEmpty), pid = pid.filter(_.nonEmpty), wid = wid, author = author.filter(_.nonEmpty), title = title.filter(_.nonEmpty)).flatMap { wconf0 =>
-          val wconf1    = config.map(c => wconf0.copy(config = Some(c))).getOrElse(wconf0)
-          val wconf     = input.filter(_.nonEmpty)
-                            .map(in => wconf1.copy(meta = Some(wconf1.meta.getOrElse(Map.empty[String, Any]) + ("input" -> in))))
-                            .getOrElse(wconf1)
+          val wconf     = config.map(c => wconf0.copy(config = Some(c))).getOrElse(wconf0)
           val tq        = taskQueue.filter(_.nonEmpty)
                             .orElse(wconf.meta.flatMap(_.get("tq")).map(_.toString).filter(_.nonEmpty))
                             .getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
-          val payload   = input.filter(_.nonEmpty).orElse(WorkflowSchema.inputOf(wconf.meta)).orElse(Some(wconf.toJson.compactPrint))
-          startOrRecover(store, wconf0.id, WorkflowAssembly.start(wconf, wconf.name, engine, store, tq, payload, ns, wid)).flatMap { saved =>
+          startWithResolvedInput(store, engine, wconf, input, tq, ns, wid).flatMap { saved =>
             if (saved.xid.exists(_.trim.nonEmpty)) {
               (for {
                 resolved <- resolveWconfs(store, engine, saved.xid.toSeq, Some(RESOLVE_RID))
@@ -717,17 +765,13 @@ object WorkflowRegistry {
             Future.failed(new Exception(
               s"WorkflowConfig ${id} cannot be started (status=${wconf.status}, xid=${wconf.xid.getOrElse("")}): only UNKNOWN/FAILED configs without xid can be started"))
           else {
-            // fold the input override into meta.input; resolve tq/ns/wid from request else saved meta
-            val wc  = input.filter(_.nonEmpty)
-                        .map(in => wconf.copy(meta = Some(wconf.meta.getOrElse(Map.empty[String, Any]) + ("input" -> in))))
-                        .getOrElse(wconf)
+            // fold caller input / meta.input_data into meta.input; resolve tq/ns/wid from request else saved meta
             val tq  = taskQueue.filter(_.nonEmpty)
-                        .orElse(wc.meta.flatMap(_.get("tq")).map(_.toString).filter(_.nonEmpty))
+                        .orElse(wconf.meta.flatMap(_.get("tq")).map(_.toString).filter(_.nonEmpty))
                         .getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
-            val payload = input.filter(_.nonEmpty).orElse(WorkflowSchema.inputOf(wc.meta)).orElse(Some(wc.toJson.compactPrint))
-            val nsEff  = ns.filter(_.nonEmpty).orElse(wc.meta.flatMap(_.get("ns")).map(_.toString).filter(_.nonEmpty))
-            val widEff = wid.filter(_.nonEmpty).orElse(wc.meta.flatMap(_.get("wid")).map(_.toString).filter(_.nonEmpty))
-            startOrRecover(store, wconf.id, WorkflowAssembly.start(wc, wc.name, engine, store, tq, payload, nsEff, widEff)).flatMap { saved =>
+            val nsEff  = ns.filter(_.nonEmpty).orElse(wconf.meta.flatMap(_.get("ns")).map(_.toString).filter(_.nonEmpty))
+            val widEff = wid.filter(_.nonEmpty).orElse(wconf.meta.flatMap(_.get("wid")).map(_.toString).filter(_.nonEmpty))
+            startWithResolvedInput(store, engine, wconf, input, tq, nsEff, widEff).flatMap { saved =>
               if (saved.xid.exists(_.trim.nonEmpty)) {
                 (for {
                   resolved <- resolveWconfs(store, engine, saved.xid.toSeq, Some(RESOLVE_RID))
@@ -885,7 +929,7 @@ object WorkflowRegistry {
 
       case CreateDetectorSchema(req, replyTo) =>
         log.info(s"CreateDetectorSchema: ${req.name}")
-        store.nextDSchemaId.flatMap(id => Future.fromTry(dschemaFromReq(id, req)).flatMap(store.addDSchema)).andThen(logFail).onComplete(replyTo ! _)
+        Future.fromTry(dschemaFromReq(WorkflowStore.NEW_ID, req)).flatMap(store.addDSchema).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case UpdateDetectorSchema(id, req, replyTo) =>
@@ -919,8 +963,7 @@ object WorkflowRegistry {
         log.info(s"CreateDetectorConfig: ${req.name} oid=${req.oid} pid=${req.pid}")
         val r = for {
           dschemaRef <- req.sid.map(sid => store.getDSchema(sid)).getOrElse(Future.successful(None))
-          id         <- store.nextDConfId
-          saved      <- store.addDConf(dconfFromReq(id, req, dschemaRef))
+          saved      <- store.addDConf(dconfFromReq(WorkflowStore.NEW_ID, req, dschemaRef))
         } yield saved
         r.andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same

@@ -5,7 +5,7 @@
 #   ./wf-schema-start.sh <schemaId>
 #   TASK_QUEUE=MY_QUEUE ./wf-schema-start.sh <schemaId>     # override the task queue
 #   WID=my-workflow-id  ./wf-schema-start.sh <schemaId>     # override the Temporal WorkflowId
-#   INPUT='{"k":"v"}'   ./wf-schema-start.sh <schemaId>     # caller JSON input (overrides the config payload)
+#   INPUT='{"k":"v"}'   ./wf-schema-start.sh <schemaId>     # caller JSON input (as-is Engine payload; empty uses schema.meta.input)
 ID=${1:?"Usage: wf-schema-start.sh <schemaId>  (TASK_QUEUE=.. WID=.. NS=.. INPUT='{..}')"}
 TASK_QUEUE=${TASK_QUEUE:-}
 WID=${WID:-}
@@ -33,7 +33,8 @@ Q=""
 
 
 if [[ -n "$INPUT" ]]; then
-  curl -S -s -D /dev/stderr -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $ACCESS_TOKEN" -d "$INPUT" "$URL"
+  BODY=$(printf '{"input":%s}' "$INPUT")
+  curl -S -s -D /dev/stderr -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $ACCESS_TOKEN" -d "$BODY" "$URL"
 else
   curl -S -s -D /dev/stderr -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $ACCESS_TOKEN" "$URL"
 fi

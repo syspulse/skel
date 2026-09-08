@@ -41,8 +41,28 @@ import io.hacken.ext.detector._
 //     populated on READ via a LEFT JOIN to `contract` (+ `project` for tenant_id) - READ-ONLY: the
 //     contract/project tables are never written (see toDetectorConfig / DCONFIG_FROM).
 //
-// NOTE: Postgres-only (jsonb, ON CONFLICT, `col::text`, text[], timestamp arithmetic).
+// NOTE: Postgres-only (jsonb, `col::text`, text[], timestamp arithmetic). New rows are INSERT
+// without `id` so `id_seq` (serial / BIGSERIAL) assigns the key; `RETURNING id` is copied onto
+// the entity. Existing rows are UPDATE by id. `nextIdOf` is not used for writes.
 // ============================================================================
+
+/* 
+
+-- Fixing the existing id_seq 
+
+SELECT setval('detector_id_seq', COALESCE((SELECT MAX(id) FROM detector), 1),
+              (SELECT MAX(id) FROM detector) IS NOT NULL);
+
+-- Fixing no id_seq
+CREATE SEQUENCE IF NOT EXISTS workflow_config_id_seq;
+ALTER TABLE workflow_config
+  ALTER COLUMN id SET DEFAULT nextval('workflow_config_id_seq');
+ALTER SEQUENCE workflow_config_id_seq OWNED BY workflow_config.id;
+SELECT setval('workflow_config_id_seq', COALESCE((SELECT MAX(id) FROM workflow_config), 1),
+              (SELECT MAX(id) FROM workflow_config) IS NOT NULL);
+
+*/
+
 class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
     extends StoreDBAsync[WorkflowConfig, Int](dbConfigRef, WorkflowStoreDB.TABLE_WORKFLOW_CONFIG, Some(configuration), None)
     with WorkflowStore {
@@ -149,11 +169,27 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   private def execUpdateInt(sql: String): Future[Int] = exec(sql).map(_.toInt)
   private def countOf(tbl: String, where: String = ""): Future[Long] =
     ctx.executeQuerySingle(s"SELECT count(*) FROM $tbl $where", extractor = (r: RowData, _: Unit) => r.getAs[Long](0))(ExecutionInfo.unknown, ())
-  private def nextIdOf(tbl: String): Future[Int] =
-    ctx.executeQuerySingle(s"SELECT COALESCE(MAX(id),-1)+1 FROM $tbl", extractor = (r: RowData, _: Unit) => rInt(r, 0))(ExecutionInfo.unknown, ())
-  private def upsert(tbl: String, cols: Seq[String], vals: Seq[String]): Future[Long] = {
-    val set = cols.tail.map(c => s"$c = EXCLUDED.$c").mkString(", ")
-    exec(s"INSERT INTO $tbl (${cols.mkString(",")}) VALUES (${vals.mkString(",")}) ON CONFLICT (id) DO UPDATE SET $set")
+  /**
+   * Persist `e` by UPDATE-if-present / INSERT-without-id. A new row NEVER sends `id` — Postgres
+   * `id_seq` (serial / BIGSERIAL) assigns it and `RETURNING id` is copied onto the entity. Sending
+   * an explicit id on INSERT leaves `id_seq` behind the table (next serial insert collides).
+   * `nextIdOf` is not used for writes.
+   */
+  private def insertReturning[E](tbl: String, cols: Seq[String], vals: Seq[String], withId: Int => E): Future[E] = {
+    val (cs, vs) = cols.zip(vals).filter(_._1 != "id").unzip
+    val sql = s"INSERT INTO $tbl (${cs.mkString(",")}) VALUES (${vs.mkString(",")}) RETURNING id"
+    ctx.executeQuerySingle(sql, extractor = (r: RowData, _: Unit) => rInt(r, 0))(ExecutionInfo.unknown, ())
+      .map(withId)
+  }
+  private def put[E](tbl: String, id: Int, cols: Seq[String], vals: Seq[String], withId: Int => E): Future[E] = {
+    val set = cols.zip(vals).collect { case (c, v) if c != "id" => s"$c = $v" }.mkString(", ")
+    // id<=0 is a new row (NEW_ID / 0): never UPDATE — a caller placeholder like `1` would
+    // otherwise match a serial id just assigned and overwrite that row.
+    if (id <= 0) insertReturning(tbl, cols, vals, withId)
+    else exec(s"UPDATE $tbl SET $set WHERE id=$id").flatMap { n =>
+      if (n > 0) Future.successful(withId(id))
+      else insertReturning(tbl, cols, vals, withId)
+    }
   }
   private def delById(tbl: String, id: Int, what: String): Future[Int] =
     exec(s"DELETE FROM $tbl WHERE id = $id").flatMap { n =>
@@ -171,17 +207,17 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
     val ddl = scala.collection.immutable.ListMap(
       TABLE_WORKFLOW_SCHEMA ->
         s"""CREATE TABLE IF NOT EXISTS ${TABLE_WORKFLOW_SCHEMA} (
-         | id BIGINT PRIMARY KEY, created_at BIGINT, updated_at BIGINT, status VARCHAR(64),
+         | id BIGSERIAL PRIMARY KEY, created_at BIGINT, updated_at BIGINT, status VARCHAR(64),
          | name VARCHAR(255), version VARCHAR(64), title VARCHAR(255), description TEXT, author VARCHAR(255),
          | icon TEXT, faq TEXT, tags TEXT, meta TEXT, graph TEXT, schema JSONB, ui_schema JSONB)""".stripMargin,
       TABLE_WORKFLOW_CONFIG ->
         s"""CREATE TABLE IF NOT EXISTS ${TABLE_WORKFLOW_CONFIG} (
-         | id BIGINT PRIMARY KEY, sid BIGINT, created_at BIGINT, updated_at BIGINT, status VARCHAR(64),
+         | id BIGSERIAL PRIMARY KEY, sid BIGINT, created_at BIGINT, updated_at BIGINT, status VARCHAR(64),
          | name VARCHAR(255), version VARCHAR(64), title VARCHAR(255), description TEXT, author VARCHAR(255),
          | icon TEXT, tags TEXT, graph TEXT, oid VARCHAR(128), pid VARCHAR(128), xid VARCHAR(128), meta TEXT, config JSONB)""".stripMargin,
       TABLE_WORKFLOW_GRAF ->
         s"""CREATE TABLE IF NOT EXISTS ${TABLE_WORKFLOW_GRAF} (
-         | id BIGINT PRIMARY KEY, sid BIGINT, cid BIGINT, nodes TEXT, links TEXT, meta TEXT, data JSONB)""".stripMargin,
+         | id BIGSERIAL PRIMARY KEY, sid BIGINT, cid BIGINT, nodes TEXT, links TEXT, meta TEXT, data JSONB)""".stripMargin,
       s"${TABLE_WORKFLOW_CONFIG}_xid" ->
         s"CREATE INDEX IF NOT EXISTS ${TABLE_WORKFLOW_CONFIG}_xid ON ${TABLE_WORKFLOW_CONFIG} (lower(xid))",
       s"${TABLE_WORKFLOW_CONFIG}_oid" ->
@@ -236,13 +272,13 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
     qOpt(wschema.icon), txtFaqOpt(wschema.faq, fmtWfFaq), csv(wschema.tags), txtJsonOpt(wschema.meta, fmtMeta), txtJson(wschema.graph, fmtGraf),
     jsonbOpt(wschema.schema), jsonbOpt(wschema.uiSchema))
 
-  def addWSchema(wschema: WorkflowSchema): Future[WorkflowSchema] = upsert(TABLE_WORKFLOW_SCHEMA, SCHEMA_COLS, valsSchema(wschema)).map(_ => wschema)
+  def addWSchema(wschema: WorkflowSchema): Future[WorkflowSchema] =
+    put(TABLE_WORKFLOW_SCHEMA, wschema.id, SCHEMA_COLS, valsSchema(wschema), id => wschema.copy(id = id))
   def getWSchemaOpt(id: Int): Future[Option[WorkflowSchema]] = query(s"SELECT $SCHEMA_SEL FROM $TABLE_WORKFLOW_SCHEMA WHERE id=$id", rowSchema).map(_.headOption)
   def getWSchema(id: Int): Future[WorkflowSchema] = getWSchemaOpt(id).map(_.getOrElse(throw new ErrNotFound(s"WorkflowSchema: ${id}")))
   def delWSchema(id: Int): Future[Int] = delById(TABLE_WORKFLOW_SCHEMA, id, "WorkflowSchema")
   def allWSchemas: Future[Seq[WorkflowSchema]] = query(s"SELECT $SCHEMA_SEL FROM $TABLE_WORKFLOW_SCHEMA ORDER BY id", rowSchema)
   def sizeWSchemas: Future[Long] = countOf(TABLE_WORKFLOW_SCHEMA)
-  override def nextWSchemaId(implicit ec: ExecutionContext): Future[Int] = nextIdOf(TABLE_WORKFLOW_SCHEMA)
   override def listWSchemas(from: Option[Long], size: Option[Long])(implicit ec: ExecutionContext): Future[WorkflowStore.PageWSchema] =
     for {
       total <- sizeWSchemas
@@ -264,7 +300,8 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
     qOpt(wconf.icon), csv(wconf.tags), txtJson(wconf.graph, fmtGraf), qOpt(wconf.oid), qOpt(wconf.pid), qOpt(wconf.xid), txtJsonOpt(wconf.meta, fmtMeta),
     jsonbOpt(wconf.config))
 
-  def addWConf(wconf: WorkflowConfig): Future[WorkflowConfig] = upsert(TABLE_WORKFLOW_CONFIG, CONFIG_COLS, valsConfig(wconf)).map(_ => wconf)
+  def addWConf(wconf: WorkflowConfig): Future[WorkflowConfig] =
+    put(TABLE_WORKFLOW_CONFIG, wconf.id, CONFIG_COLS, valsConfig(wconf), id => wconf.copy(id = id))
   def getWConfOpt(id: Int): Future[Option[WorkflowConfig]] = query(s"SELECT $CONFIG_SEL FROM $TABLE_WORKFLOW_CONFIG WHERE id=$id", rowConfig).map(_.headOption)
   def getWConf(id: Int): Future[WorkflowConfig] = getWConfOpt(id).map(_.getOrElse(throw new ErrNotFound(s"WorkflowConfig: ${id}")))
   def delWConf(id: Int): Future[Int] = delById(TABLE_WORKFLOW_CONFIG, id, "WorkflowConfig")
@@ -277,7 +314,6 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   // optimized status-only update (single column + updated_at); no read, no full-row rewrite
   override def updateWConfStatus(id: Int, status: String)(implicit ec: ExecutionContext): Future[Int] =
     execUpdateInt(s"UPDATE $TABLE_WORKFLOW_CONFIG SET status=${q(status)}, updated_at=${lLit(System.currentTimeMillis())} WHERE id=$id")
-  override def nextWConfId(implicit ec: ExecutionContext): Future[Int] = nextIdOf(TABLE_WORKFLOW_CONFIG)
   override def listWConfs(from: Option[Long], size: Option[Long],
                           oid: Option[String] = None, pid: Option[String] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageWConf] = {
     val where = Seq(oid.map(o => s"oid = ${q(o)}"), pid.map(p => s"pid = ${q(p)}")).flatten match {
@@ -333,14 +369,13 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
 
   def addGraf(g: WorkflowGraf): Future[WorkflowGraf] = {
     val g1 = WorkflowGraf.sync(g)
-    upsert(TABLE_WORKFLOW_GRAF, GRAF_COLS, valsGraf(g1)).map(_ => g1)
+    put(TABLE_WORKFLOW_GRAF, g1.id, GRAF_COLS, valsGraf(g1), id => g1.copy(id = id))
   }
   def getGrafOpt(id: Int): Future[Option[WorkflowGraf]] = query(s"SELECT $GRAF_SEL FROM $TABLE_WORKFLOW_GRAF WHERE id=$id", rowGraf).map(_.headOption)
   def getGraf(id: Int): Future[WorkflowGraf] = getGrafOpt(id).map(_.getOrElse(throw new ErrNotFound(s"WorkflowGraf: ${id}")))
   def delGraf(id: Int): Future[Int] = delById(TABLE_WORKFLOW_GRAF, id, "WorkflowGraf")
   def allGrafs: Future[Seq[WorkflowGraf]] = query(s"SELECT $GRAF_SEL FROM $TABLE_WORKFLOW_GRAF ORDER BY id", rowGraf)
   def sizeGrafs: Future[Long] = countOf(TABLE_WORKFLOW_GRAF)
-  override def nextGrafId(implicit ec: ExecutionContext): Future[Int] = nextIdOf(TABLE_WORKFLOW_GRAF)
   override def listGrafs(from: Option[Long], size: Option[Long])(implicit ec: ExecutionContext): Future[WorkflowStore.PageGraf] =
     for {
       total <- sizeGrafs
@@ -364,12 +399,12 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
       qOpt(optNZ(dschema.author)), qOpt(dschema.icon), pgArr(dschema.networkTags), qOpt(optNZ(dschema.title)))
   }
 
-  def addDSchema(dschema: DetectorSchema): Future[DetectorSchema] = upsert(TABLE_DET_SCHEMA, DSCHEMA_COLS, valsDSchema(dschema)).map(_ => dschema)
+  def addDSchema(dschema: DetectorSchema): Future[DetectorSchema] =
+    put(TABLE_DET_SCHEMA, dschema.id, DSCHEMA_COLS, valsDSchema(dschema), id => dschema.copy(id = id))
   def getDSchema(id: Int): Future[Option[DetectorSchema]] = query(s"SELECT $DSCHEMA_SEL FROM $TABLE_DET_SCHEMA WHERE id=$id", rowDSchema).map(_.headOption)
   def delDSchema(id: Int): Future[Int] = delById(TABLE_DET_SCHEMA, id, "DetectorSchema")
   def allDSchemas: Future[Seq[DetectorSchema]] = query(s"SELECT $DSCHEMA_SEL FROM $TABLE_DET_SCHEMA ORDER BY id", rowDSchema)
   def sizeDSchemas: Future[Long] = countOf(TABLE_DET_SCHEMA)
-  override def nextDSchemaId(implicit ec: ExecutionContext): Future[Int] = nextIdOf(TABLE_DET_SCHEMA)
   override def listDSchemas(from: Option[Long], size: Option[Long])(implicit ec: ExecutionContext): Future[WorkflowStore.PageDSchema] =
     for {
       total <- sizeDSchemas
@@ -418,9 +453,10 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
       .flatMap(_ => exec(s"INSERT INTO contract (id, project_id, name) VALUES (${lLit(contractId)}, ${lLit(projectId)}, ${q(name)}) ON CONFLICT (id) DO NOTHING"))
       .map(_ => ())
 
-  // Write DetectorConfig to the EXTERNAL `detector` table (upsert on id). Only the flat columns are
-  // written (contract/schema are FK ids; destinations are not persisted - see DCONFIG_COLS/valsDConfig).
-  def addDConf(dconf: DetectorConfig): Future[DetectorConfig] = upsert(TABLE_DET_CONFIG, DCONFIG_COLS, valsDConfig(dconf)).map(_ => dconf)
+  // Write DetectorConfig to the EXTERNAL `detector` table. Existing id -> UPDATE; new row -> INSERT
+  // without id so `detector_id_seq` assigns it (RETURNING id is copied onto the returned entity).
+  def addDConf(dconf: DetectorConfig): Future[DetectorConfig] =
+    put(TABLE_DET_CONFIG, dconf.id, DCONFIG_COLS, valsDConfig(dconf), id => dconf.copy(id = id))
   // status-only update on the external `detector` table (single column + updated_at timestamp)
   override def updateDConfStatus(id: Int, status: String)(implicit ec: ExecutionContext): Future[Int] =
     execUpdateInt(s"UPDATE $TABLE_DET_CONFIG SET status=${q(status)}, updated_at=${tsWrite(System.currentTimeMillis())} WHERE id=$id")
@@ -428,7 +464,6 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   def delDConf(id: Int): Future[Int] = delById(TABLE_DET_CONFIG, id, "DetectorConfig")
   def allDConfs: Future[Seq[DetectorConfig]] = query(s"SELECT $DCONFIG_SEL FROM $DCONFIG_FROM ORDER BY d.id", rowDConfig)
   def sizeDConfs: Future[Long] = countOf(TABLE_DET_CONFIG)
-  override def nextDConfId(implicit ec: ExecutionContext): Future[Int] = nextIdOf(TABLE_DET_CONFIG)
   // External `detector` table has no oid/pid columns - filter in memory after load (Mem/Dir persist them).
   override def listDConfs(from: Option[Long], size: Option[Long],
                           oid: Option[String] = None, pid: Option[String] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageDConf] =

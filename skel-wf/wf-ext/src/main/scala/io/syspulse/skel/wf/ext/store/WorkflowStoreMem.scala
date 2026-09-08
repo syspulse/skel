@@ -16,8 +16,15 @@ class WorkflowStoreMem extends WorkflowStore {
   var dSchemas: Map[Int, DetectorSchema] = Map()
   var dConfigs: Map[Int, DetectorConfig] = Map()
 
+  /** `id < 0` (NEW_ID) -> allocate max+1 (0 when empty). Non-negative ids are kept (update / explicit). */
+  private def allocId(id: Int, used: Iterable[Int]): Int =
+    if (id >= 0) id else if (used.isEmpty) 0 else used.max + 1
+
   // ---------------------------------------------------------------- WorkflowSchema
-  def addWSchema(wschema: WorkflowSchema): Future[WorkflowSchema] = { schemas = schemas + (wschema.id -> wschema); Future.successful(wschema) }
+  def addWSchema(wschema: WorkflowSchema): Future[WorkflowSchema] = {
+    val e = wschema.copy(id = allocId(wschema.id, schemas.keys))
+    schemas = schemas + (e.id -> e); Future.successful(e)
+  }
   def getWSchema(id: Int): Future[WorkflowSchema] = schemas.get(id) match {
     case Some(wschema) => Future.successful(wschema)
     case None          => Future.failed(new ErrNotFound(s"WorkflowSchema: ${id}"))
@@ -31,7 +38,10 @@ class WorkflowStoreMem extends WorkflowStore {
   def sizeWSchemas: Future[Long] = Future.successful(schemas.size.toLong)
 
   // ---------------------------------------------------------------- WorkflowConfig
-  def addWConf(wconf: WorkflowConfig): Future[WorkflowConfig] = { configs = configs + (wconf.id -> wconf); Future.successful(wconf) }
+  def addWConf(wconf: WorkflowConfig): Future[WorkflowConfig] = {
+    val e = wconf.copy(id = allocId(wconf.id, configs.keys))
+    configs = configs + (e.id -> e); Future.successful(e)
+  }
   def getWConf(id: Int): Future[WorkflowConfig] = configs.get(id) match {
     case Some(wconf) => Future.successful(wconf)
     case None        => Future.failed(new ErrNotFound(s"WorkflowConfig: ${id}"))
@@ -50,7 +60,7 @@ class WorkflowStoreMem extends WorkflowStore {
 
   // ---------------------------------------------------------------- WorkflowGraf
   def addGraf(g: WorkflowGraf): Future[WorkflowGraf] = {
-    val g1 = WorkflowGraf.sync(g) // keep node.links in sync with graf.links
+    val g1 = WorkflowGraf.sync(g.copy(id = allocId(g.id, grafs.keys)))
     grafs = grafs + (g1.id -> g1); Future.successful(g1)
   }
   def getGraf(id: Int): Future[WorkflowGraf] = grafs.get(id) match {
@@ -66,7 +76,10 @@ class WorkflowStoreMem extends WorkflowStore {
   def sizeGrafs: Future[Long] = Future.successful(grafs.size.toLong)
 
   // ---------------------------------------------------------------- DetectorSchema
-  def addDSchema(dschema: DetectorSchema): Future[DetectorSchema] = { dSchemas = dSchemas + (dschema.id -> dschema); Future.successful(dschema) }
+  def addDSchema(dschema: DetectorSchema): Future[DetectorSchema] = {
+    val e = dschema.copy(id = allocId(dschema.id, dSchemas.keys))
+    dSchemas = dSchemas + (e.id -> e); Future.successful(e)
+  }
   def getDSchema(id: Int): Future[Option[DetectorSchema]] = Future.successful(dSchemas.get(id))
   def delDSchema(id: Int): Future[Int] = {
     if (!dSchemas.contains(id)) Future.failed(new ErrNotFound(s"DetectorSchema: ${id}"))
@@ -76,7 +89,10 @@ class WorkflowStoreMem extends WorkflowStore {
   def sizeDSchemas: Future[Long] = Future.successful(dSchemas.size.toLong)
 
   // ---------------------------------------------------------------- DetectorConfig
-  def addDConf(dconf: DetectorConfig): Future[DetectorConfig] = { dConfigs = dConfigs + (dconf.id -> dconf); Future.successful(dconf) }
+  def addDConf(dconf: DetectorConfig): Future[DetectorConfig] = {
+    val e = dconf.copy(id = allocId(dconf.id, dConfigs.keys))
+    dConfigs = dConfigs + (e.id -> e); Future.successful(e)
+  }
   def getDConf(id: Int): Future[Option[DetectorConfig]] = Future.successful(dConfigs.get(id))
   def delDConf(id: Int): Future[Int] = {
     if (!dConfigs.contains(id)) Future.failed(new ErrNotFound(s"DetectorConfig: ${id}"))

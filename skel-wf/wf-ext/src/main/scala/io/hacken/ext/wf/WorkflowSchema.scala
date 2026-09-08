@@ -42,6 +42,8 @@ case class WorkflowSchema(
   
   // meta contains arbitrary metadata about the workflow (e.g. "tq", "ns").
   // `meta.input` is the default start JSON payload, a String (JSON quoted with `"`).
+  // `meta.input_data` is optional `?entity=` CSV (e.g. "detectors,schema") used to query the created
+  // WorkflowConfig and store that view JSON as meta.input. Absent/empty (the default) keeps `input`.
   meta: Option[Map[String, Any]] = None, // metadata of the workflow
 
   graph: WorkflowGraf, // default (template) graph used as a blueprint for WorkflowConfig creation
@@ -55,6 +57,10 @@ object WorkflowSchema {
   /** `meta.input` start payload (a JSON string). */
   def inputOf(meta: Option[Map[String, Any]]): Option[String] =
     meta.flatMap(_.get("input")).collect { case s: String if s.trim.nonEmpty => s }
+
+  /** `meta.input_data` = `?entity=` CSV for a WorkflowConfig query used as start input. Absent/blank = use `input`. */
+  def inputDataOf(meta: Option[Map[String, Any]]): Option[String] =
+    meta.flatMap(_.get("input_data")).map(_.toString).map(_.trim).filter(_.nonEmpty)
 
   object Status {
     val ACTIVE   = "ACTIVE"

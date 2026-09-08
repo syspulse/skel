@@ -25,7 +25,7 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody
 import jakarta.ws.rs.{Consumes, POST, PUT, GET, DELETE, Path, Produces}
 import jakarta.ws.rs.core.MediaType
 
-import spray.json.{JsValue, JsObject}
+import spray.json.{JsValue, JsObject, JsNull, JsString}
 
 import io.syspulse.skel.auth.Authenticated
 import io.syspulse.skel.auth.permissions.Permissions
@@ -436,7 +436,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
       new Parameter(name = "tq", in = ParameterIn.QUERY, description = "Task Queue an independent worker polls; else config.meta(tq), else default"),
       new Parameter(name = "wid", in = ParameterIn.QUERY, description = "override the Temporal WorkflowId (else derived from the created config.title|name)"),
       new Parameter(name = "author", in = ParameterIn.QUERY, description = "WorkflowConfig.author; if omitted, JWT `upn` claim; else WorkflowSchema.author")),
-    requestBody = new RequestBody(description = "WorkflowSchemaStartReq: optional input (Temporal payload; omitted uses WorkflowSchema.meta.input), optional config (replaces WorkflowConfig.config; omitted keeps the schema default), optional title (overrides WorkflowConfig.title / WorkflowSchema.title)",
+    requestBody = new RequestBody(description = "WorkflowSchemaStartReq: optional input forwarded as-is to the Engine (omitted/empty uses schema.meta.input_data as GET /config?entity= then meta.input), optional config (replaces WorkflowConfig.config; omitted keeps the schema default), optional title (overrides WorkflowConfig.title / WorkflowSchema.title)",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchemaStartReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "created + started + resolved config(s); if Engine start fails after persist, still 200 with status=FAILED and meta.err",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
@@ -450,7 +450,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
         // author: ?author= else JWT.upn (from() falls back to WorkflowSchema.author if still None)
         val author = oidOpt(authorQ).orElse(ExtAuth.getOwner(authn, "upn").filter(_.nonEmpty))
         entity(as[WorkflowSchemaStartReq]) { req =>
-          val input = req.input.filterNot(_ == spray.json.JsNull).map(_.compactPrint)
+          val input = req.input.flatMap(WorkflowRoutes.startInputAsIs)
           complete(startWorkflowSchema(id, tq, input, req.config, wid, ns, oid, pid, author, req.title))
         } ~
         complete(startWorkflowSchema(id, tq, None, None, wid, ns, oid, pid, author, None))
@@ -791,5 +791,15 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
         }
       },
     )
+  }
+}
+
+object WorkflowRoutes {
+  /** Engine start payload from the API `input` field: objects/arrays as compact JSON, a JSON string as-is.
+   *  Null / blank string is empty (caller then falls back to meta.input_data / meta.input). */
+  def startInputAsIs(v: JsValue): Option[String] = v match {
+    case JsNull => None
+    case JsString(s) => Option(s).filter(_.trim.nonEmpty)
+    case other => Some(other.compactPrint)
   }
 }

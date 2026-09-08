@@ -4,7 +4,7 @@
 # The Por2Worker's GenericWorkflow.execute(run: WorkflowRun) iterates run.steps, so the workflow
 # input MUST be a WorkflowRun JSON with populated `steps` - otherwise the worker fails with:
 #   NullPointerException: ... WorkflowRun.steps() is null
-# (the default /schema/{id}/start payload is the WorkflowConfig JSON, which has no `steps`).
+# (an empty /schema/{id}/start input is not the WorkflowConfig JSON and has no `steps`).
 #
 # This builds the correct WorkflowRun for the chosen flow (mirrors wf-temporal `por2-start` /
 # Por2Schema: step id/name/typ + per-flow ordering) and passes it as INPUT to wf-schema-start.sh
