@@ -159,5 +159,23 @@ class WorkflowConfigSpec extends AnyWordSpec with Matchers {
       Await.result(store.listWConfs(None, None, None, None, WorkflowStore.WConfFilter(search = Some("por-xid"))), timeout).total shouldBe 0L
       Await.result(store.listWConfs(None, None, None, None, WorkflowStore.WConfFilter(search = Some("ab"))), timeout).total shouldBe 0L
     }
+
+    "name/title search applies oid and pid filters" in {
+      val store = new WorkflowStoreMem()
+      Await.result(store.addWConf(WorkflowConfig.from(0, schema(0)).copy(
+        name = "PoR-Flow", title = "Proof of Reserve", oid = Some("490"), pid = Some("474"))), timeout)
+      Await.result(store.addWConf(WorkflowConfig.from(1, schema(0)).copy(
+        name = "PoR-OtherProj", title = "Proof other project", oid = Some("490"), pid = Some("999"))), timeout)
+      Await.result(store.addWConf(WorkflowConfig.from(2, schema(0)).copy(
+        name = "PoR-OtherOid", title = "Proof other owner", oid = Some("530"), pid = Some("474"))), timeout)
+
+      val q = WorkflowStore.WConfFilter(search = Some("proof"))
+      val scoped = Await.result(store.listWConfs(None, None, Some("490"), Some("474"), q), timeout)
+      scoped.total shouldBe 1L
+      scoped.wconfs.map(_.id) shouldBe Seq(0)
+
+      Await.result(store.listWConfs(None, None, Some("490"), None, q), timeout)
+        .wconfs.map(_.id).toSet shouldBe Set(0, 1)
+    }
   }
 }

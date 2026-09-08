@@ -286,40 +286,46 @@ abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Opt
   def size:Future[Long] = ctx.run(totalSQL())
 
   /** Recreate generated tsv column (idempotent) after tokenization expression changes. */
-  protected def migrateTsvPostgres(colTsv: String, indexFts: String, tsvExpr: String): Unit = {
+  protected def migrateTsvPostgres(colTsv: String, indexFts: String, tsvExpr: String): Unit =
+    migrateTsvPostgres(tableName, colTsv, indexFts, tsvExpr)
+
+  protected def migrateTsvPostgres(table: String, colTsv: String, indexFts: String, tsvExpr: String): Unit = {
     val dropIdx = s"DROP INDEX IF EXISTS $indexFts"
-    val dropCol = s"ALTER TABLE $tableName DROP COLUMN IF EXISTS $colTsv"
+    val dropCol = s"ALTER TABLE $table DROP COLUMN IF EXISTS $colTsv"
     val addCol =
-      s"""ALTER TABLE $tableName ADD COLUMN $colTsv tsvector GENERATED ALWAYS AS (
+      s"""ALTER TABLE $table ADD COLUMN $colTsv tsvector GENERATED ALWAYS AS (
          |  to_tsvector('simple', $tsvExpr)
          |) STORED""".stripMargin
-    val createFtsIndexSql = s"CREATE INDEX IF NOT EXISTS $indexFts ON $tableName USING GIN ($colTsv);"
+    val createFtsIndexSql = s"CREATE INDEX IF NOT EXISTS $indexFts ON $table USING GIN ($colTsv);"
     try {
       Seq(dropIdx, dropCol, addCol, createFtsIndexSql).foreach { sql =>
         val f = ctx.executeAction(sql)(ExecutionInfo.unknown, ())
         Await.result(f, FiniteDuration(timeout, TimeUnit.MILLISECONDS))
       }
-      log.info(s"table: $tableName: migrated $colTsv")
+      log.info(s"table: $table: migrated $colTsv")
     } catch {
       case e: Exception =>
-        log.warn(s"table: $tableName: $colTsv migration skipped: ${e.getMessage()}")
+        log.warn(s"table: $table: $colTsv migration skipped: ${e.getMessage()}")
     }
   }
 
   /** Create pg_trgm GIN indexes on text columns (substring / ILIKE search).
     * Requires `pg_trgm` extension (install via db/postgres/db-create.sql as superuser). */
-  protected def createTrgramIndexes(indexPrefix: String, fields: Seq[String]): Unit = {
+  protected def createTrgramIndexes(indexPrefix: String, fields: Seq[String]): Unit =
+    createTrgramIndexes(tableName, indexPrefix, fields)
+
+  protected def createTrgramIndexes(table: String, indexPrefix: String, fields: Seq[String]): Unit = {
     try {
       fields.foreach { field =>
         val idx = s"${indexPrefix}_${field}_trgm"
-        val sql = s"CREATE INDEX IF NOT EXISTS $idx ON $tableName USING GIN ($field gin_trgm_ops)"
+        val sql = s"CREATE INDEX IF NOT EXISTS $idx ON $table USING GIN ($field gin_trgm_ops)"
         val f = ctx.executeAction(sql)(ExecutionInfo.unknown, ())
         Await.result(f, FiniteDuration(timeout, TimeUnit.MILLISECONDS))
         log.info(s"index: $idx: ok")
       }
     } catch {
       case e: Exception =>
-        log.warn(s"table: $tableName: trgram indexes skipped: ${e.getMessage()}")
+        log.warn(s"table: $table: trgram indexes skipped: ${e.getMessage()}")
     }
   }
 
@@ -329,11 +335,21 @@ abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Opt
     tsvExpr: String,
     indexTgramPrefix: String,
     tgramFields: Seq[String],
+  ): Unit =
+    setupPostgresSearchIndexes(tableName, colTsv, indexFts, tsvExpr, indexTgramPrefix, tgramFields)
+
+  protected def setupPostgresSearchIndexes(
+    table: String,
+    colTsv: String,
+    indexFts: String,
+    tsvExpr: String,
+    indexTgramPrefix: String,
+    tgramFields: Seq[String],
   ): Unit = {
     if (StoreSearch.hasFts(searchIndexes))
-      migrateTsvPostgres(colTsv, indexFts, tsvExpr)
+      migrateTsvPostgres(table, colTsv, indexFts, tsvExpr)
     if (StoreSearch.hasTgram(searchIndexes))
-      createTrgramIndexes(indexTgramPrefix, tgramFields)
+      createTrgramIndexes(table, indexTgramPrefix, tgramFields)
   }
 
   protected def postgresTsvColumnDef(colTsv: String, tsvExpr: String): String =

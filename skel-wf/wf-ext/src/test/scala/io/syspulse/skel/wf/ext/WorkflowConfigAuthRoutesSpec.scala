@@ -157,6 +157,17 @@ class WorkflowConfigAuthRoutesSpec extends AnyWordSpec with Matchers with Scalat
         status shouldBe StatusCodes.OK
         responseAs[WorkflowConfigs].configs.foreach(_.pid shouldBe Some("p1"))
       }
+
+      // name/title search is the same list route: oid + pid stay on GET /config?search=
+      withAuth(jwt490)(Get("/config?oid=490&pid=p1&search=c-490")) ~> apiRoutes ~> check {
+        status shouldBe StatusCodes.OK
+        val page = responseAs[WorkflowConfigs]
+        page.total shouldBe 1L
+        page.configs.foreach { c =>
+          c.oid shouldBe Some("490")
+          c.pid shouldBe Some("p1")
+        }
+      }
     }
 
     "[user JWT] reject missing oid / empty oid / mismatched oid" in {

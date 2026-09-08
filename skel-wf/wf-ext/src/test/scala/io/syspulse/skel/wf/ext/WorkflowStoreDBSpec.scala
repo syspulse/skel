@@ -95,11 +95,12 @@ class WorkflowStoreDBSpec extends AnyWordSpec with Matchers with BeforeAndAfterA
   private def addSchema(name: String, title: String, description: String = "", tags: Seq[String] = Seq()): WorkflowSchema =
     Await.result(store.addWSchema(schema(0).copy(name = name, title = title, description = description, tags = tags)), timeout)
 
-  private def addConf(name: String, title: String, oid: Option[String] = None, xid: Option[String] = None,
-                      description: String = "", updatedAt: Long = System.currentTimeMillis(),
+  private def addConf(name: String, title: String, oid: Option[String] = None, pid: Option[String] = None,
+                      xid: Option[String] = None, description: String = "",
+                      updatedAt: Long = System.currentTimeMillis(),
                       status: String = "ACTIVE", tags: Seq[String] = Seq()): WorkflowConfig =
     Await.result(store.addWConf(WorkflowConfig.from(0, schema(0)).copy(
-      name = name, title = title, oid = oid, xid = xid, description = description,
+      name = name, title = title, oid = oid, pid = pid, xid = xid, description = description,
       updatedAt = updatedAt, status = status, tags = tags)), timeout)
 
   private def indexExists(table: String, index: String): Long =
@@ -420,28 +421,33 @@ class WorkflowStoreDBSpec extends AnyWordSpec with Matchers with BeforeAndAfterA
       unpaged.wschemas.map(_.id) shouldBe ids
     }
 
-    "search configs by name and title (not xid/description), with oid/time filters" in {
+    "search configs by name and title (not xid/description), with oid/pid/time filters" in {
       jdbcExec("DELETE FROM workflow_config")
-      val a = addConf("PoR-Flow", "Proof of Reserve", oid = Some("owner-a"), xid = Some("flow-runtime"), updatedAt = 1000L)
-      val b = addConf("Audit", "Workflow Audit", oid = Some("owner-a"), updatedAt = 2000L)
-      addConf("zzz", "zzz", oid = Some("owner-b"), xid = Some("por-xid"), description = "PoR hidden", updatedAt = 3000L)
+      val a = addConf("PoR-Flow", "Proof of Reserve", oid = Some("owner-a"), pid = Some("proj-1"),
+        xid = Some("flow-runtime"), updatedAt = 1000L)
+      val b = addConf("Audit", "Workflow Audit", oid = Some("owner-a"), pid = Some("proj-1"), updatedAt = 2000L)
+      val otherPid = addConf("PoR-OtherProj", "Proof other project", oid = Some("owner-a"), pid = Some("proj-2"),
+        updatedAt = 2500L)
+      addConf("zzz", "zzz", oid = Some("owner-b"), pid = Some("proj-1"), xid = Some("por-xid"),
+        description = "PoR hidden", updatedAt = 3000L)
 
       val por = Await.result(store.listWConfs(None, None, None, None, WorkflowStore.WConfFilter(search = Some("por"))), timeout)
-      por.total shouldBe 1L
-      por.wconfs.map(_.id) shouldBe Seq(a.id)
+      por.total shouldBe 2L
+      por.wconfs.map(_.id) shouldBe Seq(otherPid.id, a.id)
 
       Await.result(store.listWConfs(None, None, None, None, WorkflowStore.WConfFilter(search = Some("por-flow"))), timeout)
         .wconfs.map(_.id) shouldBe Seq(a.id)
 
       Await.result(store.listWConfs(None, None, None, None, WorkflowStore.WConfFilter(search = Some("proof"))), timeout)
-        .wconfs.map(_.id) shouldBe Seq(a.id)
+        .wconfs.map(_.id) shouldBe Seq(otherPid.id, a.id)
       Await.result(store.listWConfs(None, None, None, None, WorkflowStore.WConfFilter(search = Some("aud"))), timeout)
         .wconfs.map(_.id) shouldBe Seq(b.id)
 
       Await.result(store.listWConfs(None, None, None, None, WorkflowStore.WConfFilter(search = Some("por-xid"))), timeout).total shouldBe 0L
       Await.result(store.listWConfs(None, None, None, None, WorkflowStore.WConfFilter(search = Some("ab"))), timeout).total shouldBe 0L
 
-      val owned = Await.result(store.listWConfs(None, None, Some("owner-a"), None, WorkflowStore.WConfFilter(search = Some("reserve"))), timeout)
+      val owned = Await.result(store.listWConfs(None, None, Some("owner-a"), Some("proj-1"),
+        WorkflowStore.WConfFilter(search = Some("proof"))), timeout)
       owned.total shouldBe 1L
       owned.wconfs.map(_.id) shouldBe Seq(a.id)
 
