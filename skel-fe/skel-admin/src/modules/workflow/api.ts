@@ -54,10 +54,11 @@ export const updateSchema = (token: string | null, id: number, req: WorkflowSche
 export const deleteSchema = (token: string | null, id: number) =>
   DEL<WorkflowActionRes>(token, `/schema/${id}`);
 // Start a workflow FROM a WorkflowSchema: POST /schema/{id}/start?tq=&wid=
+// Spawn (create config, do not start Engine): POST /schema/{id}/spawn — same query/body as start.
 // Body is always WorkflowSchemaStartReq `{ input?, config? }`. Omitted `input` ->
 // schema.meta.input_data (?entity= query) else schema.meta.input.
 // omitted `config` -> schema JsonSchema default.
-export const startSchema = async (token: string | null, id: number, input?: unknown, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string, config?: Record<string, unknown>): Promise<WorkflowConfigs> => {
+function schemaStartQuery(taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string): string {
   const p = new URLSearchParams();
   if (taskQueue) p.set('tq', taskQueue);
   if (wid) p.set('wid', wid);
@@ -65,11 +66,18 @@ export const startSchema = async (token: string | null, id: number, input?: unkn
   if (oid) p.set('oid', oid);
   if (pid) p.set('pid', pid);
   const qs = p.toString();
+  return qs ? `?${qs}` : '';
+}
+function schemaStartBody(input?: unknown, config?: Record<string, unknown>): WorkflowSchemaStartReq {
   const req: WorkflowSchemaStartReq = {};
   if (input !== undefined) req.input = input;
   if (config !== undefined) req.config = config;
-  return POST<WorkflowConfigs>(token, `/schema/${id}/start${qs ? `?${qs}` : ''}`, req);
-};
+  return req;
+}
+export const startSchema = (token: string | null, id: number, input?: unknown, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string, config?: Record<string, unknown>): Promise<WorkflowConfigs> =>
+  POST<WorkflowConfigs>(token, `/schema/${id}/start${schemaStartQuery(taskQueue, wid, ns, oid, pid)}`, schemaStartBody(input, config));
+export const spawnSchema = (token: string | null, id: number, input?: unknown, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string, config?: Record<string, unknown>): Promise<WorkflowConfigs> =>
+  POST<WorkflowConfigs>(token, `/schema/${id}/spawn${schemaStartQuery(taskQueue, wid, ns, oid, pid)}`, schemaStartBody(input, config));
 
 // ---------------------------------------------------------------- WorkflowConfig
 // NOTE: the config views don't consume `detectors`/`schemas` (the editor uses the separate detector
@@ -81,10 +89,6 @@ export const getConfig = (token: string | null, id: number) =>
   GET<WorkflowConfigView>(token, `/config/${id}`);
 export const createConfig = (token: string | null, req: WorkflowConfigCreateReq) =>
   POST<WorkflowConfig>(token, '/config', req);
-// create a WorkflowConfig from a WorkflowSchema id in one call (composed of DetectorConfig; ids from
-// store). contractId places the new DetectorConfigs under a contract (default 0 - see setup0).
-export const createConfigFromSchema = (token: string | null, sid: number, contractId = 0, oid?: string) =>
-  POST<WorkflowConfig>(token, `/config/schema/${sid}?contractId=${contractId}${oid ? `&oid=${encodeURIComponent(oid)}` : ''}`, {});
 export const createConfigDsl = (token: string | null, pipeline: string, name?: string) =>
   POST<WorkflowConfig>(token, '/config/dsl', { pipeline, name });
 export const updateConfig = (token: string | null, id: number, req: WorkflowConfigUpdateReq) =>

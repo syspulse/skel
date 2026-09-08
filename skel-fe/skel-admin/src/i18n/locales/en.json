@@ -335,6 +335,7 @@
       "arrowSolid": "solid",
       "arrowOpen": "open",
       "openDetails": "open details",
+      "config": "Config",
       "createConfig": "Create",
       "destroy": "Delete",
       "snap": "snap",
@@ -363,6 +364,8 @@
     "startOk": "Workflow started",
     "startOkMsg": "WorkflowConfig #{{id}} '{{name}}' ({{title}})",
     "startErr": "Workflow start failed",
+    "spawnOk": "WorkflowConfig created",
+    "spawnErr": "WorkflowConfig create failed",
     "optional": "optional",
     "openEngine": "Open on engine panel: {{uri}}"
   }

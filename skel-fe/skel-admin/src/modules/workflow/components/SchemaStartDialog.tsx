@@ -9,9 +9,14 @@ import type { Meta } from '../types';
 /** Deserialize WorkflowSchema.meta.input (a JSON string) for the start input editor. Empty when unset (not `{}`). */
 export function metaInputText(meta?: Meta): string {
   const v = meta?.input;
-  if (typeof v !== 'string' || !v.trim()) return '';
-  try { return JSON.stringify(JSON.parse(v), null, 2); }
-  catch { return v; }
+  if (v == null) return '';
+  if (typeof v === 'string') {
+    if (!v.trim()) return '';
+    try { return JSON.stringify(JSON.parse(v), null, 2); }
+    catch { return v; }
+  }
+  try { return JSON.stringify(v, null, 2); }
+  catch { return String(v); }
 }
 
 /** WorkflowSchema.meta.input_data (`?entity=` CSV). Empty when unset. */
@@ -20,6 +25,26 @@ export function metaInputDataText(meta?: Meta): string {
   if (v == null) return '';
   const s = String(v).trim();
   return s;
+}
+
+/** Compact JSON for meta.input (a JSON string). Invalid JSON is stored as-is. Empty removes the key. */
+export function compactJsonOrRaw(text: string): string {
+  const t = text.trim();
+  if (!t) return '';
+  try { return JSON.stringify(JSON.parse(t)); }
+  catch { return t; }
+}
+
+/** Set or remove a string field on a meta JSON document. Invalid JSON is replaced. */
+export function mergeMetaField(metaJson: string, key: string, value: string): string {
+  let obj: Record<string, unknown> = {};
+  if (metaJson.trim()) {
+    try { obj = { ...(JSON.parse(metaJson) as Record<string, unknown>) }; }
+    catch { obj = {}; }
+  }
+  if (!value.trim()) delete obj[key];
+  else obj[key] = value;
+  return Object.keys(obj).length ? JSON.stringify(obj, null, 2) : '';
 }
 
 interface SchemaStartDialogProps {
@@ -39,8 +64,8 @@ interface SchemaStartDialogProps {
   // config: copied onto the created WorkflowConfig.config (undefined -> schema JsonSchema default)
   // inputData: non-empty -> written to meta.input_data for this start
   onStart: (input: unknown | undefined, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string, config?: Record<string, unknown>, inputData?: string) => void;
-  // Create WorkflowConfig from schema without Engine start (wired later)
-  onCreate?: () => void;
+  // Create WorkflowConfig from schema without Engine start (same fields as onStart)
+  onCreate?: (input: unknown | undefined, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string, config?: Record<string, unknown>, inputData?: string) => void;
 }
 
 /** Modal to start a workflow from a WorkflowSchema: raw input JSON + input_data + schema-driven config + tq / ns / oid / wid. */
@@ -73,18 +98,38 @@ export function SchemaStartDialog(props: SchemaStartDialogProps) {
 
   if (!open) return null;
 
-  const handleStart = () => {
+  const parseSubmit = (): { input: unknown | undefined; cfg: Record<string, unknown> | undefined; tq?: string; wid?: string; ns?: string; oid?: string; pid?: string; inputData?: string } | null => {
     setError(null);
     let parsed: unknown | undefined;
     const raw = inputText.trim();
     if (raw) {
       try { parsed = JSON.parse(raw); }
-      catch { setError(t('workflow.invalidJson')); return; }
+      catch { setError(t('workflow.invalidJson')); return null; }
     }
     const empty = parsed == null
       || (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) && Object.keys(parsed as object).length === 0);
-    const cfg = schema ? (configData as Record<string, unknown>) : undefined;
-    onStart(empty ? undefined : parsed, taskQueue.trim() || undefined, wid.trim() || undefined, ns.trim() || undefined, oid.trim() || undefined, pid.trim() || undefined, cfg, inputData.trim() || undefined);
+    return {
+      input: empty ? undefined : parsed,
+      cfg: schema ? (configData as Record<string, unknown>) : undefined,
+      tq: taskQueue.trim() || undefined,
+      wid: wid.trim() || undefined,
+      ns: ns.trim() || undefined,
+      oid: oid.trim() || undefined,
+      pid: pid.trim() || undefined,
+      inputData: inputData.trim() || undefined,
+    };
+  };
+
+  const handleStart = () => {
+    const v = parseSubmit();
+    if (!v) return;
+    onStart(v.input, v.tq, v.wid, v.ns, v.oid, v.pid, v.cfg, v.inputData);
+  };
+
+  const handleCreate = () => {
+    const v = parseSubmit();
+    if (!v) return;
+    onCreate?.(v.input, v.tq, v.wid, v.ns, v.oid, v.pid, v.cfg, v.inputData);
   };
 
   return (
@@ -150,8 +195,8 @@ export function SchemaStartDialog(props: SchemaStartDialogProps) {
             <button onClick={handleStart} disabled={saving} className="btn-add">
               <IconPlay size={13} /> {saving ? t('workflow.starting') : t('workflow.start')}
             </button>
-            <button type="button" disabled={saving} className="btn-add" onClick={() => onCreate?.()}>
-              <IconPlus size={13} /> {t('common.create')}
+            <button type="button" disabled={saving} className="btn-add" onClick={handleCreate}>
+              <IconPlus size={13} /> {saving ? t('common.creating') : t('common.create')}
             </button>
             <button onClick={onClose} disabled={saving} className="btn-cancel">
               <IconClose size={13} /> {t('common.cancel')}

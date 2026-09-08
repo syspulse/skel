@@ -211,9 +211,12 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
     });
   }, []);
 
-  // Start a workflow from a WorkflowSchema (Start dialog). Notifies the Dispatcher on success/error.
-  // Non-empty input_data is written to schema.meta.input_data before start so the Engine uses it.
-  const startFromSchema = useCallback(async (input: unknown | undefined, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string, config?: Record<string, unknown>, inputData?: string) => {
+  // Start or spawn a WorkflowConfig from a WorkflowSchema (Start dialog).
+  // Non-empty input_data is written to schema.meta.input_data first so the backend uses it.
+  const startOrSpawnFromSchema = useCallback(async (
+    mode: 'start' | 'spawn',
+    input: unknown | undefined, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string, config?: Record<string, unknown>, inputData?: string,
+  ) => {
     if (startSchemaId === null) return;
     const sid = startSchemaId;
     setSaving(true);
@@ -225,22 +228,29 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
       if (data) meta.input_data = data;
       else delete meta.input_data;
       if ((data ?? '') !== prev) await api.updateSchema(token, sid, { meta });
-      const res = await api.startSchema(token, sid, input, taskQueue, wid, ns, oid, pid, config);
+      const res = mode === 'start'
+        ? await api.startSchema(token, sid, input, taskQueue, wid, ns, oid, pid, config)
+        : await api.spawnSchema(token, sid, input, taskQueue, wid, ns, oid, pid, config);
       const c = res.configs?.[0];
-      if (c) notifyDispatcher(0.1, t('workflow.startOk'),
+      const okTitle = mode === 'start' ? t('workflow.startOk') : t('workflow.spawnOk');
+      if (c) notifyDispatcher(0.1, okTitle,
         t('workflow.startOkMsg', { id: c.id, name: c.name, title: c.title }),
         { schema_id: sid, config_id: c.id, config_name: c.name, config_title: c.title });
-      else notifyDispatcher(0.1, t('workflow.startOk'), t('workflow.startOkMsg', { id: '?', name: '', title: '' }), { schema_id: sid });
+      else notifyDispatcher(0.1, okTitle, t('workflow.startOkMsg', { id: '?', name: '', title: '' }), { schema_id: sid });
       setStartOpen(false);
       await refreshAndNotify();
-      // focus the newly created WorkflowConfig: SideNav submenu highlight + open its Topology (editor)
       if (c) await openEditor(KIND.workflowConfig, c.id);
     } catch (e) {
-      notifyDispatcher(0.5, t('workflow.startErr'), e instanceof Error ? e.message : String(e), { schema_id: sid });
+      notifyDispatcher(0.5, mode === 'start' ? t('workflow.startErr') : t('workflow.spawnErr'), e instanceof Error ? e.message : String(e), { schema_id: sid });
     } finally {
       setSaving(false);
     }
   }, [startSchemaId, token, notifyDispatcher, t, openEditor]);
+
+  const startFromSchema = useCallback((input: unknown | undefined, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string, config?: Record<string, unknown>, inputData?: string) =>
+    startOrSpawnFromSchema('start', input, taskQueue, wid, ns, oid, pid, config, inputData), [startOrSpawnFromSchema]);
+  const spawnFromSchema = useCallback((input: unknown | undefined, taskQueue?: string, wid?: string, ns?: string, oid?: string, pid?: string, config?: Record<string, unknown>, inputData?: string) =>
+    startOrSpawnFromSchema('spawn', input, taskQueue, wid, ns, oid, pid, config, inputData), [startOrSpawnFromSchema]);
 
   // Validate a cid before a node re-link: it must resolve via GET /detector/config/{cid}.
   // On not-found, dispatch an error event (Dispatcher) and reject the change.
@@ -428,23 +438,6 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
     }
   };
 
-  // Create a WorkflowConfig from the WorkflowSchema currently open in the editor, then navigate to it.
-  // The backend composes it of DetectorConfigs and assigns all ids; we re-read everything (lists +
-  // the new config via openEditor) so the UI renders fresh, non-stale state.
-  const createConfigFromSchema = async () => {
-    if (!editor || editor.kind !== KIND.workflowSchema) return;
-    setSaving(true);
-    try {
-      const created = await api.createConfigFromSchema(token, editor.id, 0, defaultOid);
-      await refreshAndNotify();                          // refresh all lists (new config + detectors)
-      await openEditor(KIND.workflowConfig, created.id); // re-read the new config and open its editor
-    } catch (e) {
-      notifyError(t('workflow.errorSave'), e instanceof Error ? e.message : String(e));
-    } finally {
-      setSaving(false);
-    }
-  };
-
   // Delete the WorkflowSchema/WorkflowConfig currently open in the editor (asks confirmation),
   // then exit the editor and refresh the lists.
   const destroyEditorEntity = async () => {
@@ -512,7 +505,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           onFreqChange={setFreq}
           onToggleTrack={editorConfig ? () => setTrackingId((cur) => (cur === editor.id ? null : editor.id)) : undefined}
           onSave={handleEditorSave}
-          onCreateConfig={editor.kind === KIND.workflowSchema ? createConfigFromSchema : undefined}
+          onCreateConfig={editor.kind === KIND.workflowSchema ? () => { setStartSchemaId(editor.id); setStartOpen(true); } : undefined}
           onStart={editor.kind === KIND.workflowSchema ? () => { setStartSchemaId(editor.id); setStartOpen(true); } : undefined}
           onStop={editorConfig ? () => stopOrCancelEditorConfig('stop') : undefined}
           onCancel={editorConfig ? () => stopOrCancelEditorConfig('cancel') : undefined}
@@ -607,6 +600,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
               saving={saving}
               onClose={() => setStartOpen(false)}
               onStart={startFromSchema}
+              onCreate={spawnFromSchema}
             />
           );
         })()}

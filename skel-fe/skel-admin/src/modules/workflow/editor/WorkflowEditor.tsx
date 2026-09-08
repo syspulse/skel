@@ -19,7 +19,7 @@ import {
   type RFNodeData, type RFEdgeData,
 } from './grafMapping';
 import {
-  IconPlus, IconTrash, IconSave, IconClose, IconSearch, IconRefresh, IconPlay, IconResolve, IconClear,
+  IconPlus, IconTrash, IconSave, IconClose, IconSearch, IconRefresh, IconPlay, IconResolve, IconClear, IconSettings,
 } from '../../../components/Icons';
 import { engineIcon } from '../engineIcons';
 import { statusChipStyle } from '../status';
@@ -323,6 +323,14 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           <button onClick={onDestroy} disabled={saving}
             className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-500 text-red-700 hover:bg-red-50 disabled:opacity-40 transition-colors">
             <IconTrash size={13} /> {t('workflow.editor.delete')}
+          </button>
+        )}
+        {/* Config: same as Panel 1 […] — open the WorkflowSchema details/config panel */}
+        {kind === KIND.workflowSchema && onOpenDetails && (
+          <button onClick={() => onOpenDetails()} disabled={saving}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-gray-500 text-gray-700 hover:bg-gray-50 disabled:opacity-40 transition-colors"
+            title={t('workflow.editor.openDetails')}>
+            <IconSettings size={13} /> {t('workflow.editor.config')}
           </button>
         )}
         {/* Create: build a WorkflowConfig from this WorkflowSchema, then open its editor (schema only) */}

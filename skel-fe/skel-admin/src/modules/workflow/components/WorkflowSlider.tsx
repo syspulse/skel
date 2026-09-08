@@ -12,6 +12,7 @@ import { SliderFieldRow } from '../../../components/SliderFieldRow';
 import { SchemaConfigEditor, JsonCodeEditor } from './SchemaConfigEditor';
 import type { JsonSchema, UiSchema } from './SchemaConfigEditor';
 import { useDefaultOid } from '../../../settings/OwnerContext';
+import { metaInputText, metaInputDataText, compactJsonOrRaw, mergeMetaField } from './SchemaStartDialog';
 
 // lifecycle statuses (WorkflowSchema) + engine runtime statuses (WorkflowConfig, e.g. RUNNING) - see WorkflowStatus.scala
 const LIFECYCLE_STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
@@ -57,7 +58,9 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
   const [schemaJson, setSchemaJson] = useState('');
   const [uiSchemaJson, setUiSchemaJson] = useState('');
   const [configData, setConfigData] = useState<unknown>({});
-  const [metaJson, setMetaJson] = useState('');  // WorkflowConfig.meta (editable)
+  const [metaJson, setMetaJson] = useState('');  // WorkflowSchema/Config.meta (editable)
+  const [inputText, setInputText] = useState('');       // WorkflowSchema.meta.input (dedicated editor)
+  const [inputData, setInputData] = useState('');       // WorkflowSchema.meta.input_data
   const parseJsonObj = (s: string): Record<string, unknown> | undefined => {
     if (!s.trim()) return undefined;
     return JSON.parse(s) as Record<string, unknown>;
@@ -75,13 +78,15 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
 
   useEffect(() => {
     setError(null);
-    setSchemaJson(''); setUiSchemaJson(''); setConfigData({}); setMetaJson('');
+    setSchemaJson(''); setUiSchemaJson(''); setConfigData({}); setMetaJson(''); setInputText(''); setInputData('');
     if (addMode) { setForm({ ...emptyForm(), oid: defaultOid }); setSid(schemas[0]?.id ?? ''); return; }
     if (kind === KIND.workflowSchema && schema) {
       setForm({ name: schema.name, title: schema.title, description: schema.description, author: schema.author ?? '', status: schema.status, version: schema.version, icon: schema.icon, tags: (schema.tags ?? []).join(', '), oid: '', pid: '', xid: '' });
       setSchemaJson(schema.schema ? JSON.stringify(schema.schema, null, 2) : '');
       setUiSchemaJson(schema.uiSchema ? JSON.stringify(schema.uiSchema, null, 2) : '');
       setMetaJson(schema.meta && Object.keys(schema.meta).length > 0 ? JSON.stringify(schema.meta, null, 2) : '');
+      setInputText(metaInputText(schema.meta));
+      setInputData(metaInputDataText(schema.meta));
     } else if (kind === KIND.workflowConfig && config) {
       setForm({ name: config.name, title: config.title, description: config.description, author: config.author ?? '', status: config.status, version: config.version, icon: config.icon, tags: (config.tags ?? []).join(', '), oid: config.oid ?? '', pid: config.pid ?? '', xid: config.xid ?? '', sid: config.sid });
       setConfigData(config.config ?? {});
@@ -114,8 +119,16 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
         status: form.status, version: form.version, icon: form.icon || undefined, tags: tagsArr(form.tags),
       };
       try {
-        if (kind === KIND.workflowSchema) { patch.schema = parseJsonObj(schemaJson); patch.uiSchema = parseJsonObj(uiSchemaJson); patch.meta = parseJsonObj(metaJson); }
-        else { patch.config = configData as Record<string, unknown>; patch.meta = parseJsonObj(metaJson); }
+        if (kind === KIND.workflowSchema) {
+          patch.schema = parseJsonObj(schemaJson);
+          patch.uiSchema = parseJsonObj(uiSchemaJson);
+          const meta = parseJsonObj(metaJson) ?? {};
+          const inStr = compactJsonOrRaw(inputText);
+          if (inStr) meta.input = inStr; else delete meta.input;
+          const data = inputData.trim();
+          if (data) meta.input_data = data; else delete meta.input_data;
+          patch.meta = Object.keys(meta).length ? meta : undefined;
+        } else { patch.config = configData as Record<string, unknown>; patch.meta = parseJsonObj(metaJson); }
       } catch { setError(t('workflow.invalidJson')); return; }
       if (kind === KIND.workflowConfig) { patch.author = form.author; patch.oid = form.oid || undefined; patch.pid = form.pid || undefined; patch.xid = form.xid || undefined; }
       await onUpdate(patch);
@@ -266,11 +279,45 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
           {kind === KIND.workflowSchema && (
             <>
               {!addMode && (
-                <div className="field-stack">
-                  <label className="field-stack-label">{t('workflow.fields.meta')}</label>
-                  <textarea rows={5} spellCheck={false} value={metaJson} onChange={(e) => setMetaJson(e.target.value)}
-                    placeholder={'{\n}'} className="field-code-muted" />
-                </div>
+                <>
+                  <div className="field-stack">
+                    <label className="field-stack-label">{t('workflow.fields.meta')}</label>
+                    <textarea rows={5} spellCheck={false} value={metaJson}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setMetaJson(v);
+                        try {
+                          const obj = v.trim() ? JSON.parse(v) as Record<string, unknown> : {};
+                          setInputText(metaInputText(obj));
+                          setInputData(metaInputDataText(obj));
+                        } catch { /* keep dedicated fields while meta JSON is invalid */ }
+                      }}
+                      placeholder={'{\n}'} className="field-code-muted" />
+                  </div>
+                  <div className="field-stack">
+                    <label className="field-stack-label">{t('workflow.fields.inputJson')}</label>
+                    <JsonCodeEditor
+                      value={inputText}
+                      onChange={(v) => {
+                        setInputText(v);
+                        setMetaJson((m) => mergeMetaField(m, 'input', compactJsonOrRaw(v)));
+                      }}
+                      height={140}
+                    />
+                  </div>
+                  <SliderFieldRow label={t('workflow.fields.inputData')}>
+                    <input
+                      className="field-inline"
+                      value={inputData}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setInputData(v);
+                        setMetaJson((m) => mergeMetaField(m, 'input_data', v.trim()));
+                      }}
+                      placeholder="graf,detector,schema"
+                    />
+                  </SliderFieldRow>
+                </>
               )}
               <div className="field-stack">
                 <label className="field-stack-label">{t('workflow.fields.schema')}</label>
