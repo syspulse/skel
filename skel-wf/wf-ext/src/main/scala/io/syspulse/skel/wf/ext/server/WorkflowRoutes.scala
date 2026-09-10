@@ -189,8 +189,8 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
   def getEventById(id: String, oid: Option[Long]): Future[Try[Alert]] = registry.ask(GetEventById(id, oid, _))
   def getEventsByEid(eid: String, oid: Option[Long]): Future[Try[Alerts]] = registry.ask(GetEventsByEid(eid, oid, _))
   def queryEvents(q: EventQuery): Future[Try[Alerts]] = registry.ask(QueryEvents(q, _))
-  def deleteEventById(id: String, oid: Option[Long]): Future[EventActionRes] = registry.ask(DeleteEventById(id, oid, _))
-  def deleteEventsByEid(eid: String, oid: Option[Long]): Future[EventActionRes] = registry.ask(DeleteEventsByEid(eid, oid, _))
+  def deleteEventById(id: String, oid: Option[Long]): Future[Try[EventActionRes]] = registry.ask(DeleteEventById(id, oid, _))
+  def deleteEventsByEid(eid: String, oid: Option[Long]): Future[Try[EventActionRes]] = registry.ask(DeleteEventsByEid(eid, oid, _))
 
   // `entity` is a CSV of sections to include: graf,detector,schema (or `all`). Empty/absent -> "graf".
   // The raw value is passed through and parsed in WorkflowRegistry.parseEntities.

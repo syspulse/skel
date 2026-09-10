@@ -1,5 +1,7 @@
 package io.syspulse.skel.wf.ext.event
 
+import scala.concurrent.duration._
+
 import akka.actor.ActorSystem
 
 import com.sksamuel.elastic4s.akka.{AkkaHttpClient, AkkaHttpClientSettings}
@@ -38,11 +40,16 @@ object ElasticClients {
   def connect(uri: ElasticURI): ElasticClient = {
     implicit val as: ActorSystem = system
     val (https, host) = hostPort(uri)
+    // Default maxRetryTimeout is 30s: a down/blacklisted host busy-retries until then and the API hangs.
+    // Fail the first error immediately and do not keep the host blacklisted.
     val settings = AkkaHttpClientSettings(Seq(host)).copy(
       https = https,
       username = uri.user.map(_.trim).filter(_.nonEmpty),
       password = uri.pass.filter(_.nonEmpty),
       verifySSLCertificate = !uri.tlsInsecure,
+      maxRetryTimeout = 0.millis,
+      blacklistMinDuration = 0.millis,
+      blacklistMaxDuration = 0.millis,
     )
     ElasticClient(AkkaHttpClient(settings))
   }

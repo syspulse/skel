@@ -30,7 +30,7 @@ object WorkflowRegistry {
   // only as an opaque HTTP 500 with no server-side trace). Attach with `.andThen(logFail)` right before
   // the terminal `.andThen(logFail).onComplete(replyTo ! _)` (or any reply). No-op on success.
   private val logFail: PartialFunction[Try[Any], Unit] = {
-    case Failure(e) => log.error(s"Store operation failed: ${e.getMessage}", e)
+    case Failure(e) => log.error(s"${e.getMessage}", e)
   }
 
   // `entity` is a CSV set of sections to include in Get* responses (for better visibility):
@@ -152,8 +152,8 @@ object WorkflowRegistry {
   final case class GetEventById(id: String, oid: Option[Long], replyTo: ActorRef[Try[Alert]]) extends Command
   final case class GetEventsByEid(eid: String, oid: Option[Long], replyTo: ActorRef[Try[Alerts]]) extends Command
   final case class QueryEvents(q: EventQuery, replyTo: ActorRef[Try[Alerts]]) extends Command
-  final case class DeleteEventById(id: String, oid: Option[Long], replyTo: ActorRef[EventActionRes]) extends Command
-  final case class DeleteEventsByEid(eid: String, oid: Option[Long], replyTo: ActorRef[EventActionRes]) extends Command
+  final case class DeleteEventById(id: String, oid: Option[Long], replyTo: ActorRef[Try[EventActionRes]]) extends Command
+  final case class DeleteEventsByEid(eid: String, oid: Option[Long], replyTo: ActorRef[Try[EventActionRes]]) extends Command
 
   def apply(store: WorkflowStore, engine: Engine): Behavior[Command] =
     apply(store, engine, new EventStoreMem)
@@ -1041,24 +1041,17 @@ object WorkflowRegistry {
         Behaviors.same
 
       case DeleteEventById(id, oid, replyTo) =>
-        val f = events.getById(id).flatMap {
+        events.getById(id).flatMap {
           case Some(a) if oid.forall(_ == a.teid) => events.delById(id).map(ok => if (ok) EventActionRes(EventActionRes.OK, Some(id)) else EventActionRes(EventActionRes.NOT_FOUND, Some(id)))
           case _ => Future.successful(EventActionRes(EventActionRes.NOT_FOUND, Some(id)))
-        }
-        f.andThen(logFail).onComplete {
-          case Success(res) => replyTo ! res
-          case Failure(_)   => replyTo ! EventActionRes(EventActionRes.NOT_FOUND, Some(id))
-        }
+        }.andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case DeleteEventsByEid(eid, oid, replyTo) =>
         events.delByEid(eid, oid).map { n =>
           if (n <= 0) EventActionRes(EventActionRes.NOT_FOUND, Some(eid))
           else EventActionRes(EventActionRes.OK, Some(eid))
-        }.andThen(logFail).onComplete {
-          case Success(res) => replyTo ! res
-          case Failure(_)   => replyTo ! EventActionRes(EventActionRes.NOT_FOUND, Some(eid))
-        }
+        }.andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
     }
 }

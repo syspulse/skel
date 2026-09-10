@@ -1,0 +1,19 @@
+{
+  "mappings": {
+    "properties": {
+      "ts":   { "type": "date" },
+      "eid":  { "type": "keyword" },
+      "tx":   { "type": "keyword" },
+      "teid": { "type": "long" },
+      "prid": { "type": "long" },
+      "deid": { "type": "long" },
+      "sna":  { "type": "keyword" },
+      "ana":  { "type": "keyword" },
+      "sid":  { "type": "keyword" },
+      "nse":  { "type": "double" },
+      "ame":  { "type": "keyword" },
+      "meta": { "type": "object", "enabled": false },
+      "wid":  { "type": "keyword" }
+    }
+  }
+}

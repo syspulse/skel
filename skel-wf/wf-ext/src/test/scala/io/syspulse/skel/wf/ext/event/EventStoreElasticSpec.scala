@@ -107,6 +107,44 @@ class EventStoreElasticSpec extends AnyWordSpec with Matchers with BeforeAndAfte
   }
 }
 
+/**
+ * Unreachable cluster: must fail immediately with the elastic4s exception (no 30s retry hang).
+ */
+class EventStoreElasticFailSpec extends AnyWordSpec with Matchers {
+  implicit val ec: ExecutionContext = ExecutionContext.global
+
+  "EventStoreElastic" should {
+    "fail fast with the elastic4s exception when OpenSearch is down" in {
+      val store = EventStoreElastic("http://127.0.0.1:1/detector-alert")
+      try {
+        val err = intercept[Exception] {
+          Await.result(store.query(EventQuery(from = Some(0), size = Some(1))), 5.seconds)
+        }
+        err should not be a [java.util.concurrent.TimeoutException]
+        val chain = Iterator.iterate(err: Throwable)(_.getCause).takeWhile(_ != null).toSeq
+        val fromElastic4s = chain.exists { e =>
+          val n = e.getClass.getName
+          val m = Option(e.getMessage).getOrElse("")
+          n.contains("elastic4s") || m.contains("max retry timeout") || m.contains("blacklisted")
+        }
+        fromElastic4s shouldBe true
+      } finally store.close()
+    }
+
+    "fail upsert the same way (not hang)" in {
+      val store = EventStoreElastic("http://127.0.0.1:1/detector-alert")
+      try {
+        val alert = Alert.fromCreate(EventCreateReq(
+          ts = 1L, eid = "e", oid = 1L, pid = 1L, did = 1L, nid = "N", sev = 0.1
+        ))
+        intercept[Exception] {
+          Await.result(store.upsert(Seq(alert)), 5.seconds)
+        } should not be a [java.util.concurrent.TimeoutException]
+      } finally store.close()
+    }
+  }
+}
+
 object ElasticEnv {
   def loadKv(filename: String): Map[String, String] = {
     val name = Paths.get(filename).getFileName.toString

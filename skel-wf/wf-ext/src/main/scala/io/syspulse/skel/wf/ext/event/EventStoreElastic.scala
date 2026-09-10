@@ -1,10 +1,10 @@
 package io.syspulse.skel.wf.ext.event
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 import com.typesafe.scalalogging.Logger
-import com.sksamuel.elastic4s.{ElasticClient, RequestFailure, RequestSuccess, Response}
+import com.sksamuel.elastic4s.{ElasticClient, Response}
 import com.sksamuel.elastic4s.ElasticDsl
 import com.sksamuel.elastic4s.requests.common.RefreshPolicy
 import com.sksamuel.elastic4s.requests.searches.queries.Query
@@ -22,12 +22,30 @@ class EventStoreElastic(val client: ElasticClient, index0: String)(implicit ec: 
 
   import ElasticDsl._
 
-  private def unwrap[T](resp: Response[T], op: String): T = resp match {
-    case e: RequestFailure =>
-      val msg = Try(e.error.reason).toOption.filter(_ != null).getOrElse(e.body.getOrElse(e.toString))
-      throw new RuntimeException(s"OpenSearch ${op} failed: ${msg}")
-    case s: RequestSuccess[T] => s.result
-  }
+  /** Log and keep the elastic4s exception (client transport or `ElasticError.asException`). */
+  private def run[T](op: String)(fut: Future[Response[T]]): Future[T] =
+    fut.transform {
+      case Failure(e) =>
+        //log.error(s"OpenSearch ${op} failed: ${e.getMessage}", e)
+        Failure(e)
+      case Success(resp) if resp.isError =>
+        val e = resp.error.asException
+        //log.warn(s"OpenSearch ${op} failed: ${e.getMessage}", e)
+        Failure(e)
+      case Success(resp) =>
+        Success(resp.result)
+    }
+
+  private def execute[T](op: String)(fut: Future[Response[T]]): Future[Response[T]] =
+    fut.transform {
+      case Failure(e) =>
+        //log.error(s"OpenSearch ${op} failed: ${e.getMessage}", e)
+        Failure(e)
+      case s => s
+    }
+
+  private def missingIndex(reason: String): Boolean =
+    reason.contains("index_not_found") || reason.contains("no such index")
 
   def upsert(alerts: Seq[Alert]): Future[Seq[Alert]] = {
     if (alerts.isEmpty) return Future.successful(Seq.empty)
@@ -37,19 +55,20 @@ class EventStoreElastic(val client: ElasticClient, index0: String)(implicit ec: 
         .source(Alert.sourceJson(a).compactPrint)
         .refresh(RefreshPolicy.WaitFor)
     }
-    client.execute(bulk(reqs).refresh(RefreshPolicy.WaitFor)).map { resp =>
-      unwrap(resp, "bulk upsert")
-      alerts
-    }
+    run("bulk upsert")(client.execute(bulk(reqs).refresh(RefreshPolicy.WaitFor))).map(_ => alerts)
   }
 
   def getById(id: String): Future[Option[Alert]] = {
-    client.execute(ElasticDsl.get(index, id)).flatMap { resp =>
+    execute("get")(client.execute(ElasticDsl.get(index, id))).flatMap { resp =>
       if (resp.isError) {
         val reason = Try(resp.error.reason).getOrElse("")
-        if (reason.contains("index_not_found") || reason.contains("no such index")) Future.successful(None)
+        if (missingIndex(reason)) Future.successful(None)
         else if (reason.contains("more than one index") || reason.toLowerCase.contains("alias")) getByIdSearch(id)
-        else Future.failed(new RuntimeException(s"OpenSearch get failed: ${reason}"))
+        else {
+          val e = resp.error.asException
+          //log.error(s"OpenSearch get failed: ${e.getMessage}", e)
+          Future.failed(e)
+        }
       } else {
         val r = resp.result
         if (!r.found) Future.successful(None)
@@ -58,12 +77,10 @@ class EventStoreElastic(val client: ElasticClient, index0: String)(implicit ec: 
     }
   }
 
-  private def getByIdSearch(id: String): Future[Option[Alert]] = {
-    client.execute(ElasticDsl.search(index).query(idsQuery(id)).size(1)).map { resp =>
-      val r = unwrap(resp, "getById")
+  private def getByIdSearch(id: String): Future[Option[Alert]] =
+    run("getById")(client.execute(ElasticDsl.search(index).query(idsQuery(id)).size(1))).map { r =>
       r.hits.hits.headOption.map(h => fromHit(h.id, h.sourceAsMap, h.sourceAsString))
     }
-  }
 
   def getByEid(eid: String, oid: Option[Long] = None): Future[Seq[Alert]] = {
     val filters = scala.collection.mutable.ListBuffer[Query](termQuery("eid", eid))
@@ -94,8 +111,7 @@ class EventStoreElastic(val client: ElasticClient, index0: String)(implicit ec: 
       .sortByFieldDesc("ts")
       .trackTotalHits(true)
 
-    client.execute(sreq).map { resp =>
-      val r = unwrap(resp, "search")
+    run("search")(client.execute(sreq)).map { r =>
       val alerts = r.hits.hits.toSeq.map { h =>
         fromHit(h.id, h.sourceAsMap, h.sourceAsString)
       }
@@ -104,25 +120,27 @@ class EventStoreElastic(val client: ElasticClient, index0: String)(implicit ec: 
   }
 
   def delById(id: String): Future[Boolean] = {
-    client.execute(deleteById(index, id).refresh(RefreshPolicy.WaitFor)).map { resp =>
+    execute("delete")(client.execute(deleteById(index, id).refresh(RefreshPolicy.WaitFor))).flatMap { resp =>
       if (resp.isError) {
         val reason = Try(resp.error.reason).getOrElse("")
-        if (reason.contains("index_not_found") || reason.contains("404")) false
-        else throw new RuntimeException(s"OpenSearch delete failed: ${reason}")
-      } else resp.result.result == "deleted"
+        if (missingIndex(reason) || reason.contains("404")) Future.successful(false)
+        else {
+          val e = resp.error.asException
+          //log.error(s"OpenSearch delete failed: ${e.getMessage}", e)
+          Future.failed(e)
+        }
+      } else Future.successful(resp.result.result == "deleted")
     }
   }
 
   def delByEid(eid: String, oid: Option[Long] = None): Future[Int] = {
     val filters = scala.collection.mutable.ListBuffer[Query](termQuery("eid", eid))
     oid.foreach(v => filters += termQuery("teid", v))
-    client.execute(
-      deleteByQuery(index, boolQuery().filter(filters.toList)).refreshImmediately.waitForCompletion(true)
-    ).map { resp =>
-      unwrap(resp, "deleteByQuery") match {
-        case Left(r)  => r.deleted.toInt
-        case Right(_) => 0
-      }
+    run("deleteByQuery")(
+      client.execute(deleteByQuery(index, boolQuery().filter(filters.toList)).refreshImmediately.waitForCompletion(true))
+    ).map {
+      case Left(r)  => r.deleted.toInt
+      case Right(_) => 0
     }
   }
 
@@ -148,22 +166,16 @@ class EventStoreElastic(val client: ElasticClient, index0: String)(implicit ec: 
         |    }
         |  }
         |}""".stripMargin
-    client.execute(indexExists(index)).flatMap { existsResp =>
-      val exists = existsResp match {
-        case s: RequestSuccess[_] => s.result.exists
-        case _ => false
-      }
-      if (exists) Future.successful(())
-      else client.execute(createIndex(index).source(mapping)).map { r =>
-        unwrap(r, s"createIndex ${index}")
-        ()
-      }
+    run("indexExists")(client.execute(indexExists(index))).flatMap { exists =>
+      if (exists.exists) Future.successful(())
+      else run(s"createIndex ${index}")(client.execute(createIndex(index).source(mapping))).map(_ => ())
     }
   }
 
   def dropIndex(): Future[Unit] = {
-    client.execute(deleteIndex(index)).map { resp =>
-      if (resp.isError) log.warn(s"dropIndex ${index}: ${Try(resp.error.reason).getOrElse(resp.toString)}")
+    execute("dropIndex")(client.execute(deleteIndex(index))).map { resp =>
+      if (resp.isError) 
+        log.warn(s"dropIndex ${index}: ${Try(resp.error.reason).getOrElse(resp.toString)}")
       ()
     }
   }
