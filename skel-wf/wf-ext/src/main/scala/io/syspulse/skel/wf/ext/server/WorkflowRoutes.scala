@@ -25,7 +25,7 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody
 import jakarta.ws.rs.{Consumes, POST, PUT, GET, DELETE, Path, Produces}
 import jakarta.ws.rs.core.MediaType
 
-import spray.json.{JsValue, JsObject, JsNull, JsString}
+import spray.json._
 
 import io.syspulse.skel.auth.Authenticated
 import io.syspulse.skel.auth.permissions.Permissions
@@ -43,6 +43,7 @@ import io.syspulse.skel.wf.ext.store.WorkflowRegistry
 import io.syspulse.skel.wf.ext.store.WorkflowRegistry._
 import io.syspulse.skel.wf.ext.store.WorkflowStore
 import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineWorkflows, TrackMapper}
+import io.syspulse.skel.wf.ext.event.{Alert, Alerts, EventActionRes, EventCreateReq, EventJson, EventQuery}
 
 /**
  * Workflow `ext` REST API:
@@ -50,6 +51,7 @@ import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineWorkflows, 
  *   /api/v1/wf/ext/config  - WorkflowConfig CRUD (+ ?entity={graf,detector,schema|all}, + /dsl, /xid, /oid, /{id}/stop, /{id}/cancel)
  *   /api/v1/wf/ext/graf    - WorkflowGraf CRUD (visual configuration)
  *   /api/v1/wf/ext/engine  - Engine runtime state (Temporal)
+ *   /api/v1/wf/ext/event   - Events / Alerts (OpenSearch detector-alert)
  */
 @Path("/")
 class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit context: ActorContext[_], config: Config) extends CommonRoutes with Routeable with RouteAuthorizers {
@@ -71,6 +73,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
   import io.hacken.ext.detector.DetectorSchemaJson._
   import io.hacken.ext.detector.DetectorConfigJson._
   import io.syspulse.skel.wf.ext.engine.EngineJson._
+  import EventJson.{jf_alert, jf_create, jf_alerts, jf_ev_action}
 
   // ================================================================ authorization
   // Rules:
@@ -180,6 +183,14 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
   def createDetectorConfig(req: DetectorConfigCreateReq): Future[Try[DetectorConfig]] = registry.ask(CreateDetectorConfig(req, _))
   def updateDetectorConfig(id: Int, req: DetectorConfigUpdateReq, oid: Option[String], pid: Option[String]): Future[Try[DetectorConfig]] = registry.ask(UpdateDetectorConfig(id, req, oid, pid, _))
   def deleteDetectorConfig(id: Int, oid: Option[String], pid: Option[String]): Future[WorkflowActionRes] = registry.ask(DeleteDetectorConfig(id, oid, pid, _))
+
+  // ---- event / alert asks ----
+  def createEvents(reqs: Seq[EventCreateReq]): Future[Try[Alerts]] = registry.ask(CreateEvents(reqs, _))
+  def getEventById(id: String, oid: Option[Long]): Future[Try[Alert]] = registry.ask(GetEventById(id, oid, _))
+  def getEventsByEid(eid: String, oid: Option[Long]): Future[Try[Alerts]] = registry.ask(GetEventsByEid(eid, oid, _))
+  def queryEvents(q: EventQuery): Future[Try[Alerts]] = registry.ask(QueryEvents(q, _))
+  def deleteEventById(id: String, oid: Option[Long]): Future[EventActionRes] = registry.ask(DeleteEventById(id, oid, _))
+  def deleteEventsByEid(eid: String, oid: Option[Long]): Future[EventActionRes] = registry.ask(DeleteEventsByEid(eid, oid, _))
 
   // `entity` is a CSV of sections to include: graf,detector,schema (or `all`). Empty/absent -> "graf".
   // The raw value is passed through and parsed in WorkflowRegistry.parseEntities.
@@ -686,6 +697,133 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
     }
   }
 
+  // ================================================================ event / alert routes
+  // POST   /event                  create one Event or an array (overwrite by _id={did}:{eid})
+  // GET    /event                  query ts0,ts1,oid,pid,did,sid,from,size
+  // GET    /event/{id}             by Elastic key (_id)
+  // GET    /event/eid/{eid}        by Alert eid
+  // DELETE /event/{id}             by Elastic key
+  // DELETE /event/eid/{eid}        by Alert eid
+  // DELETE /event?eid=             by Alert eid (query)
+
+  private def parseOwnerLong(s: Option[String]): Either[String, Option[Long]] = s match {
+    case None => Right(None)
+    case Some(v) if v.trim.isEmpty => Right(None)
+    case Some(v) =>
+      scala.util.Try(v.trim.toLong).toOption match {
+        case Some(n) => Right(Some(n))
+        case None    => Left(s"oid must be numeric: '${v}'")
+      }
+  }
+
+  private def withEventOid(oidQ: Option[String])(inner: Option[Long] => Route): Route =
+    authenticate()(authn => authorize(canAccessOid(authn, oidQ)) {
+      parseOwnerLong(storeOid(authn, oidQ)) match {
+        case Left(err)  => complete(StatusCodes.BadRequest -> err)
+        case Right(oid) => inner(oid)
+      }
+    })
+
+  @POST @Path("/event") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("event"), summary = "Create Events (array or single). Same eid+did overwrites.",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[EventCreateReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "created alerts",
+      content = Array(new Content(schema = new Schema(implementation = classOf[Alerts]))))))
+  def createEventsRoute() = post {
+    parameters("oid".?) { oidQ =>
+      entity(as[JsValue]) { js =>
+        Try {
+          js match {
+            case a: JsArray  => a.elements.map(_.convertTo[EventCreateReq]).toSeq
+            case o: JsObject => Seq(o.convertTo[EventCreateReq])
+            case other       => throw new IllegalArgumentException(s"Event body must be an object or array, got ${other.compactPrint.take(80)}")
+          }
+        } match {
+          case Failure(e) => complete(StatusCodes.BadRequest -> e.getMessage)
+          case Success(reqs) =>
+            val oidForAuth = oidQ.orElse(reqs.headOption.map(_.oid.toString))
+            authenticate()(authn => authorize(canAccessOid(authn, oidForAuth)) {
+              parseOwnerLong(storeOid(authn, oidForAuth)) match {
+                case Left(err) => complete(StatusCodes.BadRequest -> err)
+                case Right(teid) =>
+                  val stamped =
+                    if (canAccessAdmin(authn)) {
+                      // admin: ?oid= overrides every Event; otherwise keep each body oid
+                      oidQ.filter(_.trim.nonEmpty).flatMap(s => Try(s.trim.toLong).toOption) match {
+                        case Some(t) => reqs.map(_.copy(oid = t))
+                        case None    => reqs
+                      }
+                    } else teid match {
+                      case Some(t) => reqs.map(_.copy(oid = t))
+                      case None    => reqs
+                    }
+                  complete(createEvents(stamped))
+              }
+            })
+        }
+      }
+    }
+  }
+
+  @GET @Path("/event") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("event"), summary = "Query Events",
+    parameters = Array(
+      new Parameter(name = "ts0", in = ParameterIn.QUERY, description = "from timestamp (epoch ms)"),
+      new Parameter(name = "ts1", in = ParameterIn.QUERY, description = "to timestamp (epoch ms)"),
+      new Parameter(name = "oid", in = ParameterIn.QUERY, description = "tenant id (required for users)"),
+      new Parameter(name = "pid", in = ParameterIn.QUERY, description = "project id"),
+      new Parameter(name = "did", in = ParameterIn.QUERY, description = "detector id"),
+      new Parameter(name = "sid", in = ParameterIn.QUERY, description = "source id"),
+      new Parameter(name = "from", in = ParameterIn.QUERY, description = "page offset"),
+      new Parameter(name = "size", in = ParameterIn.QUERY, description = "page size")),
+    responses = Array(new ApiResponse(responseCode = "200", description = "events",
+      content = Array(new Content(schema = new Schema(implementation = classOf[Alerts]))))))
+  def queryEventsRoute() = get {
+    parameters("from".as[Long].?, "size".as[Long].?, "oid".?, "pid".as[Long].?, "did".as[Long].?,
+               "sid".?, "ts0".as[Long].?, "ts1".as[Long].?) {
+      (from, size, oidQ, pid, did, sid, ts0, ts1) =>
+        withEventOid(oidQ) { oid =>
+          complete(queryEvents(EventQuery(ts0, ts1, oid, pid, did, sid.map(_.trim).filter(_.nonEmpty), from, size)))
+        }
+    }
+  }
+
+  def deleteEventsByEidQueryRoute() = delete {
+    parameters("oid".?, "eid") { (oidQ, eid) =>
+      withEventOid(oidQ) { oid => complete(deleteEventsByEid(eid, oid)) }
+    }
+  }
+
+  @GET @Path("/event/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("event"), summary = "Get Event by Elastic key (_id = did:eid)",
+    parameters = Array(
+      new Parameter(name = "id", in = ParameterIn.PATH, description = "Elastic _id"),
+      new Parameter(name = "oid", in = ParameterIn.QUERY, description = "tenant id (required for users)")),
+    responses = Array(new ApiResponse(responseCode = "200", description = "alert",
+      content = Array(new Content(schema = new Schema(implementation = classOf[Alert]))))))
+  def getEventByIdRoute(id: String) = get {
+    parameter("oid".?) { oidQ => withEventOid(oidQ) { oid => complete(getEventById(id, oid)) } }
+  }
+
+  def deleteEventByIdRoute(id: String) = delete {
+    parameter("oid".?) { oidQ => withEventOid(oidQ) { oid => complete(deleteEventById(id, oid)) } }
+  }
+
+  @GET @Path("/event/eid/{eid}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("event"), summary = "Get Events by Alert eid",
+    parameters = Array(
+      new Parameter(name = "eid", in = ParameterIn.PATH, description = "Alert eid"),
+      new Parameter(name = "oid", in = ParameterIn.QUERY, description = "tenant id (required for users)")),
+    responses = Array(new ApiResponse(responseCode = "200", description = "alerts",
+      content = Array(new Content(schema = new Schema(implementation = classOf[Alerts]))))))
+  def getEventsByEidRoute(eid: String) = get {
+    parameter("oid".?) { oidQ => withEventOid(oidQ) { oid => complete(getEventsByEid(eid, oid)) } }
+  }
+
+  def deleteEventsByEidRoute(eid: String) = delete {
+    parameter("oid".?) { oidQ => withEventOid(oidQ) { oid => complete(deleteEventsByEid(eid, oid)) } }
+  }
+
   val corsAllow = CorsSettings(system.classicSystem)
     .withAllowCredentials(true)
     .withAllowedMethods(Seq(HttpMethods.OPTIONS, HttpMethods.GET, HttpMethods.POST, HttpMethods.PUT, HttpMethods.DELETE, HttpMethods.HEAD))
@@ -791,6 +929,19 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
             pathEndOrSingleSlash { getEngineRuntimesRoute(engineName, None) },
           )
         }
+      },
+      pathPrefix("event") {
+        concat(
+          pathPrefix("eid") {
+            pathPrefix(Segment) { eid =>
+              pathEndOrSingleSlash { getEventsByEidRoute(eid) ~ deleteEventsByEidRoute(eid) }
+            }
+          },
+          pathPrefix(Segment) { id =>
+            pathEndOrSingleSlash { getEventByIdRoute(id) ~ deleteEventByIdRoute(id) }
+          },
+          pathEndOrSingleSlash { queryEventsRoute() ~ createEventsRoute() ~ deleteEventsByEidQueryRoute() },
+        )
       },
     )
   }

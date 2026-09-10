@@ -12,6 +12,8 @@ import io.syspulse.skel.wf.ext.store.{WorkflowStore, WorkflowStoreMem, WorkflowS
 import io.syspulse.skel.wf.ext.server.WorkflowRoutes
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
 import io.syspulse.skel.wf.ext.engine.{Engine, EngineMapper, EngineWorkflow, EngineStatus, WorkflowRuntimeView, TrackMapper}
+import io.syspulse.skel.wf.ext.event.ElasticClients
+import io.syspulse.skel.uri.ElasticURI
 import io.hacken.ext.wf.{WorkflowConfig, WorkflowSchema, WorkflowStatus}
 import io.hacken.ext.detector.DetectorConfig
 
@@ -44,6 +46,8 @@ case class Config(
   permissions: String = "user",           // permissions mode: user | strict | <other>
 
   timeout: Long = 30000, // --timeout : Timeout for Engine operations
+
+  elasticUri: String = "es://", // --elasticUri : OpenSearch URI (es://, ess://, http://, https://). Default index detector-alert
 
   cmd: String = "server",
   params: Seq[String] = Seq(),
@@ -149,6 +153,8 @@ object App extends skel.Server {
 
         ArgLong('_', "timeout", s"Timeout for Engine operations (def: ${d.timeout})"),
 
+        ArgString('_', "elastic.uri", s"OpenSearch URI [es://,ess://,http://,https://] (def: ${d.elasticUri}; index defaults to detector-alert)"),
+
         ArgCmd("server", s"Start Workflow REST server"),
         ArgCmd("schema", s"Create a WorkflowSchema from an Assembly DSL pipeline (param: pipeline)"),
         ArgCmd("assembly", s"Create a WorkflowConfig (+ WorkflowSchema) from an Assembly DSL pipeline (param: pipeline)"),
@@ -193,6 +199,8 @@ object App extends skel.Server {
       rolesAttr = c.getString("roles.attr").getOrElse(d.rolesAttr),
 
       timeout = c.getLong("timeout").getOrElse(d.timeout),
+
+      elasticUri = c.getString("elasticUri").getOrElse(d.elasticUri),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -255,12 +263,18 @@ object App extends skel.Server {
       case "server" =>
         Console.err.println(s"Store: ${store}")
         Console.err.println(s"Engine: ${engineUri()}${config.engineUrl.map(u => s" url=${u}").getOrElse("")}")
+        
+        val elasticUri = ElasticURI(config.elasticUri)
+        val elastic = ElasticClients.connect(elasticUri)
+        val elasticIndex = ElasticClients.resolveIndex(elasticUri)
+        Console.err.println(s"Elastic: ${elasticUri.url} index=${elasticIndex}")
+
         // --engine URI (default temporal://); --engine.url is the optional HTTPS panel base.
         // skel Server.parseUriPath only uses 3 path segments (api/v1/wf) for the prefix and drops
-        // the 4th ("ext"), so re-add it via Routeable.withSuffix -> /api/v1/wf/ext/{schema,config,graf,engine}
+        // the 4th ("ext"), so re-add it via Routeable.withSuffix -> /api/v1/wf/ext/{schema,config,graf,engine,event}
         run(config.host, config.port, config.uri, c,
           Seq(
-            (WorkflowRegistry(store, engine), "WorkflowRegistry", (actor, ac) => new WorkflowRoutes(actor, engine)(ac, config).withSuffix("ext"))
+            (WorkflowRegistry(store, engine, elastic, elasticIndex), "WorkflowRegistry", (actor, ac) => new WorkflowRoutes(actor, engine)(ac, config).withSuffix("ext"))
           )
         )
         s"Server: http://${config.host}:${config.port}${config.uri}"

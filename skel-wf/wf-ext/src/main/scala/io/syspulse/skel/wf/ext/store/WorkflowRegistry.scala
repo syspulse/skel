@@ -20,6 +20,8 @@ import io.syspulse.skel.util.UriUtil
 import io.syspulse.skel.wf.ext.server._
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
 import io.syspulse.skel.wf.ext.engine.{Engine, TrackMapper, EngineWorkflow, EngineMapper}
+import io.syspulse.skel.wf.ext.event.{Alert, Alerts, EventActionRes, EventCreateReq, EventQuery, EventStore, EventStoreMem}
+import com.sksamuel.elastic4s.ElasticClient
 
 object WorkflowRegistry {
   val log = Logger(s"${this}")
@@ -145,10 +147,27 @@ object WorkflowRegistry {
   final case class UpdateDetectorConfig(id: Int, req: DetectorConfigUpdateReq, oid: Option[String], pid: Option[String], replyTo: ActorRef[Try[DetectorConfig]]) extends Command
   final case class DeleteDetectorConfig(id: Int, oid: Option[String], pid: Option[String], replyTo: ActorRef[WorkflowActionRes]) extends Command
 
+  // ---- Events / Alerts (OpenSearch) ----
+  final case class CreateEvents(reqs: Seq[EventCreateReq], replyTo: ActorRef[Try[Alerts]]) extends Command
+  final case class GetEventById(id: String, oid: Option[Long], replyTo: ActorRef[Try[Alert]]) extends Command
+  final case class GetEventsByEid(eid: String, oid: Option[Long], replyTo: ActorRef[Try[Alerts]]) extends Command
+  final case class QueryEvents(q: EventQuery, replyTo: ActorRef[Try[Alerts]]) extends Command
+  final case class DeleteEventById(id: String, oid: Option[Long], replyTo: ActorRef[EventActionRes]) extends Command
+  final case class DeleteEventsByEid(eid: String, oid: Option[Long], replyTo: ActorRef[EventActionRes]) extends Command
+
   def apply(store: WorkflowStore, engine: Engine): Behavior[Command] =
+    apply(store, engine, new EventStoreMem)
+
+  def apply(store: WorkflowStore, engine: Engine, events: EventStore): Behavior[Command] =
     Behaviors.setup { context =>
       implicit val ec: ExecutionContext = context.executionContext
-      registry(store, engine, context)
+      registry(store, engine, events, context)
+    }
+
+  def apply(store: WorkflowStore, engine: Engine, elastic: ElasticClient, elasticIndex: String): Behavior[Command] =
+    Behaviors.setup { context =>
+      implicit val ec: ExecutionContext = context.executionContext
+      registry(store, engine, new io.syspulse.skel.wf.ext.event.EventStoreElastic(elastic, elasticIndex), context)
     }
 
   // ---------------------------------------------------------------- view assembly
@@ -648,7 +667,7 @@ object WorkflowRegistry {
   }
 
   // ---------------------------------------------------------------- behavior
-  private def registry(store: WorkflowStore, engine: Engine, context: ActorContext[Command])(implicit ec: ExecutionContext): Behavior[Command] =
+  private def registry(store: WorkflowStore, engine: Engine, events: EventStore, context: ActorContext[Command])(implicit ec: ExecutionContext): Behavior[Command] =
     Behaviors.receiveMessage {
 
       // -------------------------------------------------- WorkflowSchema
@@ -993,6 +1012,52 @@ object WorkflowRegistry {
         store.delDConf(id, oid, pid).onComplete {
           case Success(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.OK, Some(id))
           case Failure(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.NOT_FOUND, Some(id))
+        }
+        Behaviors.same
+
+      // -------------------------------------------------- Events / Alerts
+      case CreateEvents(reqs, replyTo) =>
+        log.info(s"CreateEvents: n=${reqs.size}")
+        val alerts = reqs.map(Alert.fromCreate)
+        events.upsert(alerts).map(as => Alerts(as, as.size.toLong)).andThen(logFail).onComplete(replyTo ! _)
+        Behaviors.same
+
+      case GetEventById(id, oid, replyTo) =>
+        events.getById(id).map {
+          case Some(a) if oid.forall(_ == a.teid) => a
+          case _ => throw new ErrNotFound(s"Event: ${id}")
+        }.andThen(logFail).onComplete(replyTo ! _)
+        Behaviors.same
+
+      case GetEventsByEid(eid, oid, replyTo) =>
+        events.getByEid(eid, oid).map { as =>
+          if (as.isEmpty) throw new ErrNotFound(s"Event eid: ${eid}")
+          else Alerts(as, as.size.toLong)
+        }.andThen(logFail).onComplete(replyTo ! _)
+        Behaviors.same
+
+      case QueryEvents(q, replyTo) =>
+        events.query(q).map(p => Alerts(p.alerts, p.total)).andThen(logFail).onComplete(replyTo ! _)
+        Behaviors.same
+
+      case DeleteEventById(id, oid, replyTo) =>
+        val f = events.getById(id).flatMap {
+          case Some(a) if oid.forall(_ == a.teid) => events.delById(id).map(ok => if (ok) EventActionRes(EventActionRes.OK, Some(id)) else EventActionRes(EventActionRes.NOT_FOUND, Some(id)))
+          case _ => Future.successful(EventActionRes(EventActionRes.NOT_FOUND, Some(id)))
+        }
+        f.andThen(logFail).onComplete {
+          case Success(res) => replyTo ! res
+          case Failure(_)   => replyTo ! EventActionRes(EventActionRes.NOT_FOUND, Some(id))
+        }
+        Behaviors.same
+
+      case DeleteEventsByEid(eid, oid, replyTo) =>
+        events.delByEid(eid, oid).map { n =>
+          if (n <= 0) EventActionRes(EventActionRes.NOT_FOUND, Some(eid))
+          else EventActionRes(EventActionRes.OK, Some(eid))
+        }.andThen(logFail).onComplete {
+          case Success(res) => replyTo ! res
+          case Failure(_)   => replyTo ! EventActionRes(EventActionRes.NOT_FOUND, Some(eid))
         }
         Behaviors.same
     }
