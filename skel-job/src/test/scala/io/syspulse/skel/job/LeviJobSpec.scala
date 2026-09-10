@@ -11,18 +11,18 @@ import spray.json._
 import DefaultJsonProtocol._
 import io.syspulse.skel.job.livy._
 
-class JobSpec extends AnyWordSpec with Matchers {
+class LeviJobSpec extends AnyWordSpec with Matchers {
   import LivyJson._
 
   "LivyEngine" should {
 
-    "return all Livy sessions" in {
-      val engine = JobUri("livy://http://emr.demo.hacken.cloud:8998")
-      info(s"${engine}")
+    // "return all Livy sessions" in {
+    //   val engine = JobUri("livy://http://emr.demo.hacken.cloud:8998")
+    //   info(s"${engine}")
       
-      //val r = engine.all()
-      //info(s"${r}")      
-    }
+    //   //val r = engine.all()
+    //   //info(s"${r}")      
+    // }
 
 //     "decode Livy Sessions response" in {
 //       val res = """{
@@ -138,33 +138,33 @@ class JobSpec extends AnyWordSpec with Matchers {
     // }
 
     // state: "starting" -> "idle" -> 
-    "run script, wait for results, delete" in {
-      val engine = JobUri("livy://http://emr.demo.hacken.cloud:8998")
+    // "run script, wait for results, delete" in {
+    //   val engine = JobUri("livy://http://emr.demo.hacken.cloud:8998")
             
-      val r1 = engine.create("App-3",Map("spark.job.param1" -> "100","spark.job.param2" -> "Text"))
-      val xid = r1.get.xid
+    //   val r1 = engine.create("App-3",Map("spark.job.param1" -> "100","spark.job.param2" -> "Text"))
+    //   val xid = r1.get.xid
       
-      xid should !== ("")
-      info(s"xid = ${xid}: ${r1.get}")
+    //   xid should !== ("")
+    //   info(s"xid = ${xid}: ${r1.get}")
 
-      Thread.sleep(1000)
+    //   Thread.sleep(1000)
 
-      val script = """print(19)"""
+    //   val script = """print(19)"""
 
-      var r2 = engine.run(r1.get,script)
-      info(s"r2 = ${r2}")
-      Thread.sleep(1000)
+    //   var r2 = engine.run(r1.get,script)
+    //   info(s"r2 = ${r2}")
+    //   Thread.sleep(1000)
 
-      val r3 = engine.ask(r2.get)
-      info(s"r3 = ${r3}")
+    //   val r3 = engine.ask(r2.get)
+    //   info(s"r3 = ${r3}")
       
-      Thread.sleep(1000)
-      val r4 = engine.ask(r3.get)
-      info(s"r4 = ${r4}")
+    //   Thread.sleep(1000)
+    //   val r4 = engine.ask(r3.get)
+    //   info(s"r4 = ${r4}")
 
-      engine.del(r4.get)
-      //r3.get should === ("runnging")
-    }
+    //   engine.del(r4.get)
+    //   //r3.get should === ("runnging")
+    // }
 
   }
 }
