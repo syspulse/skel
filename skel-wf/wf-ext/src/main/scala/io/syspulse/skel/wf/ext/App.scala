@@ -47,7 +47,7 @@ case class Config(
 
   timeout: Long = 30000, // --timeout : Timeout for Engine operations
 
-  elasticUri: String = "es://", // --elasticUri : OpenSearch URI (es://, ess://, http://, https://). Default index detector-alert
+  elasticUri: String = "es://", // --elasticUri : OpenSearch URI (es://, ess://, http://, https://). Default index detector-alert-search
 
   cmd: String = "server",
   params: Seq[String] = Seq(),
@@ -153,7 +153,7 @@ object App extends skel.Server {
 
         ArgLong('_', "timeout", s"Timeout for Engine operations (def: ${d.timeout})"),
 
-        ArgString('_', "elastic.uri", s"OpenSearch URI [es://,ess://,http://,https://] (def: ${d.elasticUri}; index defaults to detector-alert)"),
+        ArgString('_', "elastic.uri", s"OpenSearch URI [es://,ess://,http://,https://] (def: ${d.elasticUri}; index defaults to detector-alert-search)"),
 
         ArgCmd("server", s"Start Workflow REST server"),
         ArgCmd("schema", s"Create a WorkflowSchema from an Assembly DSL pipeline (param: pipeline)"),
@@ -200,7 +200,7 @@ object App extends skel.Server {
 
       timeout = c.getLong("timeout").getOrElse(d.timeout),
 
-      elasticUri = c.getString("elasticUri").getOrElse(d.elasticUri),
+      elasticUri = c.getString("elastic.uri").getOrElse(d.elasticUri),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),

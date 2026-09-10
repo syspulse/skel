@@ -13,5 +13,5 @@ trait EventStore {
 }
 
 object EventStore {
-  val DEF_INDEX = "detector-alert"
+  val DEF_INDEX = "detector-alert-search"
 }

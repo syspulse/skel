@@ -1,7 +1,7 @@
 #!/bin/bash
-# Create the Alerts index (detector-alert). Mapping is schema.json.
+# Create the Alerts index (detector-alert-search). Mapping is schema.json.
 #   ./db-create.sh
-#   ES_INDEX=detector-alert-dev ./db-create.sh
+#   ES_INDEX=detector-alert-search ./db-create.sh
 CWD=`echo $(dirname $(readlink -f $0))`
 cd "$CWD"
 source db-env.sh

@@ -51,7 +51,7 @@ import io.syspulse.skel.wf.ext.event.{Alert, Alerts, EventActionRes, EventCreate
  *   /api/v1/wf/ext/config  - WorkflowConfig CRUD (+ ?entity={graf,detector,schema|all}, + /dsl, /xid, /oid, /{id}/stop, /{id}/cancel)
  *   /api/v1/wf/ext/graf    - WorkflowGraf CRUD (visual configuration)
  *   /api/v1/wf/ext/engine  - Engine runtime state (Temporal)
- *   /api/v1/wf/ext/event   - Events / Alerts (OpenSearch detector-alert)
+ *   /api/v1/wf/ext/event   - Events / Alerts (OpenSearch detector-alert-search)
  */
 @Path("/")
 class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit context: ActorContext[_], config: Config) extends CommonRoutes with Routeable with RouteAuthorizers {

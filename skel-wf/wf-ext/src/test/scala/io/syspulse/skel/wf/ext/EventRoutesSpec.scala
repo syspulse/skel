@@ -85,15 +85,17 @@ class EventRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest 
     name: String = "Safe Multisig Monitor",
     rid: String = "safe:0xabc",
     wid: Option[String] = Some("wf-1"),
+    tags: Option[Seq[String]] = None,
   ): EventCreateReq = EventCreateReq(
     ts = ts, eid = eid, rid = Some(rid), oid = oid, pid = pid, did = did,
     nid = nid, name = Some(name), wid = wid, sid = Some(sid), sev = sev, desc = Some(desc),
-    meta = Some(JsObject("method" -> JsString("withdraw")))
+    meta = Some(JsObject("method" -> JsString("withdraw"))),
+    tags = tags,
   )
 
   "POST /event" should {
     "create a single Event stored as Alert fields and GET by Elastic key and eid" in {
-      withAuth(adminJwtTok)(Post("/event", ev("e-one"))) ~> apiRoutes ~> check {
+      withAuth(adminJwtTok)(Post("/event", ev("e-one", tags = Some(Seq("COMPLIANCE"))))) ~> apiRoutes ~> check {
         status shouldBe StatusCodes.OK
         val r = responseAs[Alerts]
         r.total shouldBe 1L
@@ -108,6 +110,8 @@ class EventRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest 
         a.ana shouldBe "Safe Multisig Monitor"
         a.sid shouldBe "WORKFLOW"
         a.nse shouldBe 0.25
+        a.se shouldBe "MEDIUM"
+        a.dt shouldBe Seq("COMPLIANCE")
         a.ame shouldBe "hello"
         a.wid shouldBe Some("wf-1")
         a.meta.get.fields("method") shouldBe JsString("withdraw")
@@ -121,6 +125,24 @@ class EventRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest 
       withAuth(adminJwtTok)(Get("/event/eid/e-one")) ~> apiRoutes ~> check {
         status shouldBe StatusCodes.OK
         responseAs[Alerts].events.head.id shouldBe "22587:e-one"
+      }
+    }
+
+    "derive se from sev (inclusive thresholds); NONE is empty" in {
+      def seOf(sev: Double): String = Alert.fromCreate(ev("e-se", sev = sev)).se
+      seOf(0.75) shouldBe "CRITICAL"
+      seOf(1.0) shouldBe "CRITICAL"
+      seOf(0.5) shouldBe "HIGH"
+      seOf(0.25) shouldBe "MEDIUM"
+      seOf(0.15) shouldBe "LOW"
+      seOf(0.1) shouldBe "INFO"
+      seOf(0.0) shouldBe ""
+      seOf(0.09) shouldBe ""
+    }
+
+    "store optional tags as Alert dt" in {
+      withAuth(adminJwtTok)(Post("/event", ev("e-tags", tags = Some(Seq(" COMPLIANCE ", "AUDIT"))))) ~> apiRoutes ~> check {
+        responseAs[Alerts].events.head.dt shouldBe Seq("COMPLIANCE", "AUDIT")
       }
     }
 

@@ -7,12 +7,12 @@ import java.time.Instant
 import spray.json._
 
 /**
- * Alert document stored in OpenSearch (`detector-alert` by default).
+ * Alert document stored in OpenSearch (`detector-alert-search` by default).
  *
- * Elastic `_id` is `{deid}:{eid}` (same as the existing detector-alert indices).
+ * Elastic `_id` is `{deid}:{eid}` (same as the existing detector-alert-search indices).
  * Field names follow the Alert object mapping from Event API parameters:
  *   ts, eid, tx(rid), teid(oid), prid(pid), deid(did), sna(nid), ana(name),
- *   sid, nse(sev), ame(desc), meta, wid (new).
+ *   sid, nse(sev), se(from sev), ame(desc), meta, tags(dt), wid (new).
  */
 final case class Alert(
   id: String,
@@ -29,6 +29,8 @@ final case class Alert(
   ame: String,
   meta: Option[JsObject],
   wid: Option[String],
+  dt: Seq[String] = Seq.empty,
+  se: String = "",
 )
 
 object Alert {
@@ -53,6 +55,8 @@ object Alert {
       ame = req.desc.getOrElse(""),
       meta = req.meta,
       wid = req.wid.map(_.trim).filter(_.nonEmpty),
+      dt = req.tags.getOrElse(Seq.empty).map(_.trim).filter(_.nonEmpty),
+      se = Severity.label(req.sev),
     )
   }
 
@@ -68,7 +72,9 @@ object Alert {
       "ana" -> JsString(a.ana),
       "sid" -> JsString(a.sid),
       "nse" -> JsNumber(a.nse),
+      "se"  -> JsString(a.se),
       "ame" -> JsString(a.ame),
+      "dt"  -> JsArray(a.dt.map(JsString(_)).toVector),
     )
     a.tx.foreach(v => fields += ("tx" -> JsString(v)))
     a.wid.foreach(v => fields += ("wid" -> JsString(v)))
@@ -91,6 +97,12 @@ object Alert {
     ame = strOf(source.get("ame")),
     meta = jsObjectOf(source.get("meta")),
     wid = optStr(source.get("wid")),
+    dt = strsOf(source.get("dt")),
+    se = source.get("se") match {
+      case None | Some(null) => Severity.label(doubleOf(source.get("nse")))
+      case Some(s: String) => s
+      case Some(other) => other.toString
+    },
   )
 
   def fromSourceJson(id: String, json: String): Alert = {
@@ -111,6 +123,12 @@ object Alert {
       ame = strOf(jsVal(m.get("ame"))),
       meta = m.get("meta").collect { case o: JsObject => o },
       wid = optStr(jsVal(m.get("wid"))),
+      dt = strsOf(jsVal(m.get("dt")).orElse(m.get("dt"))),
+      se = m.get("se") match {
+        case None | Some(JsNull) => Severity.label(doubleOf(jsVal(m.get("nse"))))
+        case Some(JsString(s)) => s
+        case Some(other) => other.toString
+      },
     )
   }
 
@@ -149,6 +167,21 @@ object Alert {
     case None | Some(null) => dflt
     case Some(s: String) => s
     case Some(other) => other.toString
+  }
+
+  private def strsOf(v: Option[Any]): Seq[String] = v match {
+    case None | Some(null) => Seq.empty
+    case Some(xs: java.util.List[_]) =>
+      xs.asScala.toSeq.flatMap(x => Option(x).map(_.toString).map(_.trim).filter(_.nonEmpty))
+    case Some(xs: Seq[_]) =>
+      xs.flatMap(x => Option(x).map {
+        case JsString(s) => s
+        case other => other.toString
+      }.map(_.trim).filter(_.nonEmpty))
+    case Some(JsArray(elements)) =>
+      elements.collect { case JsString(s) if s.trim.nonEmpty => s.trim }
+    case Some(s: String) if s.trim.nonEmpty => Seq(s.trim)
+    case _ => Seq.empty
   }
 
   private def optStr(v: Option[Any]): Option[String] = v match {

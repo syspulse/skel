@@ -3,12 +3,14 @@
 #   ./wf-event-query.sh
 #   OID=490 FROM=0 SIZE=10 ./wf-event-query.sh
 #   OID=490 PID=1789 DID=12913 SID=WORKFLOW TS0=1606311430000 TS1=1606311439999 ./wf-event-query.sh
+# Default window: ts0 = now-1d, ts1 = now (epoch ms)
 OID=${OID:-490}
 PID=${PID:-474}
 DID=${DID:-}
 SID=${SID:-}
-TS0=${TS0:-}
-TS1=${TS1:-}
+NOW_MS=$(date +%s%3N 2>/dev/null || echo $(( $(date +%s) * 1000 )))
+TS0=${TS0:-$(( NOW_MS - 86400000 ))}
+TS1=${TS1:-$NOW_MS}
 FROM=${FROM:-0}
 SIZE=${SIZE:-10}
 

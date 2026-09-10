@@ -17,6 +17,7 @@ final case class EventCreateReq(
   sev: Double,
   desc: Option[String] = None,
   meta: Option[JsObject] = None,
+  tags: Option[Seq[String]] = None,
 )
 
 final case class Alerts(events: Seq[Alert], total: Long)

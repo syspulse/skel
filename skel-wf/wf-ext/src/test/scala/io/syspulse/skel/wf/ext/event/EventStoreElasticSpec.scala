@@ -61,6 +61,7 @@ class EventStoreElasticSpec extends AnyWordSpec with Matchers with BeforeAndAfte
       got.teid shouldBe 560L
       got.deid shouldBe 12913L
       got.nse shouldBe 0.25
+      got.se shouldBe "MEDIUM"
       got.wid shouldBe Some("wid-1")
       got.meta.get.fields("k") shouldBe JsString("v")
 
@@ -115,7 +116,7 @@ class EventStoreElasticFailSpec extends AnyWordSpec with Matchers {
 
   "EventStoreElastic" should {
     "fail fast with the elastic4s exception when OpenSearch is down" in {
-      val store = EventStoreElastic("http://127.0.0.1:1/detector-alert")
+      val store = EventStoreElastic("http://127.0.0.1:1/detector-alert-search")
       try {
         val err = intercept[Exception] {
           Await.result(store.query(EventQuery(from = Some(0), size = Some(1))), 5.seconds)
@@ -132,7 +133,7 @@ class EventStoreElasticFailSpec extends AnyWordSpec with Matchers {
     }
 
     "fail upsert the same way (not hang)" in {
-      val store = EventStoreElastic("http://127.0.0.1:1/detector-alert")
+      val store = EventStoreElastic("http://127.0.0.1:1/detector-alert-search")
       try {
         val alert = Alert.fromCreate(EventCreateReq(
           ts = 1L, eid = "e", oid = 1L, pid = 1L, did = 1L, nid = "N", sev = 0.1

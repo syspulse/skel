@@ -5,14 +5,14 @@
 export ES_HOST=${ES_HOST:-http://localhost:9200}
 export ES_USER=${ES_USER:-${ELASTIC_USER:-admin}}
 export ES_PASSWORD="${ES_PASSWORD:-${ELASTIC_PASS:-Abcd_1234#}}"
-export ES_INDEX=${ES_INDEX:-detector-alert}
+export ES_INDEX=${ES_INDEX:-detector-alert-search}
 
 es_curl() {
   curl -skS -u "${ES_USER}:${ES_PASSWORD}" "$@"
 }
 export ES_USER=${ES_USER:-${ELASTIC_USER:-admin}}
 export ES_PASSWORD="${ES_PASSWORD:-${ELASTIC_PASS:-Abcd_1234#}}"
-export ES_INDEX=${ES_INDEX:-detector-alert}
+export ES_INDEX=${ES_INDEX:-detector-alert-search}
 
 es_curl() {
   curl -skS -u "${ES_USER}:${ES_PASSWORD}" "$@"

@@ -11,7 +11,9 @@
       "ana":  { "type": "keyword" },
       "sid":  { "type": "keyword" },
       "nse":  { "type": "double" },
-      "ame":  { "type": "keyword" },
+      "se":   { "type": "keyword" },
+      "ame":  { "type": "keyword", "index": false },
+      "dt":   { "type": "keyword" },
       "meta": { "type": "object", "enabled": false },
       "wid":  { "type": "keyword" }
     }

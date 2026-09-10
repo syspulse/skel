@@ -3,11 +3,11 @@
 #   ./wf-event-create.sh
 #   ./wf-event-create.sh event.json
 #   ./wf-event-create.sh '{"ts":1,"eid":"e1","oid":490,"pid":1,"did":22587,"nid":"N","sev":0.25}'
-#   EID=e1 OID=490 PID=1789 DID=22587 NID=SafeMultisigMonitor SEV=0.25 ./wf-event-create.sh
+#   EID=e1 OID=490 PID=1789 DID=22587 NID=SafeMultisigMonitor SEV=0.25 TAGS=WORKFLOW,COMPLIANCE ./wf-event-create.sh
 #   OID=490 ./wf-event-create.sh     # ?oid= stamped for users / overrides for admin
 ARG=${1:-}
-OID=${OID:-}
-PID=${PID:-2141}
+OID=${OID:-490}
+PID=${PID:-474}
 DID=${DID:-22587}
 EID=${EID:-}
 RID=${RID:-}
@@ -19,6 +19,7 @@ SEV=${SEV:-0.25}
 DESC=${DESC:-}
 TS=${TS:-}
 META=${META:-}
+TAGS=${TAGS:-WORKFLOW,COMPLIANCE}
 
 SERVICE_URI=${SERVICE_URI:-http://127.0.0.1:8080/api/v1/wf/ext}
 ACCESS_TOKEN=${ACCESS_TOKEN-`cat ACCESS_TOKEN 2>/dev/null`}
@@ -50,6 +51,17 @@ else
   [[ -n "$SID" ]]  && BODY="${BODY},\"sid\":\"${SID}\""
   [[ -n "$DESC" ]] && BODY="${BODY},\"desc\":\"${DESC}\""
   [[ -n "$META" ]] && BODY="${BODY},\"meta\":${META}"
+  if [[ -n "$TAGS" ]]; then
+    TAGS_JSON=""
+    IFS=',' read -ra TAG_ARR <<< "$TAGS"
+    for t in "${TAG_ARR[@]}"; do
+      t="${t#"${t%%[![:space:]]*}"}"
+      t="${t%"${t##*[![:space:]]}"}"
+      [[ -z "$t" ]] && continue
+      TAGS_JSON="${TAGS_JSON:+$TAGS_JSON,}\"${t}\""
+    done
+    [[ -n "$TAGS_JSON" ]] && BODY="${BODY},\"tags\":[${TAGS_JSON}]"
+  fi
   BODY="${BODY}}"
 fi
 

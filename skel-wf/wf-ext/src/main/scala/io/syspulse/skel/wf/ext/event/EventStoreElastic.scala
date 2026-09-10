@@ -144,7 +144,7 @@ class EventStoreElastic(val client: ElasticClient, index0: String)(implicit ec: 
     }
   }
 
-  /** Create the index with detector-alert-compatible mappings. Idempotent. Not used on Dev. */
+  /** Create the index with detector-alert-search compatible mappings. Idempotent. Not used on Dev. */
   def ensureIndex(): Future[Unit] = {
     val mapping =
       """{
@@ -160,7 +160,9 @@ class EventStoreElastic(val client: ElasticClient, index0: String)(implicit ec: 
         |      "ana":  { "type": "keyword" },
         |      "sid":  { "type": "keyword" },
         |      "nse":  { "type": "double" },
-        |      "ame":  { "type": "keyword" },
+        |      "se":   { "type": "keyword" },
+        |      "ame":  { "type": "keyword", "index": false },
+        |      "dt":   { "type": "keyword" },
         |      "meta": { "type": "object", "enabled": false },
         |      "wid":  { "type": "keyword" }
         |    }
