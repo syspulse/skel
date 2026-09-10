@@ -47,11 +47,16 @@ class CronFreq(runner: (Long)=>Boolean, freq:String, delay0:Long = 250L, limit:L
   }
 
   def stop() = {
+    if(cronFuture.isDefined) cronFuture.get.cancel(true)
+  }
+
+  def terminate() = {
+    stop()
     cronScheduler.shutdown()
   }
 
   override def close = {
-    if(cronFuture.isDefined) cronFuture.get.cancel(true)
+    this.terminate();
   }
 
   // Start immediately

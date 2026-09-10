@@ -117,11 +117,15 @@ class CronQuartz(exec:(Long)=>Boolean, expr0:String, conf:Option[(String,Configu
   }
 
   def stop() = {
-    scheduler.shutdown()
+    scheduler.clear()
   } 
 
+  def terminate() = {
+    scheduler.shutdown()   
+  }
+
   override def close = {
-    scheduler.shutdown();
+    this.terminate();
   }
 }
 

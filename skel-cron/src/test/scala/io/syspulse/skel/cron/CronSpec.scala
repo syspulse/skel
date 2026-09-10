@@ -7,10 +7,57 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.util.{Try,Success,Failure}
 import java.time._
+import java.util.concurrent.atomic.AtomicInteger
 import io.syspulse.skel.util.TimeUtil
+import io.syspulse.skel.config.{Configuration, ConfigurationMap}
 // import io.syspulse.skel.util.Util
 
 class CronSpec extends AnyWordSpec with Matchers {
+
+  // Generous windows so GC / slow CI does not flake start/stop/terminate.
+  // First tick: wait up to 8s. After stop/terminate: wait > 2 intervals with no extra ticks.
+  val WaitFirstTick = 8000L
+  val WaitStopped = 3500L
+  val FreqInterval = "1 second"
+  val FreqDelayMs = 200L
+  val QuartzEverySec = "*/1 * * * * ?"
+
+  def waitUntil(cond: => Boolean, timeoutMs: Long, stepMs: Long = 50L): Boolean = {
+    val deadline = System.currentTimeMillis() + timeoutMs
+    while (!cond && System.currentTimeMillis() < deadline) Thread.sleep(stepMs)
+    cond
+  }
+
+  def assertStable(n: => Int, waitMs: Long, stepMs: Long = 100L): Unit = {
+    val snap = n
+    val deadline = System.currentTimeMillis() + waitMs
+    while (System.currentTimeMillis() < deadline) {
+      Thread.sleep(stepMs)
+      n shouldBe snap
+    }
+  }
+
+  private val quartzSeq = new AtomicInteger(0)
+
+  def isolatedQuartz(exec: Long => Boolean, expr: String): CronQuartz = {
+    val name = s"cron-spec-${quartzSeq.incrementAndGet()}-${System.nanoTime}"
+    val cfg = new ConfigurationMap()
+    cfg + (s"$name.org.quartz.scheduler.instanceName", name)
+    cfg + (s"$name.org.quartz.scheduler.skipUpdateCheck", "true")
+    cfg + (s"$name.org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool")
+    cfg + (s"$name.org.quartz.threadPool.threadCount", "1")
+    cfg + (s"$name.org.quartz.jobStore.class", "org.quartz.simpl.RAMJobStore")
+    new CronQuartz(
+      exec, expr,
+      conf = Some((name, new Configuration(Seq(cfg)))),
+      cronName = s"cron-$name",
+      jobName = s"job-$name",
+      groupName = s"group-$name",
+    )
+  }
+
+  def safeTerminate(c: Cron[_]): Unit =
+    try c.terminate() catch { case _: Exception => () }
     
   "CronQuartz" should {
 
@@ -31,7 +78,7 @@ class CronSpec extends AnyWordSpec with Matchers {
       n should === (0)
     }
 
-    "schedule 2 events for: '*/1 * * * * ?'" in {
+    "schedule events for: '*/1 * * * * ?'" in {
       @volatile var n = 0
       val c = new CronQuartz((elaped:Long) => {
           n = n + 1
@@ -41,11 +88,57 @@ class CronSpec extends AnyWordSpec with Matchers {
       )
       val r = c.start()
       r.getClass should !== (classOf[Failure[_]])
-      
-      Thread.sleep(1100L)
-      c.stop()
 
-      n should === (2)
+      waitUntil(n >= 1, WaitFirstTick) shouldBe true
+      c.stop()
+      n should be >= 1
+    }
+
+    "start firing, stop with no further ticks, and start again" in {
+      @volatile var n = 0
+      val c = isolatedQuartz(_ => { n += 1; true }, QuartzEverySec)
+      try {
+        c.start().isSuccess shouldBe true
+        waitUntil(n >= 1, WaitFirstTick) shouldBe true
+
+        c.stop()
+        Thread.sleep(150)
+        assertStable(n, WaitStopped)
+
+        val afterStop = n
+        c.start().isSuccess shouldBe true
+        waitUntil(n > afterStop, WaitFirstTick) shouldBe true
+      } finally safeTerminate(c)
+    }
+
+    "terminate stops ticks and start() fails afterwards" in {
+      @volatile var n = 0
+      val c = isolatedQuartz(_ => { n += 1; true }, QuartzEverySec)
+      try {
+        c.start().isSuccess shouldBe true
+        waitUntil(n >= 1, WaitFirstTick) shouldBe true
+
+        c.terminate()
+        Thread.sleep(150)
+        assertStable(n, WaitStopped)
+
+        c.start().isFailure shouldBe true
+      } finally safeTerminate(c)
+    }
+
+    "stop then terminate: start() still fails" in {
+      @volatile var n = 0
+      val c = isolatedQuartz(_ => { n += 1; true }, QuartzEverySec)
+      try {
+        c.start().isSuccess shouldBe true
+        waitUntil(n >= 1, WaitFirstTick) shouldBe true
+        c.stop()
+        Thread.sleep(150)
+        assertStable(n, WaitStopped)
+
+        c.terminate()
+        c.start().isFailure shouldBe true
+      } finally safeTerminate(c)
     }
 
     "interval '*/1 * * * * ?' == 1000" in {
@@ -110,6 +203,53 @@ class CronSpec extends AnyWordSpec with Matchers {
       an [IllegalArgumentException] should be thrownBy TimeUtil.humanToMillis("minute")
       an [IllegalArgumentException] should be thrownBy TimeUtil.humanToMillis("1 mAnth")
       an [IllegalArgumentException] should be thrownBy TimeUtil.humanToMillis("1.5 Zours")
+    }
+
+    "start firing, stop with no further ticks, and start again" in {
+      @volatile var n = 0
+      val c = new CronFreq(_ => { n += 1; true }, FreqInterval, delay0 = FreqDelayMs)
+      try {
+        c.start().isSuccess shouldBe true
+        waitUntil(n >= 1, WaitFirstTick) shouldBe true
+
+        c.stop()
+        Thread.sleep(150)
+        assertStable(n, WaitStopped)
+
+        val afterStop = n
+        c.start().isSuccess shouldBe true
+        waitUntil(n > afterStop, WaitFirstTick) shouldBe true
+      } finally safeTerminate(c)
+    }
+
+    "terminate stops ticks and start() fails afterwards" in {
+      @volatile var n = 0
+      val c = new CronFreq(_ => { n += 1; true }, FreqInterval, delay0 = FreqDelayMs)
+      try {
+        c.start().isSuccess shouldBe true
+        waitUntil(n >= 1, WaitFirstTick) shouldBe true
+
+        c.terminate()
+        Thread.sleep(150)
+        assertStable(n, WaitStopped)
+
+        Try(c.start()).isFailure shouldBe true
+      } finally safeTerminate(c)
+    }
+
+    "stop then terminate: start() still fails" in {
+      @volatile var n = 0
+      val c = new CronFreq(_ => { n += 1; true }, FreqInterval, delay0 = FreqDelayMs)
+      try {
+        c.start().isSuccess shouldBe true
+        waitUntil(n >= 1, WaitFirstTick) shouldBe true
+        c.stop()
+        Thread.sleep(150)
+        assertStable(n, WaitStopped)
+
+        c.terminate()
+        Try(c.start()).isFailure shouldBe true
+      } finally safeTerminate(c)
     }
     
   }

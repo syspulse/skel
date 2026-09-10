@@ -25,6 +25,7 @@ import io.syspulse.skel.util.TimeUtil
 trait Cron[T] extends Closeable {
   def start():Try[T]
   def stop():Unit
+  def terminate():Unit
   def getExpr():String
 
   def toMillis:Long
