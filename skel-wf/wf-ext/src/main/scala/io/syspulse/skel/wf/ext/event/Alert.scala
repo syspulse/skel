@@ -55,7 +55,7 @@ object Alert {
       sid = sid,
       nse = req.sev,
       ame = req.desc.getOrElse(""),
-      meta = req.meta,
+      meta = Some(req.meta.getOrElse(JsObject.empty)),
       wid = req.wid.map(_.trim).filter(_.nonEmpty),
       dt = req.tags.getOrElse(Seq.empty).map(_.trim).filter(_.nonEmpty),
       se = Severity.label(req.sev),
@@ -78,10 +78,10 @@ object Alert {
       "se"  -> JsString(a.se),
       "ame" -> JsString(a.ame),
       "dt"  -> JsArray(a.dt.map(JsString(_)).toVector),
+      "meta" -> a.meta.getOrElse(JsObject.empty),
     )
     a.tx.foreach(v => fields += ("tx" -> JsString(v)))
     a.wid.foreach(v => fields += ("wid" -> JsString(v)))
-    a.meta.foreach(m => fields += ("meta" -> m))
     JsObject(fields.toMap)
   }
 

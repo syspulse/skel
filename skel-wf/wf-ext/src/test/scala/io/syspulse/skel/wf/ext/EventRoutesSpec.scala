@@ -180,6 +180,13 @@ class EventRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest 
       }
     }
 
+    "default meta to an empty object when omitted" in {
+      val req = ev("e-meta").copy(meta = None)
+      withAuth(adminJwtTok)(Post("/event", req)) ~> apiRoutes ~> check {
+        responseAs[Alerts].events.head.meta shouldBe Some(JsObject.empty)
+      }
+    }
+
     "reject non-numeric oid in JSON body" in {
       val bad = """{"ts":1,"eid":"e-bad","oid":"abc","pid":1,"cid":1,"did":1,"nid":"N","sev":0.1}"""
       withAuth(adminJwtTok)(Post("/event").withEntity(akka.http.scaladsl.model.HttpEntity(akka.http.scaladsl.model.ContentTypes.`application/json`, bad))) ~> apiRoutes ~> check {
