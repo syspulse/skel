@@ -2,8 +2,8 @@
 # Create Event(s) (POST /event). Body is one object or an array. Same did+eid overwrites.
 #   ./wf-event-create.sh
 #   ./wf-event-create.sh event.json
-#   ./wf-event-create.sh '{"ts":1,"eid":"e1","oid":490,"pid":1,"did":22587,"nid":"N","sev":0.25}'
-#   EID=e1 OID=490 PID=1789 DID=22587 NID=SafeMultisigMonitor SEV=0.25 TAGS=WORKFLOW,COMPLIANCE ./wf-event-create.sh
+#   ./wf-event-create.sh '{"ts":1,"eid":"e1","oid":490,"pid":1,"did":22587,"wid":1,"nid":"N","sev":0.25}'
+#   EID=e1 OID=490 PID=1789 DID=22587 WID=1 NID=SafeMultisigMonitor SEV=0.25 TAGS=WORKFLOW,COMPLIANCE ./wf-event-create.sh
 #   OID=490 ./wf-event-create.sh     # ?oid= stamped for users / overrides for admin
 ARG=${1:-}
 OID=${OID:-490}
@@ -14,7 +14,9 @@ EID=${EID:-}
 RID=${RID:-}
 NID=${NID:-UnknownDetector}
 NAME=${NAME:-}
-WID=${WID:-}
+WID=${WID:-0}
+WNA=${WNA:-}
+WTI=${WTI:-}
 SID=${SID:-ext:worklfow}
 SEV=${SEV:-0.25}
 DESC=${DESC:-}
@@ -43,12 +45,13 @@ elif [[ "$ARG" == \{* || "$ARG" == \[* ]]; then
 else
   [[ -z "$TS" ]] && TS=$(date +%s%3N 2>/dev/null || echo $(( $(date +%s) * 1000 )))
   [[ -z "$EID" ]] && EID="e-${TS}"
-  BODY="{\"ts\":${TS},\"eid\":\"${EID}\",\"did\":${DID},\"pid\":${PID},\"cid\":${CID},\"nid\":\"${NID}\",\"sev\":${SEV}"
+  BODY="{\"ts\":${TS},\"eid\":\"${EID}\",\"did\":${DID},\"pid\":${PID},\"cid\":${CID},\"wid\":${WID},\"nid\":\"${NID}\",\"sev\":${SEV}"
   [[ -n "$OID" ]]  && BODY="${BODY},\"oid\":${OID}"
   [[ -z "$OID" ]]  && BODY="${BODY},\"oid\":0"
   [[ -n "$RID" ]]  && BODY="${BODY},\"rid\":\"${RID}\""
   [[ -n "$NAME" ]] && BODY="${BODY},\"name\":\"${NAME}\""
-  [[ -n "$WID" ]]  && BODY="${BODY},\"wid\":\"${WID}\""
+  [[ -n "$WNA" ]]  && BODY="${BODY},\"wna\":\"${WNA}\""
+  [[ -n "$WTI" ]]  && BODY="${BODY},\"wti\":\"${WTI}\""
   [[ -n "$SID" ]]  && BODY="${BODY},\"sid\":\"${SID}\""
   [[ -n "$DESC" ]] && BODY="${BODY},\"desc\":\"${DESC}\""
   [[ -n "$META" ]] && BODY="${BODY},\"meta\":${META}"

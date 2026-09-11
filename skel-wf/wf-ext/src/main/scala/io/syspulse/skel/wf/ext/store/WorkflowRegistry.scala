@@ -170,6 +170,36 @@ object WorkflowRegistry {
       registry(store, engine, new io.syspulse.skel.wf.ext.event.EventStoreElastic(elastic, elasticIndex), context)
     }
 
+  /** Fill Alert.wna/wti from WorkflowConfig when the request omitted either field.
+   *  Lookup failures are logged and the Event is still produced without resolved name/title. */
+  private def alertsFromReqs(store: WorkflowStore, reqs: Seq[EventCreateReq])(implicit ec: ExecutionContext): Future[Seq[Alert]] = {
+    val ids = reqs.iterator.filter(Alert.needsWConf).flatMap(r => Alert.wconfId(r.wid)).toSeq.distinct
+    Future.sequence(ids.map { id =>
+      store.getWConfOpt(id).map {
+        case Some(wconf) => Some(id -> wconf)
+        case None =>
+          log.warn(s"WorkflowConfig(${id}): not found")
+          None
+      }.recover {
+        case e =>
+          log.warn(s"WorkflowConfig(${id}): ${e.getMessage}", e)
+          None
+      }
+    }).map(_.flatten.toMap).map { confs =>
+      reqs.map { req =>
+        val wconf =
+          if (!Alert.needsWConf(req)) None
+          else Alert.wconfId(req.wid) match {
+            case Some(id) => confs.get(id)
+            case None =>
+              log.warn(s"WorkflowConfig(${req.wid}): invalid id")
+              None
+          }
+        Alert.fromCreate(req, wconf)
+      }
+    }
+  }
+
   // ---------------------------------------------------------------- view assembly
   // WorkflowSchema references only DetectorSchema (by node sid). `schema`/`all` -> load them; `graf`
   // keeps the graph inline (else it is stripped). The DetectorSchema map is derived from the ORIGINAL
@@ -1018,8 +1048,7 @@ object WorkflowRegistry {
       // -------------------------------------------------- Events / Alerts
       case CreateEvents(reqs, replyTo) =>
         log.info(s"CreateEvents: n=${reqs.size}")
-        val alerts = reqs.map(Alert.fromCreate)
-        events.upsert(alerts).map(as => Alerts(as, as.size.toLong)).andThen(logFail).onComplete(replyTo ! _)
+        alertsFromReqs(store, reqs).flatMap(events.upsert).map(as => Alerts(as, as.size.toLong)).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case GetEventById(id, oid, replyTo) =>

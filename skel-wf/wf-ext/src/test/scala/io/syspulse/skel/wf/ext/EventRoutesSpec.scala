@@ -21,6 +21,7 @@ import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.wf.ext.store.{WorkflowStoreMem, WorkflowRegistry}
 import io.syspulse.skel.wf.ext.server._
 import io.syspulse.skel.wf.ext.event._
+import io.hacken.ext.wf.{WorkflowConfig, WorkflowGraf}
 
 class EventRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll with WfRouteTest {
 
@@ -85,14 +86,25 @@ class EventRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest 
     nid: String = "SafeMultisigMonitor",
     name: String = "Safe Multisig Monitor",
     rid: String = "safe:0xabc",
-    wid: Option[String] = Some("wf-1"),
+    wid: Long = 1L,
+    wna: Option[String] = None,
+    wti: Option[String] = None,
     tags: Option[Seq[String]] = None,
   ): EventCreateReq = EventCreateReq(
     ts = ts, eid = eid, rid = Some(rid), oid = oid, pid = pid, cid = cid, did = did,
-    nid = nid, name = Some(name), wid = wid, sid = Some(sid), sev = sev, desc = Some(desc),
+    nid = nid, name = Some(name), wid = wid, wna = wna, wti = wti, sid = Some(sid), sev = sev, desc = Some(desc),
     meta = Some(JsObject("method" -> JsString("withdraw"))),
     tags = tags,
   )
+
+  def addWConf(id: Int, name: String, title: String): WorkflowConfig = {
+    Await.result(store.addWConf(WorkflowConfig(
+      id = id, sid = 0, createdAt = 1L, updatedAt = 1L, status = "UNKNOWN",
+      name = name, version = "1", title = title, description = "",
+      author = "", icon = None, tags = Seq.empty, config = None,
+      graph = WorkflowGraf(id = 0),
+    )), 5.seconds)
+  }
 
   "POST /event" should {
     "create a single Event stored as Alert fields and GET by Elastic key and eid" in {
@@ -115,8 +127,13 @@ class EventRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest 
         a.se shouldBe "MEDIUM"
         a.dt shouldBe Seq("COMPLIANCE")
         a.ame shouldBe "hello"
-        a.wid shouldBe Some("wf-1")
+        a.wid shouldBe 1L
+        a.wna shouldBe None
+        a.wti shouldBe None
         a.meta.get.fields("method") shouldBe JsString("withdraw")
+        a.meta.get.fields("wid") shouldBe JsNumber(1)
+        a.meta.get.fields.get("wna") shouldBe None
+        a.meta.get.fields.get("wti") shouldBe None
       }
 
       withAuth(adminJwtTok)(Get("/event/22587:e-one")) ~> apiRoutes ~> check {
@@ -180,15 +197,83 @@ class EventRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest 
       }
     }
 
-    "default meta to an empty object when omitted" in {
+    "write wid into meta when request meta is omitted" in {
       val req = ev("e-meta").copy(meta = None)
       withAuth(adminJwtTok)(Post("/event", req)) ~> apiRoutes ~> check {
-        responseAs[Alerts].events.head.meta shouldBe Some(JsObject.empty)
+        val meta = responseAs[Alerts].events.head.meta.get
+        meta.fields("wid") shouldBe JsNumber(1)
+        meta.fields.get("wna") shouldBe None
+        meta.fields.get("wti") shouldBe None
+      }
+    }
+
+    "resolve wna and wti from WorkflowConfig when omitted" in {
+      val wc = addWConf(7, "cfg-name", "cfg-title")
+      withAuth(adminJwtTok)(Post("/event", ev("e-wconf", wid = wc.id.toLong))) ~> apiRoutes ~> check {
+        val a = responseAs[Alerts].events.head
+        a.wid shouldBe 7L
+        a.wna shouldBe Some("cfg-name")
+        a.wti shouldBe Some("cfg-title")
+        a.meta.get.fields("wid") shouldBe JsNumber(7)
+        a.meta.get.fields("wna") shouldBe JsString("cfg-name")
+        a.meta.get.fields("wti") shouldBe JsString("cfg-title")
+      }
+    }
+
+    "override WorkflowConfig.name with request wna and still resolve wti" in {
+      addWConf(8, "cfg-name", "cfg-title")
+      withAuth(adminJwtTok)(Post("/event", ev("e-wna", wid = 8L, wna = Some("req-name")))) ~> apiRoutes ~> check {
+        val a = responseAs[Alerts].events.head
+        a.wid shouldBe 8L
+        a.wna shouldBe Some("req-name")
+        a.wti shouldBe Some("cfg-title")
+        a.meta.get.fields("wid") shouldBe JsNumber(8)
+        a.meta.get.fields("wna") shouldBe JsString("req-name")
+        a.meta.get.fields("wti") shouldBe JsString("cfg-title")
+      }
+    }
+
+    "override WorkflowConfig.title with request wti and still resolve wna" in {
+      addWConf(9, "cfg-name", "cfg-title")
+      withAuth(adminJwtTok)(Post("/event", ev("e-wti", wid = 9L, wti = Some("req-title")))) ~> apiRoutes ~> check {
+        val a = responseAs[Alerts].events.head
+        a.wid shouldBe 9L
+        a.wna shouldBe Some("cfg-name")
+        a.wti shouldBe Some("req-title")
+        a.meta.get.fields("wid") shouldBe JsNumber(9)
+        a.meta.get.fields("wna") shouldBe JsString("cfg-name")
+        a.meta.get.fields("wti") shouldBe JsString("req-title")
+      }
+    }
+
+    "use request wna and wti without resolving when both are present and still store wid" in {
+      withAuth(adminJwtTok)(Post("/event", ev("e-both", wid = 99999L, wna = Some("req-name"), wti = Some("req-title")))) ~> apiRoutes ~> check {
+        val a = responseAs[Alerts].events.head
+        a.wid shouldBe 99999L
+        a.wna shouldBe Some("req-name")
+        a.wti shouldBe Some("req-title")
+        a.meta.get.fields("wid") shouldBe JsNumber(99999)
+        a.meta.get.fields("wna") shouldBe JsString("req-name")
+        a.meta.get.fields("wti") shouldBe JsString("req-title")
+      }
+    }
+
+    "still create Event when WorkflowConfig lookup by wid fails" in {
+      withAuth(adminJwtTok)(Post("/event", ev("e-miss", wid = 424242L))) ~> apiRoutes ~> check {
+        status shouldBe StatusCodes.OK
+        val a = responseAs[Alerts].events.head
+        a.eid shouldBe "e-miss"
+        a.wid shouldBe 424242L
+        a.wna shouldBe None
+        a.wti shouldBe None
+        a.meta.get.fields("wid") shouldBe JsNumber(424242)
+        a.meta.get.fields.get("wna") shouldBe None
+        a.meta.get.fields.get("wti") shouldBe None
       }
     }
 
     "reject non-numeric oid in JSON body" in {
-      val bad = """{"ts":1,"eid":"e-bad","oid":"abc","pid":1,"cid":1,"did":1,"nid":"N","sev":0.1}"""
+      val bad = """{"ts":1,"eid":"e-bad","oid":"abc","pid":1,"cid":1,"did":1,"nid":"N","wid":1,"sev":0.1}"""
       withAuth(adminJwtTok)(Post("/event").withEntity(akka.http.scaladsl.model.HttpEntity(akka.http.scaladsl.model.ContentTypes.`application/json`, bad))) ~> apiRoutes ~> check {
         status shouldBe StatusCodes.BadRequest
       }

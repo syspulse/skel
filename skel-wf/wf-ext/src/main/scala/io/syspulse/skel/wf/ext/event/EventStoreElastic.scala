@@ -208,7 +208,9 @@ class EventStoreElastic(val client: ElasticClient, index0: String)(implicit ec: 
         |      "ame":  { "type": "keyword", "index": false },
         |      "dt":   { "type": "keyword" },
         |      "meta": { "type": "object", "enabled": false },
-        |      "wid":  { "type": "keyword" }
+        |      "wid":  { "type": "long" },
+        |      "wna":  { "type": "keyword" },
+        |      "wti":  { "type": "keyword" }
         |    }
         |  }
         |}""".stripMargin

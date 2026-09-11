@@ -5,6 +5,7 @@ import scala.util.Try
 import java.time.Instant
 
 import spray.json._
+import io.hacken.ext.wf.WorkflowConfig
 
 /**
  * Alert document stored in OpenSearch (`detector-alert-search` by default).
@@ -12,7 +13,7 @@ import spray.json._
  * Elastic `_id` is `{deid}:{eid}` (same as the existing detector-alert-search indices).
  * Field names follow the Alert object mapping from Event API parameters:
  *   ts, eid, tx(rid), teid(oid), prid(pid), deid(did), sna(nid), ana(name),
- *   sid, nse(sev), se(from sev), ame(desc), meta, tags(dt), wid (new).
+ *   sid, nse(sev), se(from sev), ame(desc), meta, tags(dt), wid/wna/wti (workflow).
  */
 final case class Alert(
   id: String,
@@ -29,7 +30,9 @@ final case class Alert(
   nse: Double,
   ame: String,
   meta: Option[JsObject],
-  wid: Option[String],
+  wid: Long,
+  wna: Option[String] = None,
+  wti: Option[String] = None,
   dt: Seq[String] = Seq.empty,
   se: String = "",
 )
@@ -39,8 +42,22 @@ object Alert {
 
   def elasticId(deid: Long, eid: String): String = s"${deid}:${eid}"
 
-  def fromCreate(req: EventCreateReq): Alert = {
+  /** WorkflowConfig.id used for lookup (`getWConfOpt` is Int). */
+  def wconfId(wid: Long): Option[Int] =
+    if (wid >= Int.MinValue.toLong && wid <= Int.MaxValue.toLong) Some(wid.toInt) else None
+
+  /** Lookup WorkflowConfig when either wna or wti is missing from the request. */
+  def needsWConf(req: EventCreateReq): Boolean =
+    !(req.wna.isDefined && req.wti.isDefined)
+
+  def fromCreate(req: EventCreateReq, wconf: Option[WorkflowConfig] = None): Alert = {
     val sid = req.sid.map(_.trim).filter(_.nonEmpty).getOrElse(DEF_SID)
+    val wna = req.wna.orElse(wconf.map(_.name))
+    val wti = req.wti.orElse(wconf.map(_.title))
+    val extra = scala.collection.mutable.ListBuffer[(String, JsValue)]("wid" -> JsNumber(req.wid))
+    wna.foreach(v => extra += ("wna" -> JsString(v)))
+    wti.foreach(v => extra += ("wti" -> JsString(v)))
+    val meta = JsObject(req.meta.getOrElse(JsObject.empty).fields ++ extra.toMap)
     Alert(
       id = elasticId(req.did, req.eid),
       ts = req.ts,
@@ -55,8 +72,10 @@ object Alert {
       sid = sid,
       nse = req.sev,
       ame = req.desc.getOrElse(""),
-      meta = Some(req.meta.getOrElse(JsObject.empty)),
-      wid = req.wid.map(_.trim).filter(_.nonEmpty),
+      meta = Some(meta),
+      wid = req.wid,
+      wna = wna,
+      wti = wti,
       dt = req.tags.getOrElse(Seq.empty).map(_.trim).filter(_.nonEmpty),
       se = Severity.label(req.sev),
     )
@@ -79,9 +98,11 @@ object Alert {
       "ame" -> JsString(a.ame),
       "dt"  -> JsArray(a.dt.map(JsString(_)).toVector),
       "meta" -> a.meta.getOrElse(JsObject.empty),
+      "wid" -> JsNumber(a.wid),
     )
     a.tx.foreach(v => fields += ("tx" -> JsString(v)))
-    a.wid.foreach(v => fields += ("wid" -> JsString(v)))
+    a.wna.foreach(v => fields += ("wna" -> JsString(v)))
+    a.wti.foreach(v => fields += ("wti" -> JsString(v)))
     JsObject(fields.toMap)
   }
 
@@ -100,7 +121,9 @@ object Alert {
     nse = doubleOf(source.get("nse")),
     ame = strOf(source.get("ame")),
     meta = jsObjectOf(source.get("meta")),
-    wid = optStr(source.get("wid")),
+    wid = longOf(source.get("wid")),
+    wna = optStr(source.get("wna")),
+    wti = optStr(source.get("wti")),
     dt = strsOf(source.get("dt")),
     se = source.get("se") match {
       case None | Some(null) => Severity.label(doubleOf(source.get("nse")))
@@ -127,7 +150,9 @@ object Alert {
       nse = doubleOf(jsVal(m.get("nse"))),
       ame = strOf(jsVal(m.get("ame"))),
       meta = m.get("meta").collect { case o: JsObject => o },
-      wid = optStr(jsVal(m.get("wid"))),
+      wid = longOf(jsVal(m.get("wid"))),
+      wna = optStr(jsVal(m.get("wna"))),
+      wti = optStr(jsVal(m.get("wti"))),
       dt = strsOf(jsVal(m.get("dt")).orElse(m.get("dt"))),
       se = m.get("se") match {
         case None | Some(JsNull) => Severity.label(doubleOf(jsVal(m.get("nse"))))

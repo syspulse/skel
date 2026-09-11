@@ -45,7 +45,8 @@ class EventStoreElasticSpec extends AnyWordSpec with Matchers with BeforeAndAfte
     Alert.fromCreate(EventCreateReq(
       ts = ts, eid = eid, rid = Some("tx-1"), oid = oid, pid = 1789L, cid = cid, did = did,
       nid = "SafeMultisigMonitor", name = Some("Safe Multisig Monitor"),
-      wid = Some("wid-1"), sid = Some("WORKFLOW"), sev = 0.25, desc = Some(desc),
+      wid = 7L, wna = Some("cfg-name"), wti = Some("cfg-title"),
+      sid = Some("WORKFLOW"), sev = 0.25, desc = Some(desc),
       meta = Some(JsObject("k" -> JsString("v")))
     ))
 
@@ -70,8 +71,13 @@ class EventStoreElasticSpec extends AnyWordSpec with Matchers with BeforeAndAfte
       got.deid shouldBe 12913L
       got.nse shouldBe 0.25
       got.se shouldBe "MEDIUM"
-      got.wid shouldBe Some("wid-1")
+      got.wid shouldBe 7L
+      got.wna shouldBe Some("cfg-name")
+      got.wti shouldBe Some("cfg-title")
       got.meta.get.fields("k") shouldBe JsString("v")
+      got.meta.get.fields("wid") shouldBe JsNumber(7)
+      got.meta.get.fields("wna") shouldBe JsString("cfg-name")
+      got.meta.get.fields("wti") shouldBe JsString("cfg-title")
 
       Await.result(store.getByEid("loc-1"), timeout).map(_.id) shouldBe Seq(a.id)
     }
@@ -156,7 +162,7 @@ class EventStoreElasticFailSpec extends AnyWordSpec with Matchers {
       val store = EventStoreElastic("http://127.0.0.1:1/detector-alert-search")
       try {
         val alert = Alert.fromCreate(EventCreateReq(
-          ts = 1L, eid = "e", oid = 1L, pid = 1L, cid = 1L, did = 1L, nid = "N", sev = 0.1
+          ts = 1L, eid = "e", oid = 1L, pid = 1L, cid = 1L, did = 1L, nid = "N", wid = 1L, sev = 0.1
         ))
         intercept[Exception] {
           Await.result(store.upsert(Seq(alert)), 5.seconds)
