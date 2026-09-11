@@ -7,6 +7,7 @@
       "teid": { "type": "long" },
       "prid": { "type": "long" },
       "deid": { "type": "long" },
+      "coid": { "type": "long" },
       "sna":  { "type": "keyword" },
       "ana":  { "type": "keyword" },
       "sid":  { "type": "keyword" },

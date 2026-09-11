@@ -25,6 +25,7 @@ class EventStoreMem extends EventStore {
       .filter(a => q.oid.forall(_ == a.teid))
       .filter(a => q.pid.forall(_ == a.prid))
       .filter(a => q.did.forall(_ == a.deid))
+      .filter(a => q.cid.forall(_ == a.coid))
       .filter(a => q.sid.forall(_ == a.sid))
       .sortBy(a => -a.ts)
     val total = matched.size.toLong

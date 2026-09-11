@@ -773,6 +773,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
       new Parameter(name = "oid", in = ParameterIn.QUERY, description = "tenant id (required for users)"),
       new Parameter(name = "pid", in = ParameterIn.QUERY, description = "project id"),
       new Parameter(name = "did", in = ParameterIn.QUERY, description = "detector id"),
+      new Parameter(name = "cid", in = ParameterIn.QUERY, description = "contract id"),
       new Parameter(name = "sid", in = ParameterIn.QUERY, description = "source id"),
       new Parameter(name = "from", in = ParameterIn.QUERY, description = "page offset"),
       new Parameter(name = "size", in = ParameterIn.QUERY, description = "page size")),
@@ -780,10 +781,11 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Engine)(implicit conte
       content = Array(new Content(schema = new Schema(implementation = classOf[Alerts]))))))
   def queryEventsRoute() = get {
     parameters("from".as[Long].?, "size".as[Long].?, "oid".?, "pid".as[Long].?, "did".as[Long].?,
+               "cid".as[Long].?,
                "sid".?, "ts0".as[Long].?, "ts1".as[Long].?) {
-      (from, size, oidQ, pid, did, sid, ts0, ts1) =>
+      (from, size, oidQ, pid, did, cid, sid, ts0, ts1) =>
         withEventOid(oidQ) { oid =>
-          complete(queryEvents(EventQuery(ts0, ts1, oid, pid, did, sid.map(_.trim).filter(_.nonEmpty), from, size)))
+          complete(queryEvents(EventQuery(ts0, ts1, oid, pid, did, cid, sid.map(_.trim).filter(_.nonEmpty), from, size)))
         }
     }
   }

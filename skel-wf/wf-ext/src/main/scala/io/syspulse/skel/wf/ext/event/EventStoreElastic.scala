@@ -1,5 +1,7 @@
 package io.syspulse.skel.wf.ext.event
 
+import java.time.{Instant, ZoneOffset}
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
@@ -14,11 +16,14 @@ import io.syspulse.skel.uri.ElasticURI
 /**
  * Async OpenSearch store (elastic4s). All operations return `Future` and never block on `.await`.
  *
- * Writes use `_id = {deid}:{eid}` so a second create with the same pair overwrites (including `ts`).
+ * Reads use `index` (Dev: search alias `detector-alert-search` over yearly `detector-alert-YYYY`).
+ * Writes use `_id = {deid}:{eid}`. A search alias with no write index is not writable; those
+ * upserts go to `{prefix}-{year}` from `ts` (UTC), matching existing detector-alert documents.
  */
 class EventStoreElastic(val client: ElasticClient, index0: String)(implicit ec: ExecutionContext) extends EventStore {
   private val log = Logger(this.getClass)
   val index: String = Option(index0).map(_.trim).filter(_.nonEmpty).getOrElse(EventStore.DEF_INDEX)
+  @volatile private var writeYearly: Boolean = false
 
   import ElasticDsl._
 
@@ -47,15 +52,44 @@ class EventStoreElastic(val client: ElasticClient, index0: String)(implicit ec: 
   private def missingIndex(reason: String): Boolean =
     reason.contains("index_not_found") || reason.contains("no such index")
 
-  def upsert(alerts: Seq[Alert]): Future[Seq[Alert]] = {
-    if (alerts.isEmpty) return Future.successful(Seq.empty)
-    val reqs = alerts.map { a =>
-      indexInto(index)
+  private def aliasBlocksSingleIndexOp(reason: String): Boolean = {
+    val r = reason.toLowerCase
+    r.contains("no write index") || r.contains("more than one index") || r.contains("alias")
+  }
+
+  private def bulkUpsert(indexName: String, batch: Seq[Alert]): Future[Seq[Alert]] = {
+    val reqs = batch.map { a =>
+      indexInto(indexName)
         .id(a.id)
         .source(Alert.sourceJson(a).compactPrint)
         .refresh(RefreshPolicy.WaitFor)
     }
-    run("bulk upsert")(client.execute(bulk(reqs).refresh(RefreshPolicy.WaitFor))).map(_ => alerts)
+    run("bulk upsert")(client.execute(bulk(reqs).refresh(RefreshPolicy.WaitFor))).flatMap { br =>
+      if (!br.hasFailures) Future.successful(batch)
+      else {
+        val reasons = br.failures.map(i => i.error.map(_.reason).getOrElse(s"id=${i.id} status=${i.status}"))
+        Future.failed(new RuntimeException(s"OpenSearch bulk upsert failed index=${indexName}: ${reasons.mkString("; ")}"))
+      }
+    }
+  }
+
+  def upsert(alerts: Seq[Alert]): Future[Seq[Alert]] = {
+    if (alerts.isEmpty) return Future.successful(Seq.empty)
+
+    def writeAll(yearly: Boolean): Future[Seq[Alert]] = {
+      val groups =
+        if (!yearly) Seq(index -> alerts)
+        else alerts.groupBy(a => EventStoreElastic.yearlyIndex(index, a.ts)).toSeq
+      Future.sequence(groups.map { case (idx, batch) => bulkUpsert(idx, batch) }).map(_ => alerts)
+    }
+
+    writeAll(writeYearly).recoverWith {
+      case e if !writeYearly && aliasBlocksSingleIndexOp(Option(e.getMessage).getOrElse("")) =>
+        writeYearly = true
+        val sample = EventStoreElastic.yearlyIndex(index, alerts.head.ts)
+        log.warn(s"OpenSearch ${index} is not writable; writing to yearly indices (e.g. ${sample})")
+        writeAll(true)
+    }
   }
 
   def getById(id: String): Future[Option[Alert]] = {
@@ -63,7 +97,7 @@ class EventStoreElastic(val client: ElasticClient, index0: String)(implicit ec: 
       if (resp.isError) {
         val reason = Try(resp.error.reason).getOrElse("")
         if (missingIndex(reason)) Future.successful(None)
-        else if (reason.contains("more than one index") || reason.toLowerCase.contains("alias")) getByIdSearch(id)
+        else if (aliasBlocksSingleIndexOp(reason)) getByIdSearch(id)
         else {
           val e = resp.error.asException
           //log.error(s"OpenSearch get failed: ${e.getMessage}", e)
@@ -99,6 +133,7 @@ class EventStoreElastic(val client: ElasticClient, index0: String)(implicit ec: 
     q.oid.foreach(v => filters += termQuery("teid", v))
     q.pid.foreach(v => filters += termQuery("prid", v))
     q.did.foreach(v => filters += termQuery("deid", v))
+    q.cid.foreach(v => filters += termQuery("coid", v))
     q.sid.foreach(v => filters += termQuery("sid", v))
     search(filters.toList, q.from.getOrElse(0L).toInt.max(0), q.size.getOrElse(10L).toInt.max(0))
   }
@@ -124,14 +159,22 @@ class EventStoreElastic(val client: ElasticClient, index0: String)(implicit ec: 
       if (resp.isError) {
         val reason = Try(resp.error.reason).getOrElse("")
         if (missingIndex(reason) || reason.contains("404")) Future.successful(false)
+        else if (aliasBlocksSingleIndexOp(reason)) delByIdSearch(id)
         else {
           val e = resp.error.asException
-          //log.error(s"OpenSearch delete failed: ${e.getMessage}", e)
           Future.failed(e)
         }
       } else Future.successful(resp.result.result == "deleted")
     }
   }
+
+  private def delByIdSearch(id: String): Future[Boolean] =
+    run("deleteById")(
+      client.execute(deleteByQuery(index, idsQuery(id)).refreshImmediately.waitForCompletion(true))
+    ).map {
+      case Left(r)  => r.deleted > 0
+      case Right(_) => false
+    }
 
   def delByEid(eid: String, oid: Option[Long] = None): Future[Int] = {
     val filters = scala.collection.mutable.ListBuffer[Query](termQuery("eid", eid))
@@ -156,6 +199,7 @@ class EventStoreElastic(val client: ElasticClient, index0: String)(implicit ec: 
         |      "teid": { "type": "long" },
         |      "prid": { "type": "long" },
         |      "deid": { "type": "long" },
+        |      "coid": { "type": "long" },
         |      "sna":  { "type": "keyword" },
         |      "ana":  { "type": "keyword" },
         |      "sid":  { "type": "keyword" },
@@ -194,5 +238,14 @@ object EventStoreElastic {
   def apply(elasticUri: String)(implicit ec: ExecutionContext): EventStoreElastic = {
     val uri = ElasticURI(elasticUri)
     new EventStoreElastic(ElasticClients.connect(uri), ElasticClients.resolveIndex(uri))
+  }
+
+  /** `detector-alert-search` + ts in 2026 UTC -> `detector-alert-2026`. */
+  def yearlyIndex(searchIndex: String, ts: Long): String = {
+    val prefix =
+      if (searchIndex.endsWith("-search")) searchIndex.substring(0, searchIndex.length - "-search".length)
+      else searchIndex
+    val year = Instant.ofEpochMilli(ts).atZone(ZoneOffset.UTC).getYear
+    s"${prefix}-${year}"
   }
 }

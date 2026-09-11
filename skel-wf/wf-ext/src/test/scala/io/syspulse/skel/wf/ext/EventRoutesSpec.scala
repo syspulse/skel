@@ -76,6 +76,7 @@ class EventRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest 
     eid: String,
     oid: Long = 490L,
     pid: Long = 2141L,
+    cid: Long = 5818L,
     did: Long = 22587L,
     ts: Long = 1606311430006L,
     sev: Double = 0.25,
@@ -87,7 +88,7 @@ class EventRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest 
     wid: Option[String] = Some("wf-1"),
     tags: Option[Seq[String]] = None,
   ): EventCreateReq = EventCreateReq(
-    ts = ts, eid = eid, rid = Some(rid), oid = oid, pid = pid, did = did,
+    ts = ts, eid = eid, rid = Some(rid), oid = oid, pid = pid, cid = cid, did = did,
     nid = nid, name = Some(name), wid = wid, sid = Some(sid), sev = sev, desc = Some(desc),
     meta = Some(JsObject("method" -> JsString("withdraw"))),
     tags = tags,
@@ -105,6 +106,7 @@ class EventRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest 
         a.tx shouldBe Some("safe:0xabc")
         a.teid shouldBe 490L
         a.prid shouldBe 2141L
+        a.coid shouldBe 5818L
         a.deid shouldBe 22587L
         a.sna shouldBe "SafeMultisigMonitor"
         a.ana shouldBe "Safe Multisig Monitor"
@@ -179,7 +181,7 @@ class EventRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest 
     }
 
     "reject non-numeric oid in JSON body" in {
-      val bad = """{"ts":1,"eid":"e-bad","oid":"abc","pid":1,"did":1,"nid":"N","sev":0.1}"""
+      val bad = """{"ts":1,"eid":"e-bad","oid":"abc","pid":1,"cid":1,"did":1,"nid":"N","sev":0.1}"""
       withAuth(adminJwtTok)(Post("/event").withEntity(akka.http.scaladsl.model.HttpEntity(akka.http.scaladsl.model.ContentTypes.`application/json`, bad))) ~> apiRoutes ~> check {
         status shouldBe StatusCodes.BadRequest
       }
@@ -224,6 +226,32 @@ class EventRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest 
         val r = responseAs[Alerts]
         r.total shouldBe 3L // q1,q2,q3
         r.events should have size 1
+      }
+    }
+
+    "create with cid stored as coid and filter by cid" in {
+      withAuth(adminJwtTok)(Post("/event", Seq(
+        ev("c1", oid = 20, cid = 5818L),
+        ev("c2", oid = 20, cid = 5818L),
+        ev("c3", oid = 20, cid = 99L),
+      ).toJson)) ~> apiRoutes ~> check {
+        status shouldBe StatusCodes.OK
+        val r = responseAs[Alerts]
+        r.total shouldBe 3L
+        r.events.find(_.eid == "c1").get.coid shouldBe 5818L
+        r.events.find(_.eid == "c3").get.coid shouldBe 99L
+      }
+
+      withAuth(adminJwtTok)(Get("/event?oid=20&cid=5818")) ~> apiRoutes ~> check {
+        val r = responseAs[Alerts]
+        r.events.map(_.eid).toSet shouldBe Set("c1", "c2")
+        all(r.events.map(_.coid)) shouldBe 5818L
+      }
+
+      withAuth(adminJwtTok)(Get("/event?oid=20&cid=99")) ~> apiRoutes ~> check {
+        val r = responseAs[Alerts]
+        r.events.map(_.eid) shouldBe Seq("c3")
+        r.events.head.coid shouldBe 99L
       }
     }
   }

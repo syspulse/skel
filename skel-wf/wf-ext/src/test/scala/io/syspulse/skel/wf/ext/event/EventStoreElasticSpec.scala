@@ -41,13 +41,20 @@ class EventStoreElasticSpec extends AnyWordSpec with Matchers with BeforeAndAfte
     super.afterAll()
   }
 
-  def ev(eid: String, oid: Long = 560L, did: Long = 12913L, ts: Long = 1606311430006L, desc: String = "d"): Alert =
+  def ev(eid: String, oid: Long = 560L, cid: Long = 5818L, did: Long = 12913L, ts: Long = 1606311430006L, desc: String = "d"): Alert =
     Alert.fromCreate(EventCreateReq(
-      ts = ts, eid = eid, rid = Some("tx-1"), oid = oid, pid = 1789L, did = did,
+      ts = ts, eid = eid, rid = Some("tx-1"), oid = oid, pid = 1789L, cid = cid, did = did,
       nid = "SafeMultisigMonitor", name = Some("Safe Multisig Monitor"),
       wid = Some("wid-1"), sid = Some("WORKFLOW"), sev = 0.25, desc = Some(desc),
       meta = Some(JsObject("k" -> JsString("v")))
     ))
+
+  "yearlyIndex" should {
+    "map a *-search alias and event ts to detector-alert-YYYY (UTC)" in {
+      EventStoreElastic.yearlyIndex("detector-alert-search", 1606311430006L) shouldBe "detector-alert-2020"
+      EventStoreElastic.yearlyIndex("detector-alert-search", 1789120771484L) shouldBe "detector-alert-2026"
+    }
+  }
 
   "EventStoreElastic (local)" should {
 
@@ -59,6 +66,7 @@ class EventStoreElasticSpec extends AnyWordSpec with Matchers with BeforeAndAfte
       val got = Await.result(store.getById(a.id), timeout).get
       got.eid shouldBe "loc-1"
       got.teid shouldBe 560L
+      got.coid shouldBe 5818L
       got.deid shouldBe 12913L
       got.nse shouldBe 0.25
       got.se shouldBe "MEDIUM"
@@ -92,6 +100,18 @@ class EventStoreElasticSpec extends AnyWordSpec with Matchers with BeforeAndAfte
       val paged = Await.result(store.query(EventQuery(oid = Some(1), from = Some(0), size = Some(1))), timeout)
       paged.alerts should have size 1
       paged.total shouldBe 2L
+    }
+
+    "query by cid (coid)" in {
+      assume(available)
+      Await.result(store.upsert(Seq(
+        ev("cq1", oid = 3, cid = 5818L),
+        ev("cq2", oid = 3, cid = 99L),
+      )), timeout)
+
+      val page = Await.result(store.query(EventQuery(oid = Some(3), cid = Some(5818L), from = Some(0), size = Some(10))), timeout)
+      page.alerts.map(_.eid).toSet shouldBe Set("cq1")
+      all(page.alerts.map(_.coid)) shouldBe 5818L
     }
 
     "delete by Elastic key and by eid" in {
@@ -136,7 +156,7 @@ class EventStoreElasticFailSpec extends AnyWordSpec with Matchers {
       val store = EventStoreElastic("http://127.0.0.1:1/detector-alert-search")
       try {
         val alert = Alert.fromCreate(EventCreateReq(
-          ts = 1L, eid = "e", oid = 1L, pid = 1L, did = 1L, nid = "N", sev = 0.1
+          ts = 1L, eid = "e", oid = 1L, pid = 1L, cid = 1L, did = 1L, nid = "N", sev = 0.1
         ))
         intercept[Exception] {
           Await.result(store.upsert(Seq(alert)), 5.seconds)

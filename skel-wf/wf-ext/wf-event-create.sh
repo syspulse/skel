@@ -8,13 +8,14 @@
 ARG=${1:-}
 OID=${OID:-490}
 PID=${PID:-474}
-DID=${DID:-22587}
+DID=${DID:-}
+CID=${CID:-0}
 EID=${EID:-}
 RID=${RID:-}
-NID=${NID:-SafeMultisigMonitor}
+NID=${NID:-UnknownDetector}
 NAME=${NAME:-}
 WID=${WID:-}
-SID=${SID:-WORKFLOW}
+SID=${SID:-ext:worklfow}
 SEV=${SEV:-0.25}
 DESC=${DESC:-}
 TS=${TS:-}
@@ -42,7 +43,7 @@ elif [[ "$ARG" == \{* || "$ARG" == \[* ]]; then
 else
   [[ -z "$TS" ]] && TS=$(date +%s%3N 2>/dev/null || echo $(( $(date +%s) * 1000 )))
   [[ -z "$EID" ]] && EID="e-${TS}"
-  BODY="{\"ts\":${TS},\"eid\":\"${EID}\",\"did\":${DID},\"pid\":${PID},\"nid\":\"${NID}\",\"sev\":${SEV}"
+  BODY="{\"ts\":${TS},\"eid\":\"${EID}\",\"did\":${DID},\"pid\":${PID},\"cid\":${CID},\"nid\":\"${NID}\",\"sev\":${SEV}"
   [[ -n "$OID" ]]  && BODY="${BODY},\"oid\":${OID}"
   [[ -z "$OID" ]]  && BODY="${BODY},\"oid\":0"
   [[ -n "$RID" ]]  && BODY="${BODY},\"rid\":\"${RID}\""
@@ -69,4 +70,6 @@ URL=$(append_qp "$SERVICE_URI/event")
 
 >&2 echo "$BODY"
 >&2 echo "URL: $URL"
+[[ -n "$TS" ]] && >&2 echo "TS: $TS ($(date -d "@$((TS / 1000))" '+%Y-%m-%d %H:%M:%S %Z'))"
+
 curl -S -s -D /dev/stderr -X POST --data "$BODY" -H 'Content-Type: application/json' -H "Authorization: Bearer $ACCESS_TOKEN" "$URL"

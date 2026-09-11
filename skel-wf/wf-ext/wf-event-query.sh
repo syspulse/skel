@@ -7,7 +7,9 @@
 OID=${OID:-490}
 PID=${PID:-474}
 DID=${DID:-}
+CID=${CID:-}
 SID=${SID:-}
+
 NOW_MS=$(date +%s%3N 2>/dev/null || echo $(( $(date +%s) * 1000 )))
 TS0=${TS0:-$(( NOW_MS - 86400000 ))}
 TS1=${TS1:-$NOW_MS}
@@ -23,6 +25,7 @@ Q=""
 [[ -n "$OID" ]]  && Q="${Q:+$Q&}oid=${OID}"
 [[ -n "$PID" ]]  && Q="${Q:+$Q&}pid=${PID}"
 [[ -n "$DID" ]]  && Q="${Q:+$Q&}did=${DID}"
+[[ -n "$CID" ]]  && Q="${Q:+$Q&}cid=${CID}"
 [[ -n "$SID" ]]  && Q="${Q:+$Q&}sid=${SID}"
 [[ -n "$TS0" ]]  && Q="${Q:+$Q&}ts0=${TS0}"
 [[ -n "$TS1" ]]  && Q="${Q:+$Q&}ts1=${TS1}"
